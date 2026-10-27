@@ -14,6 +14,7 @@ SashaBridge conecta un teléfono Android con una PC Windows por USB. Hace tres c
 |---|---|
 | `sashabridge-android/` | App Android (Kotlin): servicio de escucha de notificaciones y servidor WebSocket |
 | `sashabridge-pc/` | Cliente Windows (Rust): túnel adb, scrcpy e integración con SMTC |
+| `protocol/fixtures/` | Mensajes de ejemplo del protocolo v2, compartidos por los tests de Kotlin y de Rust (ver `docs/protocolo-v2.md`) |
 | `tools/` | Scripts de entorno |
 | `docs/` | Documentación técnica, diagnósticos y material antiguo (`docs/legacy/`) |
 

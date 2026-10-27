@@ -1,7 +1,8 @@
-//! Wire format between the phone and the PC (protocol v1).
+//! Protocol v1, the format of the phone app before protocol v2.
 //!
 //! v1 has no message type: every phone message is a JSON object with the current media
 //! state, and every PC command is a plain text frame such as `NEXT` or `SEEK:60000`.
+//! It is removed in phase 7.
 
 use std::time::Duration;
 
@@ -55,7 +56,24 @@ struct WireMediaUpdate {
 /// Fails when the frame is not a JSON object with the v1 fields or when `albumArt`
 /// is not valid base64.
 pub fn parse_phone_message(text: &str) -> anyhow::Result<MediaUpdate> {
-    let wire: WireMediaUpdate = serde_json::from_str(text).context("invalid v1 media message")?;
+    serde_json::from_str(text).context("invalid v1 media message").and_then(decode)
+}
+
+/// Decodes a v1 message that was already parsed as JSON.
+///
+/// # Errors
+///
+/// Same conditions as [`parse_phone_message`].
+pub fn from_value(value: serde_json::Value) -> anyhow::Result<MediaUpdate> {
+    serde_json::from_value(value).context("invalid v1 media message").and_then(decode)
+}
+
+/// Validates the raw fields and converts them to a [`MediaUpdate`].
+///
+/// # Errors
+///
+/// Fails when `albumArt` is not valid base64.
+fn decode(wire: WireMediaUpdate) -> anyhow::Result<MediaUpdate> {
     let album_art = wire
         .album_art
         .map(|encoded| STANDARD.decode(encoded))
