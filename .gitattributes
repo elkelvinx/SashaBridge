@@ -1,0 +1,6 @@
+# Text files are stored with LF line endings and checked out with the platform's own.
+* text=auto
+
+# Windows batch files need CRLF; the Gradle wrapper script runs on Unix shells and needs LF.
+*.bat text eol=crlf
+gradlew text eol=lf

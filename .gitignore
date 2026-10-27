@@ -20,6 +20,9 @@ local.properties
 /sashabridge-pc/vendor/
 scrcpy-win64-*/
 
+# Local backup archives; too large for the remote repository
+*.rar
+
 # Operating system files
 Thumbs.db
 desktop.ini
