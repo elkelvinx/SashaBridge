@@ -6,7 +6,7 @@ SashaBridge conecta un teléfono Android con una PC Windows por USB. Hace tres c
 - Publica la canción que suena en el teléfono en el panel multimedia de Windows (SMTC): título, artista, carátula y estado de reproducción.
 - Permite controlar el reproductor del teléfono con las teclas multimedia y el panel de Windows.
 
-> Este documento cubre la preparación del entorno. La documentación de arquitectura y del protocolo se completa en la Fase 7 del plan de refactorización (`docs/`).
+> El protocolo entre el teléfono y la PC está especificado en `docs/protocolo-v2.md`. La documentación de arquitectura se completa en la Fase 7 del plan de refactorización.
 
 ## Estructura
 
@@ -15,7 +15,8 @@ SashaBridge conecta un teléfono Android con una PC Windows por USB. Hace tres c
 | `sashabridge-android/` | App Android (Kotlin): servicio de escucha de notificaciones y servidor WebSocket |
 | `sashabridge-pc/` | Cliente Windows (Rust): túnel adb, scrcpy e integración con SMTC |
 | `protocol/fixtures/` | Mensajes de ejemplo del protocolo v2, compartidos por los tests de Kotlin y de Rust (ver `docs/protocolo-v2.md`) |
-| `tools/` | Scripts de entorno |
+| `tools/` | Scripts de entorno: `setup.ps1` (preparación completa) y `fetch-scrcpy.ps1` |
+| `INSTALACION.md` | Requisitos, preparación y traslado del proyecto a otra PC |
 | `docs/` | Documentación técnica, diagnósticos y material antiguo (`docs/legacy/`) |
 
 ## Requisitos
@@ -27,35 +28,13 @@ SashaBridge conecta un teléfono Android con una PC Windows por USB. Hace tres c
 
 ## Preparación
 
-1. **Descargar scrcpy.** No se incluye en el control de versiones:
+Un solo comando descarga todas las dependencias (scrcpy, crates de Rust y librerías de Android), compila los dos proyectos e instala la app en el teléfono conectado:
 
-   ```powershell
-   .\tools\fetch-scrcpy.ps1
-   ```
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\setup.ps1 -InstallApp
+```
 
-   El script descarga la versión fijada desde las releases oficiales de `Genymobile/scrcpy`, comprueba su SHA-256 y la deja en `sashabridge-pc\vendor\scrcpy\`. Si los binarios ya están presentes, no hace nada; con `-Force` los reemplaza.
-
-2. **Compilar el cliente de la PC:**
-
-   ```powershell
-   cd sashabridge-pc
-   cargo build
-   ```
-
-3. **Compilar e instalar la app Android:**
-
-   ```powershell
-   cd sashabridge-android
-   .\gradlew :app:installDebug
-   ```
-
-4. **Conceder el acceso a notificaciones** a SashaBridge, en *Ajustes > Notificaciones > Acceso a notificaciones*, o por adb:
-
-   ```powershell
-   adb shell cmd notification allow_listener io.github.elkelvinx.sashabridge/io.github.elkelvinx.sashabridge.MusicListenerService
-   ```
-
-5. **Excluir la app de la optimización de batería.** En Samsung: *Ajustes > Batería > Límites de uso en segundo plano*.
+Sin `-InstallApp` no hace falta el teléfono. El proceso completo, incluidos los requisitos, los ajustes de batería del teléfono y cómo llevar el proyecto a otra PC y subirlo a GitHub, está en `INSTALACION.md`.
 
 ## Ejecución
 
