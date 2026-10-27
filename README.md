@@ -58,9 +58,19 @@ SashaBridge conecta un teléfono Android con una PC Windows por USB. Hace tres c
 
 ## Ejecución
 
-El cliente se ejecuta desde la carpeta del crate, porque hasta la Fase 1 las rutas de scrcpy son relativas al directorio de trabajo:
-
 ```powershell
 cd sashabridge-pc
 cargo run
 ```
+
+- **Reconexión:** el cliente se conecta solo cuando el teléfono está disponible. Si se desconecta el USB o se reinicia la app, reintenta cada 1, 2, 4 y después 5 segundos, y vuelve a lanzar scrcpy cuando hace falta.
+- **Cierre:** con `Ctrl+C`, o cerrando la ventana. En cualquier caso Windows termina scrcpy junto con el cliente.
+- **Una sola instancia:** si ya hay un cliente abierto, el segundo termina con un aviso.
+- **scrcpy:** el cliente lo busca, en este orden, en la carpeta de la variable de entorno `SASHABRIDGE_SCRCPY_DIR`, en una carpeta `scrcpy\` junto al ejecutable y, en compilaciones de desarrollo, en `sashabridge-pc\vendor\scrcpy\`. No depende del directorio desde el que se ejecute.
+- **Registro:** cada línea indica el tiempo transcurrido desde el arranque. Para ver el detalle de cada paso:
+
+  ```powershell
+  $env:RUST_LOG = "debug"; cargo run
+  ```
+
+- **Carátulas:** se guardan en `%TEMP%\sashabridge\covers\`. Solo se conserva la actual y la carpeta se vacía en cada arranque.

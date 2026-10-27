@@ -1,0 +1,187 @@
+//! WebSocket session with the phone and the reconnection loop.
+//!
+//! Every way a session can end (a close frame, a read error, or the stream ending)
+//! returns to the loop, which waits with exponential backoff and connects again. A
+//! failed handshake, which is what `adb forward` produces when the phone server is down,
+//! is just another retry.
+
+use std::convert::Infallible;
+use std::time::Duration;
+
+use anyhow::{Context, bail};
+use futures_util::{SinkExt, StreamExt};
+use tokio::net::TcpStream;
+use tokio::sync::mpsc;
+use tokio::time::{MissedTickBehavior, interval, sleep, timeout};
+use tokio_tungstenite::tungstenite::error::ProtocolError;
+use tokio_tungstenite::tungstenite::{Error, Message};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
+use tracing::{debug, info, warn};
+
+use crate::config::{AUDIO_WATCHDOG_PERIOD, BACKOFF_INITIAL, BACKOFF_MAX, CONNECT_TIMEOUT, bridge_url};
+use crate::media_controls::MediaControlsAdapter;
+use crate::process::DeviceLink;
+use crate::protocol::{PcCommand, parse_phone_message};
+
+/// WebSocket connection to the phone.
+type PhoneSocket = WebSocketStream<MaybeTlsStream<TcpStream>>;
+
+/// Keeps the client connected to the phone for as long as the future is polled.
+///
+/// Never returns; the caller stops it by dropping the future.
+pub async fn run(
+    link: &mut DeviceLink,
+    media: &mut MediaControlsAdapter,
+    commands: &mut mpsc::Receiver<PcCommand>,
+) -> Infallible {
+    let url = bridge_url();
+    let mut backoff = Backoff::new(BACKOFF_INITIAL, BACKOFF_MAX);
+    loop {
+        match connect(link, &url).await {
+            Ok(socket) => {
+                info!("connected to the phone");
+                backoff.reset();
+                run_session(socket, link, media, commands).await;
+                media.mark_disconnected();
+            }
+            Err(error) => {
+                let delay = backoff.peek();
+                warn!("phone not ready, retrying in {}s: {error:#}", delay.as_secs());
+            }
+        }
+        sleep(backoff.next_delay()).await;
+    }
+}
+
+/// Prepares the tunnel and opens the WebSocket.
+///
+/// # Errors
+///
+/// Fails when the tunnel cannot be created, the connection is refused or the handshake
+/// fails or exceeds [`CONNECT_TIMEOUT`].
+async fn connect(link: &mut DeviceLink, url: &str) -> anyhow::Result<PhoneSocket> {
+    link.prepare().await?;
+    debug!(url, "connecting");
+    let result = timeout(CONNECT_TIMEOUT, connect_async(url))
+        .await
+        .with_context(|| format!("no answer from {url} in {CONNECT_TIMEOUT:?}"))?;
+    match result {
+        Ok((socket, _response)) => Ok(socket),
+        // adb accepts the connection on the PC side and closes it when nothing listens
+        // on the phone, so the handshake ends before the server's reply.
+        Err(Error::Protocol(ProtocolError::HandshakeIncomplete)) => bail!(
+            "the USB tunnel works but the SashaBridge app is not listening on the phone \
+             (check that the bridge is on and that notification access is granted)"
+        ),
+        Err(error) => Err(error).with_context(|| format!("cannot open {url}")),
+    }
+}
+
+/// Relays phone updates to SMTC and SMTC commands to the phone until the session ends.
+async fn run_session(
+    socket: PhoneSocket,
+    link: &mut DeviceLink,
+    media: &mut MediaControlsAdapter,
+    commands: &mut mpsc::Receiver<PcCommand>,
+) {
+    // Buttons pressed while disconnected must not reach the phone later.
+    while let Ok(command) = commands.try_recv() {
+        debug!(?command, "discarding a command queued while disconnected");
+    }
+
+    let (mut sink, mut stream) = socket.split();
+    let mut watchdog = interval(AUDIO_WATCHDOG_PERIOD);
+    watchdog.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    watchdog.reset();
+
+    loop {
+        tokio::select! {
+            frame = stream.next() => match frame {
+                Some(Ok(Message::Text(text))) => match parse_phone_message(&text) {
+                    Ok(update) => {
+                        if let Err(error) = media.apply(update) {
+                            warn!("cannot show the update: {error:#}");
+                        }
+                    }
+                    Err(error) => warn!("ignoring a message from the phone: {error:#}"),
+                },
+                Some(Ok(Message::Close(frame))) => {
+                    info!(?frame, "the phone closed the connection");
+                    return;
+                }
+                // Pings are answered by tungstenite; v1 sends no binary frames.
+                Some(Ok(_)) => {}
+                Some(Err(error)) => {
+                    warn!(%error, "connection lost");
+                    return;
+                }
+                None => {
+                    info!("connection closed");
+                    return;
+                }
+            },
+            Some(command) = commands.recv() => {
+                debug!(?command, "sending command");
+                if let Err(error) = sink.send(Message::text(command.to_v1_text())).await {
+                    warn!(%error, "cannot send the command, connection lost");
+                    return;
+                }
+            }
+            _ = watchdog.tick() => link.ensure_audio(),
+        }
+    }
+}
+
+/// Exponential backoff with an upper bound.
+#[derive(Debug)]
+struct Backoff {
+    /// First delay, used again after [`Backoff::reset`].
+    initial: Duration,
+    /// Maximum delay.
+    max: Duration,
+    /// Delay returned by the next call to [`Backoff::next_delay`].
+    next: Duration,
+}
+
+impl Backoff {
+    /// Creates a backoff that starts at `initial` and never exceeds `max`.
+    fn new(initial: Duration, max: Duration) -> Self {
+        Self { initial, max, next: initial }
+    }
+
+    /// Returns the delay that [`Backoff::next_delay`] will return, without advancing.
+    fn peek(&self) -> Duration {
+        self.next
+    }
+
+    /// Returns the current delay and doubles it for the next call, up to the maximum.
+    fn next_delay(&mut self) -> Duration {
+        let delay = self.next;
+        self.next = (self.next * 2).min(self.max);
+        delay
+    }
+
+    /// Goes back to the initial delay, after a successful connection.
+    fn reset(&mut self) {
+        self.next = self.initial;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! Delays of the reconnection backoff.
+
+    use super::*;
+
+    /// The delay doubles from 1 s up to the 5 s cap, and a reset starts over.
+    #[test]
+    fn backoff_doubles_up_to_the_cap_and_resets() {
+        let mut backoff = Backoff::new(Duration::from_secs(1), Duration::from_secs(5));
+
+        let delays: Vec<u64> = (0..5).map(|_| backoff.next_delay().as_secs()).collect();
+        assert_eq!(delays, [1, 2, 4, 5, 5]);
+
+        backoff.reset();
+        assert_eq!(backoff.peek(), Duration::from_secs(1));
+    }
+}

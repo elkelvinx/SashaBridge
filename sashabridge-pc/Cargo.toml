@@ -4,19 +4,25 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-futures-util   = "0.3"
-rdev           = "0.5"
-serde_json     = "1"
-souvlaki       = "0.8"
-tokio          = { version = "1", features = ["full"] }
-tokio-tungstenite = "0.26"
-base64 = "0.22"
-image = "0.25"
+anyhow             = "1"
+base64             = "0.22"
+futures-util       = "0.3"
+serde              = { version = "1", features = ["derive"] }
+serde_json         = "1"
+souvlaki           = "0.8"
+tokio              = { version = "1", features = ["full"] }
+tokio-tungstenite  = "0.26"
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
-    "Win32_UI_WindowsAndMessaging",
+    "Win32_Security",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_JobObjects",
     "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
 ]}
