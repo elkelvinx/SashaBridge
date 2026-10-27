@@ -1,0 +1,26 @@
+# Build outputs
+/sashabridge-pc/target/
+/sashabridge-android/build/
+/sashabridge-android/app/build/
+/sashabridge-android/.gradle/
+/sashabridge-android/.kotlin/
+/sashabridge-android/captures/
+/sashabridge-android/.externalNativeBuild/
+/sashabridge-android/.cxx/
+
+# Machine-specific configuration
+local.properties
+
+# IDE state
+.idea/
+*.iml
+.vscode/
+
+# Third-party binaries, restored with tools/fetch-scrcpy.ps1
+/sashabridge-pc/vendor/
+scrcpy-win64-*/
+
+# Operating system files
+Thumbs.db
+desktop.ini
+.DS_Store

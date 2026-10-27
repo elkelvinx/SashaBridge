@@ -1,0 +1,29 @@
+--------- beginning of main
+10-27 13:34:18.270 D/MiniBridge(23510): === SERVICIO ESPÍA INICIADO ===
+10-27 13:34:44.898 D/MiniBridge(23510): === PC CONECTADA ===
+10-27 13:34:52.769 D/MiniBridge(23510): === PC DESCONECTADA ===
+10-27 13:35:19.484 D/MiniBridge(23510): === PC CONECTADA ===
+10-27 13:35:20.482 D/MiniBridge(23510): 📥 LLEGÓ ALGO DE LA PC: [NEXT]
+10-27 13:35:20.483 D/MiniBridge(23510): 🛠️ Intentando ejecutar comando limpio: [NEXT]
+10-27 13:35:20.492 D/MiniBridge(23510): 📊 Reproductores activos encontrados: 2
+10-27 13:35:20.493 D/MiniBridge(23510): 🎯 Mandando comando a la app: com.spotify.music
+10-27 13:35:29.514 D/MiniBridge(23510): === PC DESCONECTADA ===
+10-27 13:36:02.511 D/MiniBridge(23510): === PC CONECTADA ===
+10-27 13:36:12.499 D/MiniBridge(23510): 📥 LLEGÓ ALGO DE LA PC: [SEEK:60000]
+10-27 13:36:12.500 D/MiniBridge(23510): 🛠️ Intentando ejecutar comando limpio: [SEEK:60000]
+10-27 13:36:12.505 D/MiniBridge(23510): 📊 Reproductores activos encontrados: 2
+10-27 13:36:12.506 D/MiniBridge(23510): 🎯 Mandando comando a la app: com.spotify.music
+10-27 13:36:16.503 D/MiniBridge(23510): === PC DESCONECTADA ===
+10-27 13:36:42.019 D/MiniBridge(23510): === PC CONECTADA ===
+10-27 13:36:42.921 D/MiniBridge(23510): 📥 LLEGÓ ALGO DE LA PC: [PLAY_PAUSE]
+10-27 13:36:42.921 D/MiniBridge(23510): 🛠️ Intentando ejecutar comando limpio: [PLAY_PAUSE]
+10-27 13:36:42.926 D/MiniBridge(23510): 📊 Reproductores activos encontrados: 2
+10-27 13:36:42.926 D/MiniBridge(23510): 🎯 Mandando comando a la app: com.spotify.music
+10-27 13:36:46.900 D/MiniBridge(23510): 📥 LLEGÓ ALGO DE LA PC: [PLAY_PAUSE]
+10-27 13:36:46.900 D/MiniBridge(23510): 🛠️ Intentando ejecutar comando limpio: [PLAY_PAUSE]
+10-27 13:36:46.901 D/MiniBridge(23510): 📊 Reproductores activos encontrados: 2
+10-27 13:36:46.902 D/MiniBridge(23510): 🎯 Mandando comando a la app: com.spotify.music
+10-27 13:36:50.920 D/MiniBridge(23510): === PC DESCONECTADA ===
+10-27 13:37:34.087 D/MiniBridge(23510): === PC CONECTADA ===
+10-27 13:37:36.112 D/MiniBridge(23510): === PC DESCONECTADA ===
+10-27 13:38:58.241 D/MiniBridge(23510): === PC CONECTADA ===
