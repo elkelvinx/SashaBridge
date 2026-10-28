@@ -4,15 +4,15 @@
 //! one; constraints that the types cannot express (for example, `positionMs` only with
 //! `SEEK`) are checked while decoding, so an invalid message never becomes a value.
 
-// The connection starts using these types in phase 4; until then only the tests do.
-#![allow(dead_code, reason = "decoded by the connection from phase 4 on")]
-
 use std::num::{NonZeroU32, NonZeroU64};
 
 use serde::{Deserialize, Serialize};
 
 /// Protocol version implemented by this module, announced in `hello`.
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: NonZeroU32 = match NonZeroU32::new(2) {
+    Some(version) => version,
+    None => unreachable!(),
+};
 
 /// Message from the phone to the PC.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -64,8 +64,11 @@ pub struct MediaState {
     pub source: String,
     /// Track title.
     pub title: Option<String>,
-    /// Track artist.
+    /// Track artist, without the playback context.
     pub artist: Option<String>,
+    /// Context the player attaches to the artist, such as "Del Modo aleatorio inteligente".
+    /// It depends on the phone's language, so it is only displayed.
+    pub context: Option<String>,
     /// Album name.
     pub album: Option<String>,
     /// Track length; `None` when the player does not report it.
@@ -76,8 +79,22 @@ pub struct MediaState {
     pub is_playing: bool,
     /// Playback speed: `1.0` is normal speed and `0.0` a pause.
     pub playback_speed: f32,
+    /// Shuffle mode; `None` when the bridge cannot control shuffle for this player.
+    pub shuffle: Option<ShuffleMode>,
     /// Album art of the track; `None` means that the track has none.
     pub art_id: Option<String>,
+}
+
+/// Values of [`MediaState::shuffle`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ShuffleMode {
+    /// Tracks play in order.
+    Off,
+    /// Tracks play in random order.
+    On,
+    /// Spotify's smart shuffle: random order with recommended tracks mixed in.
+    Smart,
 }
 
 /// Message from the PC to the phone.
@@ -123,6 +140,8 @@ pub enum Command {
         /// Target position in milliseconds.
         position_ms: u64,
     },
+    /// Presses the player's own shuffle button, which moves to its next shuffle mode.
+    ToggleShuffle,
 }
 
 /// Wire form of [`Command`], before the action and the position are checked together.
@@ -151,6 +170,8 @@ enum CommandAction {
     Previous,
     /// See [`Command::Seek`].
     Seek,
+    /// See [`Command::ToggleShuffle`].
+    ToggleShuffle,
 }
 
 impl TryFrom<WireCommand> for Command {
@@ -168,6 +189,7 @@ impl TryFrom<WireCommand> for Command {
             (CommandAction::Toggle, None) => Self::Toggle,
             (CommandAction::Next, None) => Self::Next,
             (CommandAction::Previous, None) => Self::Previous,
+            (CommandAction::ToggleShuffle, None) => Self::ToggleShuffle,
         };
         Ok(command)
     }
@@ -183,6 +205,7 @@ impl From<Command> for WireCommand {
             Command::Next => (CommandAction::Next, None),
             Command::Previous => (CommandAction::Previous, None),
             Command::Seek { position_ms } => (CommandAction::Seek, Some(position_ms)),
+            Command::ToggleShuffle => (CommandAction::ToggleShuffle, None),
         };
         Self { action, position_ms }
     }

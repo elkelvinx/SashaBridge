@@ -48,11 +48,21 @@ class MediaCommandExecutor(
             CommandAction.NEXT -> controls.skipToNext()
             CommandAction.PREVIOUS -> controls.skipToPrevious()
             CommandAction.SEEK -> command.positionMs?.let(controls::seekTo)
+            CommandAction.TOGGLE_SHUFFLE -> {
+                val actionIds = controller.playbackState?.customActions?.map { it.action }.orEmpty()
+                val toggle = ShuffleControl.findToggleAction(actionIds)
+                if (toggle != null) {
+                    controls.sendCustomAction(toggle, null)
+                } else {
+                    Log.w(LOG_TAG, "${controller.packageName} has no shuffle action; TOGGLE_SHUFFLE ignored")
+                }
+            }
         }
     }
 
     /**
-     * Dispatches the media key that matches [action]. Seeking has no key and is ignored.
+     * Dispatches the media key that matches [action]. Seeking and shuffling have no key and
+     * are ignored.
      *
      * @param action Requested action.
      */
@@ -63,8 +73,8 @@ class MediaCommandExecutor(
             CommandAction.TOGGLE -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
             CommandAction.NEXT -> KeyEvent.KEYCODE_MEDIA_NEXT
             CommandAction.PREVIOUS -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
-            CommandAction.SEEK -> {
-                Log.w(LOG_TAG, "No active player; SEEK has no media key and was ignored")
+            CommandAction.SEEK, CommandAction.TOGGLE_SHUFFLE -> {
+                Log.w(LOG_TAG, "No active player; $action has no media key and was ignored")
                 return
             }
         }

@@ -4,6 +4,10 @@
 //! returns to the loop, which waits with exponential backoff and connects again. A
 //! failed handshake, which is what `adb forward` produces when the phone server is down,
 //! is just another retry.
+//!
+//! Each session starts with the PC's `hello`. The phone's messages are decoded in either
+//! protocol version, and commands are sent in v2 once the phone has announced it with its
+//! own `hello`, and as v1 text until then.
 
 use std::convert::Infallible;
 use std::time::Duration;
@@ -19,9 +23,11 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tracing::{debug, info, warn};
 
 use crate::config::{AUDIO_WATCHDOG_PERIOD, BACKOFF_INITIAL, BACKOFF_MAX, CONNECT_TIMEOUT, bridge_url};
-use crate::media_controls::MediaControlsAdapter;
+use crate::media_controls::MediaControls;
+use crate::now_playing::{Display, NowPlaying};
 use crate::process::DeviceLink;
-use crate::protocol::{PcCommand, parse_phone_message};
+use crate::protocol::v2::{PROTOCOL_VERSION, PhoneMessage};
+use crate::protocol::{PcCommand, PhoneFrame, PhoneProtocol, decode_phone_frame, pc_hello};
 
 /// WebSocket connection to the phone.
 type PhoneSocket = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -31,7 +37,8 @@ type PhoneSocket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 /// Never returns; the caller stops it by dropping the future.
 pub async fn run(
     link: &mut DeviceLink,
-    media: &mut MediaControlsAdapter,
+    controls: &mut MediaControls,
+    now_playing: &mut NowPlaying,
     commands: &mut mpsc::Receiver<PcCommand>,
 ) -> Infallible {
     let url = bridge_url();
@@ -41,8 +48,8 @@ pub async fn run(
             Ok(socket) => {
                 info!("connected to the phone");
                 backoff.reset();
-                run_session(socket, link, media, commands).await;
-                media.mark_disconnected();
+                run_session(socket, link, controls, now_playing, commands).await;
+                controls.mark_disconnected();
             }
             Err(error) => {
                 let delay = backoff.peek();
@@ -81,15 +88,22 @@ async fn connect(link: &mut DeviceLink, url: &str) -> anyhow::Result<PhoneSocket
 async fn run_session(
     socket: PhoneSocket,
     link: &mut DeviceLink,
-    media: &mut MediaControlsAdapter,
+    controls: &mut MediaControls,
+    now_playing: &mut NowPlaying,
     commands: &mut mpsc::Receiver<PcCommand>,
 ) {
     // Buttons pressed while disconnected must not reach the phone later.
     while let Ok(command) = commands.try_recv() {
         debug!(?command, "discarding a command queued while disconnected");
     }
+    now_playing.reset_session();
 
     let (mut sink, mut stream) = socket.split();
+    if let Err(error) = sink.send(Message::text(pc_hello())).await {
+        warn!(%error, "cannot greet the phone, connection lost");
+        return;
+    }
+    let mut protocol = PhoneProtocol::V1;
     let mut watchdog = interval(AUDIO_WATCHDOG_PERIOD);
     watchdog.set_missed_tick_behavior(MissedTickBehavior::Skip);
     watchdog.reset();
@@ -97,19 +111,12 @@ async fn run_session(
     loop {
         tokio::select! {
             frame = stream.next() => match frame {
-                Some(Ok(Message::Text(text))) => match parse_phone_message(&text) {
-                    Ok(update) => {
-                        if let Err(error) = media.apply(update) {
-                            warn!("cannot show the update: {error:#}");
-                        }
-                    }
-                    Err(error) => warn!("ignoring a message from the phone: {error:#}"),
-                },
+                Some(Ok(Message::Text(text))) => handle_frame(&text, &mut protocol, controls, now_playing),
                 Some(Ok(Message::Close(frame))) => {
                     info!(?frame, "the phone closed the connection");
                     return;
                 }
-                // Pings are answered by tungstenite; v1 sends no binary frames.
+                // Pings are answered by tungstenite; the protocol uses no binary frames.
                 Some(Ok(_)) => {}
                 Some(Err(error)) => {
                     warn!(%error, "connection lost");
@@ -121,14 +128,54 @@ async fn run_session(
                 }
             },
             Some(command) = commands.recv() => {
-                debug!(?command, "sending command");
-                if let Err(error) = sink.send(Message::text(command.to_v1_text())).await {
+                let Some(text) = command.encode(protocol) else {
+                    info!(?command, "the phone app does not support this command yet (protocol v1)");
+                    continue;
+                };
+                debug!(?command, ?protocol, "sending command");
+                if let Err(error) = sink.send(Message::text(text)).await {
                     warn!(%error, "cannot send the command, connection lost");
                     return;
                 }
             }
             _ = watchdog.tick() => link.ensure_audio(),
         }
+    }
+}
+
+/// Decodes a frame from the phone and shows its effect in the media overlay.
+///
+/// Malformed frames and failures to show them are logged and skipped; the session goes on.
+fn handle_frame(
+    text: &str,
+    protocol: &mut PhoneProtocol,
+    controls: &mut MediaControls,
+    now_playing: &mut NowPlaying,
+) {
+    let display = match decode_phone_frame(text) {
+        Ok(PhoneFrame::V1(update)) => now_playing.apply_v1(update).map(Some),
+        Ok(PhoneFrame::V2(PhoneMessage::Hello(hello))) => {
+            *protocol = PhoneProtocol::V2;
+            info!(device = %hello.device, protocol = hello.protocol.get(), "the phone speaks protocol v2");
+            if hello.protocol > PROTOCOL_VERSION {
+                warn!("the phone uses a newer protocol; unknown messages will be ignored");
+            }
+            return;
+        }
+        Ok(PhoneFrame::V2(message)) => now_playing.apply_v2(message),
+        Err(error) => {
+            warn!("ignoring a message from the phone: {error:#}");
+            return;
+        }
+    };
+    match display {
+        Ok(Some(Display::Show(view))) => match controls.show(&view) {
+            Ok(()) => now_playing.remove_stale_covers(),
+            Err(error) => warn!("cannot show the update: {error:#}"),
+        },
+        Ok(Some(Display::Clear)) => controls.clear(),
+        Ok(None) => {}
+        Err(error) => warn!("cannot apply the message: {error:#}"),
     }
 }
 

@@ -45,16 +45,18 @@ Estado completo del reproductor activo. Cada mensaje sustituye al anterior: no h
 | `trackId` | texto | No | Identificador opaco de la pista. Cambia cuando cambia la pista. |
 | `source` | texto | No | Paquete Android de la app que reproduce (`com.spotify.music`). |
 | `title` | texto | Sí | |
-| `artist` | texto | Sí | |
+| `artist` | texto | Sí | Solo el artista, sin el contexto de reproducción. |
+| `context` | texto | Sí | Contexto que el reproductor añade al artista, como "Del Modo aleatorio inteligente" en Spotify. Depende del idioma del teléfono, así que solo se muestra, no se interpreta. |
 | `album` | texto | Sí | |
 | `durationMs` | entero | Sí | Mayor que 0. `null` si la app no informa la duración. |
 | `positionMs` | entero | No | Mayor o igual que 0. Posición en el momento de enviar el mensaje, ya extrapolada desde la última actualización del reproductor. |
 | `isPlaying` | booleano | No | `true` solo en reproducción. |
 | `playbackSpeed` | decimal | No | Velocidad de reproducción. `1.0` es la normal y `0.0` corresponde a una pausa. |
+| `shuffle` | texto | Sí | Modo aleatorio: `OFF`, `ON` o `SMART` (aleatorio inteligente de Spotify). `null` si el puente no puede controlar el modo aleatorio de ese reproductor. |
 | `artId` | texto | Sí | Carátula de la pista (ver `media.art`). `null` significa que la pista no tiene carátula. |
 
 ```json
-{"type":"media.state","trackId":"8f14e45f","source":"com.spotify.music","title":"Sample Track","artist":"Sample Artist","album":"Sample Album","durationMs":215000,"positionMs":12345,"isPlaying":true,"playbackSpeed":1.0,"artId":"a1b2c3d4"}
+{"type":"media.state","trackId":"8f14e45f","source":"com.spotify.music","title":"Sample Track","artist":"Sample Artist","context":"Del Modo aleatorio inteligente","album":"Sample Album","durationMs":215000,"positionMs":12345,"isPlaying":true,"playbackSpeed":1.0,"shuffle":"SMART","artId":"a1b2c3d4"}
 ```
 
 ### `media.art`
@@ -96,10 +98,12 @@ Orden para el reproductor activo.
 
 | Campo | Tipo | Anulable | Restricciones |
 |---|---|---|---|
-| `action` | texto | No | `PLAY`, `PAUSE`, `TOGGLE`, `NEXT`, `PREVIOUS` o `SEEK`. |
+| `action` | texto | No | `PLAY`, `PAUSE`, `TOGGLE`, `NEXT`, `PREVIOUS`, `SEEK` o `TOGGLE_SHUFFLE`. |
 | `positionMs` | entero | Sí | Obligatorio y mayor o igual que 0 con `SEEK`. Con las demás acciones debe valer `null`. |
 
 `PLAY` y `PAUSE` son órdenes explícitas: repetir `PAUSE` sobre un reproductor ya pausado no lo reanuda. `TOGGLE` existe para las teclas de reproducir/pausar que no indican el estado deseado.
+
+`TOGGLE_SHUFFLE` equivale a pulsar el botón de aleatorio del propio reproductor, que pasa al modo siguiente. En Spotify el ciclo es `OFF` → `ON` → `SMART` → `OFF`. Solo tiene efecto si el último `media.state` trae `shuffle` distinto de `null`; el nuevo modo llega en el siguiente `media.state`.
 
 ```json
 {"type":"cmd","action":"PAUSE","positionMs":null}

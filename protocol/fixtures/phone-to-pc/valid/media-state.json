@@ -1,1 +1,1 @@
-{"type":"media.state","trackId":"8f14e45f","source":"com.spotify.music","title":"Sample Track - サンプル","artist":"Sample Artist","album":"Sample Album","durationMs":215000,"positionMs":12345,"isPlaying":true,"playbackSpeed":1.0,"artId":"a1b2c3d4"}
+{"type":"media.state","trackId":"8f14e45f","source":"com.spotify.music","title":"Sample Track - サンプル","artist":"Sample Artist","context":"Del Modo aleatorio inteligente","album":"Sample Album","durationMs":215000,"positionMs":12345,"isPlaying":true,"playbackSpeed":1.0,"shuffle":"SMART","artId":"a1b2c3d4"}

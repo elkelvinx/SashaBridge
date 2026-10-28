@@ -10,6 +10,7 @@ mod config;
 mod connection;
 mod cover_cache;
 mod media_controls;
+mod now_playing;
 mod process;
 mod protocol;
 mod smtc_window;
@@ -23,8 +24,9 @@ use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::time::uptime;
 
 use crate::config::{BRIDGE_PORT, ToolPaths};
-use crate::cover_cache::CoverStore;
-use crate::media_controls::MediaControlsAdapter;
+use crate::cover_cache::CoverCache;
+use crate::media_controls::MediaControls;
+use crate::now_playing::NowPlaying;
 use crate::process::{DeviceLink, InstanceLock};
 
 /// Capacity of the queue between SMTC button presses and the connection.
@@ -71,14 +73,15 @@ async fn run() -> anyhow::Result<()> {
     let paths = ToolPaths::resolve()?;
     info!(dir = %paths.scrcpy.parent().unwrap_or(&paths.scrcpy).display(), "using scrcpy");
 
-    let covers = CoverStore::open_default().context("cannot prepare the cover directory")?;
+    let covers = CoverCache::open_default().context("cannot prepare the cover directory")?;
+    let mut now_playing = NowPlaying::new(covers);
     let window = smtc_window::spawn()?;
     let (command_tx, mut command_rx) = mpsc::channel(COMMAND_QUEUE);
-    let mut media = MediaControlsAdapter::new(&window, covers, command_tx)?;
+    let mut controls = MediaControls::new(&window, command_tx)?;
     let mut link = DeviceLink::new(&paths, BRIDGE_PORT)?;
 
     let reason = tokio::select! {
-        never = connection::run(&mut link, &mut media, &mut command_rx) => match never {},
+        never = connection::run(&mut link, &mut controls, &mut now_playing, &mut command_rx) => match never {},
         reason = shutdown_signal() => reason,
     };
 

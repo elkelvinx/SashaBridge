@@ -55,12 +55,15 @@ sealed interface PhoneMessage {
      * @property trackId Opaque identifier that changes when the track changes.
      * @property source Android package of the player, such as `com.spotify.music`.
      * @property title Track title, or `null` if the player does not report it.
-     * @property artist Track artist, or `null` if the player does not report it.
+     * @property artist Track artist without the playback context, or `null`.
+     * @property context Playback context the player attaches to the artist, such as
+     *   "Del Modo aleatorio inteligente", or `null`. Language-dependent: for display only.
      * @property album Album name, or `null` if the player does not report it.
      * @property durationMs Track length in milliseconds, or `null` if unknown.
      * @property positionMs Playback position in milliseconds when the message is sent.
      * @property isPlaying Whether the player is in the playing state.
      * @property playbackSpeed Playback speed: `1.0` is normal speed and `0.0` a pause.
+     * @property shuffle Shuffle mode, or `null` if the bridge cannot control it for this player.
      * @property artId Album art of the track, or `null` if the track has none.
      * @throws IllegalArgumentException if [durationMs] is not positive or [positionMs] is negative.
      */
@@ -71,11 +74,13 @@ sealed interface PhoneMessage {
         val source: String,
         val title: String? = null,
         val artist: String? = null,
+        val context: String? = null,
         val album: String? = null,
         val durationMs: Long? = null,
         val positionMs: Long,
         val isPlaying: Boolean,
         val playbackSpeed: Float,
+        val shuffle: ShuffleMode? = null,
         val artId: String? = null,
     ) : PhoneMessage {
         init {
@@ -90,4 +95,17 @@ sealed interface PhoneMessage {
     @Serializable
     @SerialName("media.cleared")
     data object MediaCleared : PhoneMessage
+}
+
+/** Values of the `shuffle` field of [PhoneMessage.MediaState]. */
+@Serializable
+enum class ShuffleMode {
+    /** Tracks play in order. */
+    OFF,
+
+    /** Tracks play in random order. */
+    ON,
+
+    /** Spotify's smart shuffle: random order with recommended tracks mixed in. */
+    SMART,
 }

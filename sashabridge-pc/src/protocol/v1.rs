@@ -49,21 +49,12 @@ struct WireMediaUpdate {
     album_art: Option<String>,
 }
 
-/// Parses a text frame from the phone.
-///
-/// # Errors
-///
-/// Fails when the frame is not a JSON object with the v1 fields or when `albumArt`
-/// is not valid base64.
-pub fn parse_phone_message(text: &str) -> anyhow::Result<MediaUpdate> {
-    serde_json::from_str(text).context("invalid v1 media message").and_then(decode)
-}
-
 /// Decodes a v1 message that was already parsed as JSON.
 ///
 /// # Errors
 ///
-/// Same conditions as [`parse_phone_message`].
+/// Fails when the value is not an object with the v1 fields or when `albumArt` is not
+/// valid base64.
 pub fn from_value(value: serde_json::Value) -> anyhow::Result<MediaUpdate> {
     serde_json::from_value(value).context("invalid v1 media message").and_then(decode)
 }
@@ -95,36 +86,16 @@ fn positive_millis(millis: i64) -> Option<Duration> {
     u64::try_from(millis).ok().filter(|&millis| millis > 0).map(Duration::from_millis)
 }
 
-/// Command sent from the PC to the phone's active player.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PcCommand {
-    /// Toggles between play and pause.
-    PlayPause,
-    /// Skips to the next track.
-    Next,
-    /// Goes back to the previous track.
-    Previous,
-    /// Moves the playback position.
-    Seek(Duration),
-}
-
-impl PcCommand {
-    /// Encodes the command as a v1 text frame.
-    pub fn to_v1_text(self) -> String {
-        match self {
-            Self::PlayPause => "PLAY_PAUSE".to_owned(),
-            Self::Next => "NEXT".to_owned(),
-            Self::Previous => "PREV".to_owned(),
-            Self::Seek(position) => format!("SEEK:{}", position.as_millis()),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    //! Parsing of real v1 messages and encoding of the commands the v1 server accepts.
+    //! Parsing of real v1 messages.
 
     use super::*;
+
+    /// Parses a text frame the way the connection does.
+    fn parse_phone_message(text: &str) -> anyhow::Result<MediaUpdate> {
+        from_value(serde_json::from_str(text)?)
+    }
 
     /// A full message, as Spotify produces it on a track change.
     #[test]
@@ -159,14 +130,5 @@ mod tests {
     fn rejects_malformed_messages() {
         assert!(parse_phone_message("NEXT").is_err());
         assert!(parse_phone_message(r#"{"title":"t","albumArt":"not base64!"}"#).is_err());
-    }
-
-    /// The text frames match the ones `MusicListenerService` recognizes.
-    #[test]
-    fn encodes_v1_commands() {
-        assert_eq!(PcCommand::PlayPause.to_v1_text(), "PLAY_PAUSE");
-        assert_eq!(PcCommand::Next.to_v1_text(), "NEXT");
-        assert_eq!(PcCommand::Previous.to_v1_text(), "PREV");
-        assert_eq!(PcCommand::Seek(Duration::from_secs(60)).to_v1_text(), "SEEK:60000");
     }
 }

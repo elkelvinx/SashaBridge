@@ -9,13 +9,22 @@ base64             = "0.22"
 futures-util       = "0.3"
 serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
-souvlaki           = "0.8"
 tokio              = { version = "1", features = ["full"] }
 tokio-tungstenite  = "0.26"
 tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
+# WinRT bindings for the System Media Transport Controls (media_controls.rs).
+windows = { version = "0.62", features = [
+    "Foundation",
+    "Media",
+    "Storage",
+    "Storage_Streams",
+    "Win32_Foundation",
+    "Win32_System_WinRT",
+]}
+# Win32 bindings for the hidden window, the job object and the single-instance mutex.
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
@@ -26,3 +35,7 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",
 ]}
+
+[target.'cfg(target_os = "windows")'.dev-dependencies]
+# Lets the manual SMTC test read the session back the way third-party flyouts do.
+windows = { version = "0.62", features = ["Foundation_Collections", "Media_Control"] }

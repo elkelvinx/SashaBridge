@@ -27,11 +27,12 @@ const WINDOW_TITLE: &str = "SashaBridge";
 pub struct WindowHandle(HWND);
 
 // SAFETY: a window handle is a system-wide identifier that is valid on any thread.
-// The handle is only passed to souvlaki; messages are still processed on the window thread.
+// The handle is only used to obtain the window's SMTC instance; messages are still
+// processed on the window thread.
 unsafe impl Send for WindowHandle {}
 
 impl WindowHandle {
-    /// Returns the raw handle in the form `souvlaki::PlatformConfig` expects.
+    /// Returns the raw handle, for `ISystemMediaTransportControlsInterop::GetForWindow`.
     pub fn as_raw(&self) -> *mut c_void {
         self.0
     }

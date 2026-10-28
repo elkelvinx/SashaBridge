@@ -81,4 +81,10 @@ enum class CommandAction {
 
     /** Moves the playback position to [PcMessage.Command.positionMs]. */
     SEEK,
+
+    /**
+     * Presses the player's own shuffle button, which moves to its next shuffle mode
+     * (in Spotify, OFF, then ON, then SMART, then OFF again).
+     */
+    TOGGLE_SHUFFLE,
 }

@@ -1,5 +1,6 @@
 package io.github.elkelvinx.sashabridge.media
 
+import io.github.elkelvinx.sashabridge.protocol.ShuffleMode
 import java.security.MessageDigest
 
 /**
@@ -33,7 +34,9 @@ class AlbumArt(val artId: String, val jpeg: ByteArray) {
  * @property trackId Deterministic identifier of the track; see [trackIdOf].
  * @property source Android package of the player, such as `com.spotify.music`.
  * @property title Track title, or `null` if the player does not report it.
- * @property artist Track artist after [MetadataNormalizer.artist], or `null`.
+ * @property artist Track artist without the playback context, or `null`.
+ * @property playbackContext Context the player attaches to the artist, such as Spotify's
+ *   smart shuffle, or `null`; see [MetadataNormalizer.splitArtist].
  * @property album Album name, or `null`.
  * @property durationMs Track length in milliseconds, or `null` if unknown.
  * @property isPlaying Whether the player is in `STATE_PLAYING`.
@@ -41,6 +44,7 @@ class AlbumArt(val artId: String, val jpeg: ByteArray) {
  *   [PlaybackPositionCalculator.UNKNOWN_POSITION].
  * @property positionUpdateTimeMs `SystemClock.elapsedRealtime()` of that report, or 0 if unknown.
  * @property playbackSpeed Playback speed reported by the player.
+ * @property shuffle Shuffle mode, or `null` if it cannot be controlled; see [ShuffleControl].
  * @property art Album art of the track, or `null` if it has none.
  */
 data class MediaSnapshot(
@@ -48,12 +52,14 @@ data class MediaSnapshot(
     val source: String,
     val title: String?,
     val artist: String?,
+    val playbackContext: String?,
     val album: String?,
     val durationMs: Long?,
     val isPlaying: Boolean,
     val reportedPositionMs: Long,
     val positionUpdateTimeMs: Long,
     val playbackSpeed: Float,
+    val shuffle: ShuffleMode?,
     val art: AlbumArt?,
 ) {
 

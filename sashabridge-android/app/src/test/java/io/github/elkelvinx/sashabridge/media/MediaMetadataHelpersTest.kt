@@ -2,34 +2,42 @@ package io.github.elkelvinx.sashabridge.media
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Pure helpers used to build snapshots: artist cleanup, track ids and art geometry. */
 class MediaMetadataHelpersTest {
 
-    /** A13: the smart shuffle context that Spotify appends to the artist is removed. */
+    /** A13: the smart shuffle context that Spotify appends to the artist is kept apart from it. */
     @Test
-    fun removesSpotifyPlaybackContext() {
+    fun separatesSpotifyPlaybackContext() {
         assertEquals(
-            "Shiro SAGISU, Hazel Fernandes",
-            MetadataNormalizer.artist(
+            ArtistParts("Shiro SAGISU, Hazel Fernandes", "Del Modo aleatorio inteligente"),
+            MetadataNormalizer.splitArtist(
                 "com.spotify.music",
                 "Shiro SAGISU, Hazel Fernandes • Del Modo aleatorio inteligente",
             ),
         )
     }
 
-    /** Artists without the context, and other players, are left untouched. */
+    /** Artists without a context, and other players, are left untouched. */
     @Test
     fun leavesOtherArtistsUntouched() {
-        assertEquals("Ado", MetadataNormalizer.artist("com.spotify.music", "Ado"))
+        assertEquals(ArtistParts("Ado", null), MetadataNormalizer.splitArtist("com.spotify.music", "Ado"))
         assertEquals(
-            "A • B",
-            MetadataNormalizer.artist("com.google.android.apps.youtube.music", "A • B"),
+            ArtistParts("A • B", null),
+            MetadataNormalizer.splitArtist("com.google.android.apps.youtube.music", "A • B"),
         )
-        assertNull(MetadataNormalizer.artist("com.spotify.music", null))
+        assertEquals(ArtistParts(null, null), MetadataNormalizer.splitArtist("com.spotify.music", null))
+    }
+
+    /** A separator with nothing on one side is not a context. */
+    @Test
+    fun ignoresAnEmptySide() {
+        assertEquals(
+            ArtistParts("Ado • ", null),
+            MetadataNormalizer.splitArtist("com.spotify.music", "Ado • "),
+        )
     }
 
     /** With a media id, the track id ignores the title, which Spotify fills in two steps. */

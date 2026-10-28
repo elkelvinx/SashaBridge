@@ -209,7 +209,7 @@ class MediaSessionTracker(
 
         val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE)
             ?: metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
-        val artist = MetadataNormalizer.artist(
+        val (artist, playbackContext) = MetadataNormalizer.splitArtist(
             source,
             metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
                 ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
@@ -230,12 +230,14 @@ class MediaSessionTracker(
             source = source,
             title = title,
             artist = artist,
+            playbackContext = playbackContext,
             album = album,
             durationMs = durationMs,
             isPlaying = state?.state == PlaybackState.STATE_PLAYING,
             reportedPositionMs = state?.position ?: PlaybackPositionCalculator.UNKNOWN_POSITION,
             positionUpdateTimeMs = state?.lastPositionUpdateTime ?: 0L,
             playbackSpeed = state?.playbackSpeed ?: 0f,
+            shuffle = ShuffleControl.modeOf(state?.customActions?.map { it.action }.orEmpty()),
             art = artEncoder.encode(metadata),
         )
     }
@@ -282,6 +284,13 @@ class MediaSessionTracker(
         /** Last playback state code, to tell state changes from position updates. */
         private var lastStateCode: Int? = controller.playbackState?.state
 
+        /** Last logged description of the custom actions, to log only changes. */
+        private var lastCustomActions: String? = null
+
+        init {
+            logCustomActions(controller.playbackState)
+        }
+
         /** Records the time of real state changes (play, pause, stop) and schedules a snapshot. */
         override fun onPlaybackStateChanged(state: PlaybackState?) {
             val code = state?.state
@@ -289,7 +298,29 @@ class MediaSessionTracker(
                 lastStateCode = code
                 lastStateChangeMs = SystemClock.elapsedRealtime()
             }
+            logCustomActions(state)
             signalChange()
+        }
+
+        /**
+         * Logs the player's custom actions when they change. Diagnostic for the shuffle control:
+         * Spotify only exposes shuffle as a custom action, and its icon or extras may be the
+         * only place where the current shuffle mode shows.
+         */
+        private fun logCustomActions(state: PlaybackState?) {
+            val description = state?.customActions?.joinToString(separator = "; ") { action ->
+                val extras = action.extras?.let { bundle ->
+                    bundle.keySet().sorted().joinToString(prefix = "{", postfix = "}") { key ->
+                        // The value types are unknown, so the untyped getter is the only option.
+                        @Suppress("DEPRECATION")
+                        "$key=${bundle.get(key)}"
+                    }
+                }
+                "${action.action} '${action.name}' icon=${action.icon} extras=$extras"
+            }
+            if (description == lastCustomActions) return
+            lastCustomActions = description
+            Log.d(LOG_TAG, "Custom actions of ${controller.packageName}: $description")
         }
 
         /** Logs the available keys and schedules a snapshot. */
