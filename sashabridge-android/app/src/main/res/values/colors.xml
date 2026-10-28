@@ -22,6 +22,11 @@
     <color name="button_active">#6F4325</color>
     <color name="button_idle">#E6D6CC</color>
 
+    <!-- Veil over the blurred art of the player card: lets the colors through, keeps text readable. -->
+    <color name="scrim_top">#B3FFFFFF</color>
+    <color name="scrim_middle">#CCFFFFFF</color>
+    <color name="scrim_bottom">#E6FFFFFF</color>
+
     <!-- Seek bar: light coffee track, very dark red played part, strong wine ball. -->
     <color name="seek_track">#C9A27E</color>
     <color name="seek_played">#4A0B16</color>

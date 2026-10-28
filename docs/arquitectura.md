@@ -67,7 +67,9 @@ El puerto es un recurso del proceso, no de la instancia del servicio. Tras **For
 
 `MainActivity` observa `BridgeRepository` mientras está visible (`repeatOnLifecycle(STARTED)`). `BridgePhase` deriva lo que se muestra, por este orden de prioridad: sin acceso a notificaciones, puente apagado, esperando a Android, iniciando, esperando a la PC, PC conectada o error. El botón solo escribe `enabled`, así que la pantalla no puede contradecir al servicio.
 
-La tarjeta "Sonando" (`PlayerCard`) controla el reproductor desde el propio teléfono. Sus botones publican órdenes en `BridgeRepository.commands`, y el servicio las ejecuta con el mismo `MediaCommandExecutor` que las de la PC, esté el puente encendido o apagado. La barra de progreso avanza sola entre estados, extrapolando la posición con el reloj del teléfono. Al soltarla envía `SEEK` y mantiene la posición pedida hasta que el reproductor confirma la nueva.
+La tarjeta "Sonando" (`PlayerCard`) controla el reproductor desde el propio teléfono. Sus botones publican órdenes en `BridgeRepository.commands`, y el servicio las ejecuta con el mismo `MediaCommandExecutor` que las de la PC, esté el puente encendido o apagado. La barra de progreso avanza sola entre estados, extrapolando la posición con el reloj del teléfono. Al soltarla envía `SEEK` y mantiene la posición pedida hasta que el reproductor confirma la nueva. La tarjeta tiene de fondo la carátula muy desenfocada, bajo un velo que mantiene el texto legible. Muestra el icono real de la app que suena, tomado del sistema, y la parte reproducida de la barra es una onda (`WavyProgressDrawable`) que solo se anima mientras suena y la pantalla es visible.
+
+La pantalla también ofrece dos funciones que el protocolo todavía no lleva a la PC: **repetir**, mediante la acción propia del reproductor (`RepeatControl`), y la **cola de reproducción** que publica cada app (`PlayerQueue`, en una hoja inferior desde la que se salta a cualquier canción). Ambas viajan como `PlayerCommand`, el tipo de las órdenes de la pantalla.
 
 Sasha, la perrita salchicha que da nombre a la app, acompaña el estado:
 

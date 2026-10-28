@@ -4,7 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
-import io.github.elkelvinx.sashabridge.protocol.PcMessage
+import io.github.elkelvinx.sashabridge.media.PlayerCommand
+import io.github.elkelvinx.sashabridge.media.PlayerQueue
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +37,9 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
     /** Backing state of [media]. */
     private val mutableMedia = MutableStateFlow<MediaSnapshot?>(null)
 
+    /** Backing state of [queue]. */
+    private val mutableQueue = MutableStateFlow<PlayerQueue?>(null)
+
     /** Backing state of [listenerConnected]. */
     private val mutableListenerConnected = MutableStateFlow(false)
 
@@ -43,7 +47,7 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
      * Backing flow of [commands]. A few commands are buffered for the moment the service takes
      * to collect them; if the buffer fills up, the oldest press is dropped.
      */
-    private val mutableCommands = MutableSharedFlow<PcMessage.Command>(
+    private val mutableCommands = MutableSharedFlow<PlayerCommand>(
         extraBufferCapacity = COMMAND_BUFFER,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
@@ -57,6 +61,9 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
     /** State of the active player, or `null` when there is none. Written by the service. */
     val media: StateFlow<MediaSnapshot?> = mutableMedia.asStateFlow()
 
+    /** Play queue of the active player, or `null` when it publishes none. Written by the service. */
+    val queue: StateFlow<PlayerQueue?> = mutableQueue.asStateFlow()
+
     /**
      * Whether Android has bound the notification listener, which is what lets the bridge read
      * the players. Written by the service.
@@ -67,7 +74,7 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
      * Commands for the active player pressed on the phone's own screen. The service runs them
      * the same way as the PC's, while the listener is connected.
      */
-    val commands: SharedFlow<PcMessage.Command> = mutableCommands.asSharedFlow()
+    val commands: SharedFlow<PlayerCommand> = mutableCommands.asSharedFlow()
 
     /**
      * Turns the bridge on or off and remembers the choice. Any thread.
@@ -98,6 +105,15 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
     }
 
     /**
+     * Records the play queue of the active player. Any thread.
+     *
+     * @param queue New queue, or `null` when the player publishes none.
+     */
+    fun updateQueue(queue: PlayerQueue?) {
+        mutableQueue.value = queue
+    }
+
+    /**
      * Records whether the notification listener is bound. Any thread.
      *
      * @param connected `true` between `onListenerConnected` and `onListenerDisconnected`.
@@ -111,7 +127,7 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
      *
      * @param command Command to run.
      */
-    fun sendCommand(command: PcMessage.Command) {
+    fun sendCommand(command: PlayerCommand) {
         mutableCommands.tryEmit(command)
     }
 

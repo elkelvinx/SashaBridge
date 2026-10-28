@@ -46,6 +46,7 @@ class AlbumArt(val artId: String, val jpeg: ByteArray) {
  * @property playbackSpeed Playback speed reported by the player.
  * @property shuffle Shuffle mode, or `null` if it cannot be controlled; see [ShuffleControl].
  * @property art Album art of the track, or `null` if it has none.
+ * @property canRepeat Whether the player has a repeat button the bridge can press; see [RepeatControl].
  */
 data class MediaSnapshot(
     val trackId: String,
@@ -61,6 +62,7 @@ data class MediaSnapshot(
     val playbackSpeed: Float,
     val shuffle: ShuffleMode?,
     val art: AlbumArt?,
+    val canRepeat: Boolean = false,
 ) {
 
     /**

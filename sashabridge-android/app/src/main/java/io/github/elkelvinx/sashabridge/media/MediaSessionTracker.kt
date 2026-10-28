@@ -76,6 +76,12 @@ class MediaSessionTracker(
      */
     val media: StateFlow<MediaSnapshot?> = mutableMedia.asStateFlow()
 
+    /** Backing state of [queue]. */
+    private val mutableQueue = MutableStateFlow<PlayerQueue?>(null)
+
+    /** Play queue of the active player, or `null` when it publishes none. */
+    val queue: StateFlow<PlayerQueue?> = mutableQueue.asStateFlow()
+
     /** Controller chosen by [ActiveControllerPolicy], written on the main thread. */
     @Volatile
     private var activeController: MediaController? = null
@@ -130,6 +136,29 @@ class MediaSessionTracker(
             mutableMedia.value = snapshot
             Log.d(LOG_TAG, "Media state: $snapshot")
         }
+        mutableQueue.value = activeController?.let(::buildQueue)
+    }
+
+    /**
+     * Reads the play queue of [controller]. Main thread.
+     *
+     * @return The queue, or `null` if the player publishes none.
+     */
+    private fun buildQueue(controller: MediaController): PlayerQueue? {
+        val items = controller.queue?.takeIf { it.isNotEmpty() } ?: return null
+        return PlayerQueue(
+            source = controller.packageName,
+            title = controller.queueTitle?.toString(),
+            entries = items.map { item ->
+                QueueEntry(
+                    queueId = item.queueId,
+                    title = item.description.title?.toString(),
+                    subtitle = item.description.subtitle?.toString(),
+                )
+            },
+            activeQueueId = controller.playbackState?.activeQueueItemId
+                ?.takeIf { it != MediaSession.QueueItem.UNKNOWN_ID.toLong() },
+        )
     }
 
     /** Stops observing and forgets every session. Safe to call when not started. Main thread only. */
@@ -141,6 +170,7 @@ class MediaSessionTracker(
         sessions.clear()
         activeController = null
         mutableMedia.value = null
+        mutableQueue.value = null
     }
 
     /**
@@ -239,6 +269,7 @@ class MediaSessionTracker(
             playbackSpeed = state?.playbackSpeed ?: 0f,
             shuffle = ShuffleControl.modeOf(state?.customActions?.map { it.action }.orEmpty()),
             art = artEncoder.encode(metadata),
+            canRepeat = RepeatControl.findToggleAction(state?.customActions?.map { it.action }.orEmpty()) != null,
         )
     }
 
@@ -326,6 +357,11 @@ class MediaSessionTracker(
         /** Logs the available keys and schedules a snapshot. */
         override fun onMetadataChanged(metadata: MediaMetadata?) {
             logMetadataKeys(controller.packageName, metadata)
+            signalChange()
+        }
+
+        /** Schedules a snapshot, which also rereads the queue. */
+        override fun onQueueChanged(queue: MutableList<MediaSession.QueueItem>?) {
             signalChange()
         }
 

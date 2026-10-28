@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One track of the play queue. The background is only the touch ripple, not a second fill. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:baselineAligned="false"
+    tools:ignore="Overdraw"
+    android:gravity="center_vertical"
+    android:minHeight="56dp"
+    android:orientation="horizontal"
+    android:paddingVertical="8dp">
+
+    <FrameLayout
+        android:layout_width="36dp"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/queueNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textAppearance="?attr/textAppearanceLabelLarge"
+            android:textColor="@color/on_surface_muted"
+            tools:text="3" />
+
+        <ImageView
+            android:id="@+id/queuePlaying"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_play"
+            android:visibility="gone"
+            app:tint="@color/seek_thumb" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/queueItemTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="@color/on_surface"
+            tools:text="It's Going Down Now" />
+
+        <TextView
+            android:id="@+id/queueItemSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/on_surface_muted"
+            tools:text="Azumi Takahashi, Lotus Juice" />
+    </LinearLayout>
+</LinearLayout>

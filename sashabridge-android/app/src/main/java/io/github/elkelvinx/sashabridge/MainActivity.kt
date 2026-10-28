@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.drawable.AnimationDrawable
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.PowerManager
@@ -28,9 +29,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
+import io.github.elkelvinx.sashabridge.media.PlayerCommand
 import io.github.elkelvinx.sashabridge.protocol.ProtocolCodec
 import io.github.elkelvinx.sashabridge.ui.BridgePhase
 import io.github.elkelvinx.sashabridge.ui.PlayerCard
+import io.github.elkelvinx.sashabridge.ui.QueueSheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -63,6 +66,9 @@ class MainActivity : AppCompatActivity() {
 
     /** Display names of player packages, resolved once each. */
     private val appLabels = HashMap<String, String>()
+
+    /** Launcher icons of player packages, resolved once each; `null` when not visible. */
+    private val appIcons = HashMap<String, Drawable?>()
 
     private lateinit var statusDot: View
     private lateinit var statusTitle: TextView
@@ -102,7 +108,13 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.batteryButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         }
-        val player = PlayerCard(findViewById(R.id.main), repository::sendCommand, ::appLabel)
+        val player = PlayerCard(
+            root = findViewById(R.id.main),
+            onCommand = repository::sendCommand,
+            onOpenQueue = ::openQueue,
+            appLabel = ::appLabel,
+            appIcon = ::appIcon,
+        )
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -121,6 +133,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 launch { repository.media.collect(player::show) }
+                launch { repository.queue.collect { player.setQueueAvailable(it != null) } }
                 launch {
                     while (true) {
                         player.tick()
@@ -214,6 +227,26 @@ class MainActivity : AppCompatActivity() {
             packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
         } catch (_: PackageManager.NameNotFoundException) {
             packageName
+        }
+    }
+
+    /**
+     * Returns the launcher icon of a player, such as Spotify's, or `null` if Android does not
+     * let this app see it, in which case the screen shows no icon.
+     */
+    private fun appIcon(packageName: String): Drawable? = appIcons.getOrPut(packageName) {
+        try {
+            packageManager.getApplicationIcon(packageName)
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+
+    /** Opens the play queue of the active player; touching a track jumps to it. */
+    private fun openQueue() {
+        val queue = repository.queue.value ?: return
+        QueueSheet.show(this, queue, appLabel(queue.source)) { queueId ->
+            repository.sendCommand(PlayerCommand.SkipToQueueItem(queueId))
         }
     }
 

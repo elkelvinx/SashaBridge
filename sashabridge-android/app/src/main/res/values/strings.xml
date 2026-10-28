@@ -4,6 +4,7 @@
 
     <string name="label_status">Estado</string>
     <string name="label_now_playing">Sonando</string>
+    <string name="label_paused">En pausa</string>
 
     <!-- Bridge phases: title and detail. -->
     <string name="phase_no_access">Falta el acceso a notificaciones</string>
@@ -36,6 +37,10 @@
     <string name="control_shuffle_on">Modo aleatorio activado</string>
     <string name="control_shuffle_smart">Modo aleatorio inteligente</string>
     <string name="control_seek">Posición de la canción</string>
+    <string name="control_repeat">Repetir</string>
+    <string name="button_queue">Cola</string>
+    <string name="queue_title_default">Cola de reproducción</string>
+    <string name="queue_position">%1$d</string>
 
     <string name="button_turn_off">Apagar puente</string>
     <string name="button_turn_on">Encender puente</string>

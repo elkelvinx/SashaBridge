@@ -12,6 +12,9 @@
         <item name="colorSurfaceVariant">@color/surface_variant</item>
         <item name="colorOnSurfaceVariant">@color/on_surface_muted</item>
         <item name="colorOutline">@color/outline</item>
+        <!-- Tonal buttons (Cola, Dar acceso, Abrir ajustes) in the app's palette, not Material's. -->
+        <item name="colorSecondaryContainer">@color/surface_variant</item>
+        <item name="colorOnSecondaryContainer">@color/on_surface</item>
     </style>
 
     <style name="Theme.SashaBridge" parent="Base.Theme.SashaBridge" />
@@ -37,6 +40,23 @@
         <item name="android:scaleType">centerInside</item>
         <item name="android:padding">8dp</item>
         <item name="tint">@color/on_surface</item>
+    </style>
+
+    <!-- Larger buttons beside the album art to skip tracks. -->
+    <style name="Widget.SashaBridge.SkipButton" parent="Widget.SashaBridge.ControlButton">
+        <item name="android:layout_width">56dp</item>
+        <item name="android:layout_height">56dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:padding">6dp</item>
+    </style>
+
+    <!-- One line of text that scrolls when it does not fit; the code selects the view. -->
+    <style name="Widget.SashaBridge.Marquee" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">marquee</item>
+        <item name="android:marqueeRepeatLimit">marquee_forever</item>
     </style>
 
     <!-- Times next to the seek bar: digits of equal width, so they do not jump. -->

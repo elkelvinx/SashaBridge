@@ -14,6 +14,10 @@
     <color name="button_active">#7D4E2C</color>
     <color name="button_idle">#3A2A2C</color>
 
+    <color name="scrim_top">#991C1214</color>
+    <color name="scrim_middle">#B32A1B1F</color>
+    <color name="scrim_bottom">#E02A1B1F</color>
+
     <color name="status_connected">#7CC489</color>
     <color name="status_waiting">#E0B04A</color>
     <color name="status_off">#8C7B77</color>

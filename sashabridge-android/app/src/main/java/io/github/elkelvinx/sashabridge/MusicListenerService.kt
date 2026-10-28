@@ -95,7 +95,8 @@ class MusicListenerService : NotificationListenerService() {
         repository.setListenerConnected(true)
         listenerJob = serviceScope.launch {
             launch { tracker.media.collect(repository::updateMedia) }
-            launch { repository.commands.collect(commandExecutor::execute) }
+            launch { tracker.queue.collect(repository::updateQueue) }
+            launch { repository.commands.collect { commandExecutor.execute(it) } }
             repository.enabled.collectLatest { enabled ->
                 if (enabled) {
                     Log.i(LOG_TAG, "Bridge enabled, starting the server")
@@ -133,6 +134,7 @@ class MusicListenerService : NotificationListenerService() {
         listenerJob = null
         tracker.stop()
         repository.updateMedia(null)
+        repository.updateQueue(null)
         repository.setListenerConnected(false)
         server.release()
     }

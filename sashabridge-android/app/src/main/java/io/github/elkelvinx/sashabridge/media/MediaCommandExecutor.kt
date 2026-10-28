@@ -28,6 +28,23 @@ class MediaCommandExecutor(
 ) {
 
     /**
+     * Executes a command of the app's screen.
+     *
+     * @param command Command from the screen.
+     */
+    fun execute(command: PlayerCommand) {
+        when (command) {
+            is PlayerCommand.Transport -> execute(command.command)
+            PlayerCommand.ToggleRepeat -> sendCustomAction("repeat", RepeatControl::findToggleAction)
+            is PlayerCommand.SkipToQueueItem -> {
+                val controller = tracker.currentController() ?: return
+                Log.d(LOG_TAG, "Skipping to queue item ${command.queueId} of ${controller.packageName}")
+                controller.transportControls.skipToQueueItem(command.queueId)
+            }
+        }
+    }
+
+    /**
      * Executes [command].
      *
      * @param command Command from the PC or from the screen.
@@ -48,16 +65,26 @@ class MediaCommandExecutor(
             CommandAction.NEXT -> controls.skipToNext()
             CommandAction.PREVIOUS -> controls.skipToPrevious()
             CommandAction.SEEK -> command.positionMs?.let(controls::seekTo)
-            CommandAction.TOGGLE_SHUFFLE -> {
-                val actionIds = controller.playbackState?.customActions?.map { it.action }.orEmpty()
-                val toggle = ShuffleControl.findToggleAction(actionIds)
-                if (toggle != null) {
-                    controls.sendCustomAction(toggle, null)
-                } else {
-                    Log.w(LOG_TAG, "${controller.packageName} has no shuffle action; TOGGLE_SHUFFLE ignored")
-                }
-            }
+            CommandAction.TOGGLE_SHUFFLE -> sendCustomAction("shuffle", ShuffleControl::findToggleAction)
         }
+    }
+
+    /**
+     * Presses one of the active player's own buttons, found among its custom actions.
+     *
+     * @param name What the button does, for the log.
+     * @param find Picks the button's action identifier from the player's custom actions.
+     */
+    private fun sendCustomAction(name: String, find: (List<String>) -> String?) {
+        val controller = tracker.currentController() ?: return
+        val actionIds = controller.playbackState?.customActions?.map { it.action }.orEmpty()
+        val action = find(actionIds)
+        if (action == null) {
+            Log.w(LOG_TAG, "${controller.packageName} has no $name action; ignored")
+            return
+        }
+        Log.d(LOG_TAG, "Pressing $action of ${controller.packageName}")
+        controller.transportControls.sendCustomAction(action, null)
     }
 
     /**
