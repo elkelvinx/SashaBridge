@@ -1,5 +1,7 @@
-# Text files are stored with LF line endings and checked out with the platform's own.
-* text=auto
+# Text files use LF line endings, both in the repository and when checked out, on every
+# platform. This also keeps Git for Windows from warning on each commit that it would
+# convert them to CRLF.
+* text=auto eol=lf
 
 # Windows batch files need CRLF; the Gradle wrapper script runs on Unix shells and needs LF.
 *.bat text eol=crlf
