@@ -54,3 +54,11 @@ cargo run
   ```
 
 - **Carátulas:** se guardan en `%TEMP%\sashabridge\covers\`. Solo se conserva la actual y la carpeta se vacía en cada arranque.
+
+## Problemas conocidos
+
+| Síntoma | Causa | Solución |
+|---|---|---|
+| Un flyout de terceros (FluentFlyout, ModernFlyouts) no aparece al pulsar las teclas multimedia, aunque la música sí responde | La ventana activa se ejecuta como administrador. Windows impide que un programa normal vea las teclas pulsadas en ella | Abrir esa aplicación sin privilegios de administrador. El flyout nativo de Windows no tiene este problema |
+| Las teclas multimedia de la PC controlan Spotify para PC en lugar del teléfono | Windows envía las teclas a la sesión multimedia principal, y Spotify para PC registra la suya | Cerrar Spotify en la PC |
+| La app del teléfono deja de enviar datos o de obedecer comandos durante un rato | El ahorro de batería de Samsung congela la app en segundo plano | Batería *Sin restricciones* para SashaBridge (ver `INSTALACION.md`, sección 4.5) |

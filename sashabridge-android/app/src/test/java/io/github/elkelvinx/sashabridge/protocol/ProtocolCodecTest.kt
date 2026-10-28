@@ -1,10 +1,8 @@
 package io.github.elkelvinx.sashabridge.protocol
 
-import java.io.File
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -74,22 +72,6 @@ class ProtocolCodecTest {
         }
     }
 
-    /**
-     * Returns the name and content of every JSON fixture in [dir], sorted by name.
-     *
-     * The fixtures reach the test classpath under `fixtures/` through the `test` source set
-     * in `app/build.gradle.kts`. Fails if the directory is missing or empty, so that a
-     * wrong path cannot pass silently.
-     */
-    private fun fixtures(dir: String): List<Pair<String, String>> {
-        val url = requireNotNull(javaClass.classLoader?.getResource("fixtures/$dir")) {
-            "fixtures/$dir is not on the test classpath"
-        }
-        val files = File(url.toURI())
-            .listFiles { file -> file.extension == "json" }
-            .orEmpty()
-            .sortedBy { it.name }
-        assertTrue("no fixtures in $url", files.isNotEmpty())
-        return files.map { it.name to it.readText(Charsets.UTF_8) }
-    }
+    /** Shorthand for [Fixtures.all]. */
+    private fun fixtures(dir: String): List<Pair<String, String>> = Fixtures.all(dir)
 }
