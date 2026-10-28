@@ -29,6 +29,8 @@ import kotlinx.coroutines.launch
  * - [MediaSessionTracker] observes the players and its state goes to [BridgeRepository.media].
  * - [BridgeServer] runs while [BridgeRepository.enabled] is `true`, sends that state to the
  *   PC and runs the PC's commands through [MediaCommandExecutor].
+ * - The commands pressed on the app's own screen ([BridgeRepository.commands]) run through
+ *   the same executor, whether the bridge is on or off.
  *
  * When Android disconnects the listener, for example after the app is updated, the service
  * asks to be bound again with [requestRebind].
@@ -49,6 +51,9 @@ class MusicListenerService : NotificationListenerService() {
     /** WebSocket server. Created in [onCreate], run while the listener is connected. */
     private lateinit var server: BridgeServer
 
+    /** Runs the commands of the PC and of the app's screen. Created in [onCreate]. */
+    private lateinit var commandExecutor: MediaCommandExecutor
+
     /** Work that lives while the listener is connected, or `null` while it is not. Main thread. */
     private var listenerJob: Job? = null
 
@@ -62,7 +67,7 @@ class MusicListenerService : NotificationListenerService() {
             listenerComponent(),
             serviceScope,
         )
-        val commandExecutor = MediaCommandExecutor(tracker, getSystemService(AUDIO_SERVICE) as AudioManager)
+        commandExecutor = MediaCommandExecutor(tracker, getSystemService(AUDIO_SERVICE) as AudioManager)
         server = BridgeServer(
             media = repository.media,
             deviceName = Build.MODEL,
@@ -90,6 +95,7 @@ class MusicListenerService : NotificationListenerService() {
         repository.setListenerConnected(true)
         listenerJob = serviceScope.launch {
             launch { tracker.media.collect(repository::updateMedia) }
+            launch { repository.commands.collect(commandExecutor::execute) }
             repository.enabled.collectLatest { enabled ->
                 if (enabled) {
                     Log.i(LOG_TAG, "Bridge enabled, starting the server")

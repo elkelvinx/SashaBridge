@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Seek bar track: light coffee for what is left, very dark red for what was played. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@android:id/background"
+        android:gravity="center_vertical|fill_horizontal"
+        android:height="6dp">
+        <shape>
+            <corners android:radius="3dp" />
+            <solid android:color="@color/seek_track" />
+        </shape>
+    </item>
+    <item
+        android:id="@android:id/progress"
+        android:gravity="center_vertical|fill_horizontal"
+        android:height="6dp">
+        <clip>
+            <shape>
+                <corners android:radius="3dp" />
+                <solid android:color="@color/seek_played" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>

@@ -42,7 +42,7 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `server/BridgeServer` | Servidor WebSocket (Ktor 3, motor CIO) en `127.0.0.1:8080`. Arranque y parada serializados, reintento si el puerto está ocupado. |
 | `server/ClientSession` | Conversación con una PC: saludo, estado inicial, cambios y órdenes. |
 | `protocol/` | Tipos del protocolo v2 (`PhoneMessage`, `PcMessage`), su codificación (`ProtocolCodec`) y la traducción de estados a mensajes de una sesión (`MediaStateEncoder`). |
-| `ui/BridgePhase`, `MainActivity` | Pantalla: estado del puente, canción actual, avisos de permisos y batería, y Sasha. |
+| `ui/BridgePhase`, `ui/PlayerCard`, `MainActivity` | Pantalla: estado del puente, avisos de permisos y batería, Sasha, y la tarjeta del reproductor con sus controles y la barra de progreso. |
 
 ### 2.1 Hilos
 
@@ -67,6 +67,8 @@ El puerto es un recurso del proceso, no de la instancia del servicio. Tras **For
 
 `MainActivity` observa `BridgeRepository` mientras está visible (`repeatOnLifecycle(STARTED)`). `BridgePhase` deriva lo que se muestra, por este orden de prioridad: sin acceso a notificaciones, puente apagado, esperando a Android, iniciando, esperando a la PC, PC conectada o error. El botón solo escribe `enabled`, así que la pantalla no puede contradecir al servicio.
 
+La tarjeta "Sonando" (`PlayerCard`) controla el reproductor desde el propio teléfono. Sus botones publican órdenes en `BridgeRepository.commands`, y el servicio las ejecuta con el mismo `MediaCommandExecutor` que las de la PC, esté el puente encendido o apagado. La barra de progreso avanza sola entre estados, extrapolando la posición con el reloj del teléfono. Al soltarla envía `SEEK` y mantiene la posición pedida hasta que el reproductor confirma la nueva.
+
 Sasha, la perrita salchicha que da nombre a la app, acompaña el estado:
 
 | Estado | Animación |
@@ -76,7 +78,7 @@ Sasha, la perrita salchicha que da nombre a la app, acompaña el estado:
 | Puente apagado | Duerme |
 | Sin acceso o error | Quieta, mirando al frente |
 
-Los fotogramas son `VectorDrawable` generados por `tools/sasha_sprite.py` a partir de un dibujo en pixel art. Para cambiarlos se edita el script y se vuelve a ejecutar; los XML generados no se editan a mano.
+El icono de la app, una Sasha en pixel art con más detalle sobre un fondo vino, lo genera `tools/sasha_icon.py` como icono adaptativo con capa monocroma para los iconos temáticos de Android. Los fotogramas son `VectorDrawable` generados por `tools/sasha_sprite.py` a partir de un dibujo en pixel art. Para cambiarlos se edita el script y se vuelve a ejecutar; los XML generados no se editan a mano.
 
 ## 3. Cliente de PC
 

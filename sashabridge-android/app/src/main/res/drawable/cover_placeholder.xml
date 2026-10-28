@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shown in place of the album art when nothing is playing or the track has none. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape>
+            <solid android:color="@color/surface_variant" />
+        </shape>
+    </item>
+    <item
+        android:width="48dp"
+        android:height="48dp"
+        android:drawable="@drawable/ic_music_note_muted"
+        android:gravity="center" />
+</layer-list>

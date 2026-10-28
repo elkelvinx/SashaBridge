@@ -29,6 +29,25 @@
         <item name="cornerSize">12dp</item>
     </style>
 
+    <!-- Borderless icon button of the player controls. -->
+    <style name="Widget.SashaBridge.ControlButton" parent="">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:scaleType">centerInside</item>
+        <item name="android:padding">8dp</item>
+        <item name="tint">@color/on_surface</item>
+    </style>
+
+    <!-- Times next to the seek bar: digits of equal width, so they do not jump. -->
+    <style name="TextAppearance.SashaBridge.Time" parent="">
+        <item name="android:textAppearance">?attr/textAppearanceLabelMedium</item>
+        <item name="android:textColor">@color/on_surface_muted</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+        <item name="android:minWidth">40dp</item>
+        <item name="android:gravity">center</item>
+    </style>
+
     <style name="TextAppearance.SashaBridge.Label" parent="TextAppearance.Material3.LabelMedium">
         <item name="android:textColor">@color/on_surface_muted</item>
         <item name="android:textAllCaps">true</item>

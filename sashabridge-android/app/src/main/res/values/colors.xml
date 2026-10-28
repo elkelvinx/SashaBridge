@@ -22,6 +22,11 @@
     <color name="button_active">#6F4325</color>
     <color name="button_idle">#E6D6CC</color>
 
+    <!-- Seek bar: light coffee track, very dark red played part, strong wine ball. -->
+    <color name="seek_track">#C9A27E</color>
+    <color name="seek_played">#4A0B16</color>
+    <color name="seek_thumb">#A3173F</color>
+
     <color name="status_connected">#4E9A5B</color>
     <color name="status_waiting">#C98E2A</color>
     <color name="status_off">#9A8A85</color>

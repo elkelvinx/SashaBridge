@@ -9,7 +9,7 @@ import io.github.elkelvinx.sashabridge.protocol.CommandAction
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 
 /**
- * Executes the commands received from the PC on the active player.
+ * Executes the commands of the PC and of the app's own screen on the active player.
  *
  * Commands go to the controller chosen by [MediaSessionTracker], the same player whose state
  * the PC shows, instead of the first session in the system list (R4). When there is no
@@ -30,7 +30,7 @@ class MediaCommandExecutor(
     /**
      * Executes [command].
      *
-     * @param command Command received from the PC.
+     * @param command Command from the PC or from the screen.
      */
     fun execute(command: PcMessage.Command) {
         val controller = tracker.currentController()

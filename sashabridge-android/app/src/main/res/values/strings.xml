@@ -3,7 +3,7 @@
     <string name="tagline">La música del teléfono, en tu PC</string>
 
     <string name="label_status">Estado</string>
-    <string name="label_now_playing">Sonando ahora</string>
+    <string name="label_now_playing">Sonando</string>
 
     <!-- Bridge phases: title and detail. -->
     <string name="phase_no_access">Falta el acceso a notificaciones</string>
@@ -25,6 +25,17 @@
 
     <string name="nothing_playing">Nada sonando</string>
     <string name="now_playing_source">en %1$s</string>
+    <string name="unknown_time">--:--</string>
+
+    <!-- Player controls, read by screen readers. -->
+    <string name="control_previous">Canción anterior</string>
+    <string name="control_next">Canción siguiente</string>
+    <string name="control_play">Reproducir</string>
+    <string name="control_pause">Pausar</string>
+    <string name="control_shuffle_off">Modo aleatorio desactivado</string>
+    <string name="control_shuffle_on">Modo aleatorio activado</string>
+    <string name="control_shuffle_smart">Modo aleatorio inteligente</string>
+    <string name="control_seek">Posición de la canción</string>
 
     <string name="button_turn_off">Apagar puente</string>
     <string name="button_turn_on">Encender puente</string>

@@ -4,8 +4,13 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
+import io.github.elkelvinx.sashabridge.protocol.PcMessage
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
@@ -34,6 +39,15 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
     /** Backing state of [listenerConnected]. */
     private val mutableListenerConnected = MutableStateFlow(false)
 
+    /**
+     * Backing flow of [commands]. A few commands are buffered for the moment the service takes
+     * to collect them; if the buffer fills up, the oldest press is dropped.
+     */
+    private val mutableCommands = MutableSharedFlow<PcMessage.Command>(
+        extraBufferCapacity = COMMAND_BUFFER,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
     /** Whether the user wants the bridge on. Persisted; `true` on the first run. */
     val enabled: StateFlow<Boolean> = mutableEnabled.asStateFlow()
 
@@ -48,6 +62,12 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
      * the players. Written by the service.
      */
     val listenerConnected: StateFlow<Boolean> = mutableListenerConnected.asStateFlow()
+
+    /**
+     * Commands for the active player pressed on the phone's own screen. The service runs them
+     * the same way as the PC's, while the listener is connected.
+     */
+    val commands: SharedFlow<PcMessage.Command> = mutableCommands.asSharedFlow()
 
     /**
      * Turns the bridge on or off and remembers the choice. Any thread.
@@ -86,7 +106,20 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
         mutableListenerConnected.value = connected
     }
 
+    /**
+     * Asks the service to run [command] on the active player. Any thread.
+     *
+     * @param command Command to run.
+     */
+    fun sendCommand(command: PcMessage.Command) {
+        mutableCommands.tryEmit(command)
+    }
+
     companion object {
+
+        /** Commands buffered for the service; see [mutableCommands]. */
+        private const val COMMAND_BUFFER = 8
+
 
         /** Name of the preferences file. */
         private const val PREFERENCES = "bridge"

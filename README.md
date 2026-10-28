@@ -25,7 +25,7 @@ La app se llama así por Sasha, una perrita salchicha: aparece en la pantalla de
 | `sashabridge-android/` | App Android (Kotlin): servicio de escucha de notificaciones y servidor WebSocket |
 | `sashabridge-pc/` | Cliente Windows (Rust): túnel adb, scrcpy e integración con SMTC |
 | `protocol/fixtures/` | Mensajes de ejemplo del protocolo v2, compartidos por los tests de Kotlin y de Rust (ver `docs/protocolo-v2.md`) |
-| `tools/` | `setup.ps1` (preparación completa), `fetch-scrcpy.ps1`, `smtc-inspect.ps1` (inspección de las sesiones multimedia de Windows) y `sasha_sprite.py` (generador de los dibujos de Sasha) |
+| `tools/` | `setup.ps1` (preparación completa), `fetch-scrcpy.ps1`, `smtc-inspect.ps1` (inspección de las sesiones multimedia de Windows), `sasha_sprite.py` (dibujos de Sasha en la app) y `sasha_icon.py` (icono de la app) |
 | `docs/` | Documentación técnica (ver la tabla anterior) y material de la versión original (`docs/legacy/`) |
 
 ## Requisitos
@@ -47,7 +47,7 @@ Sin `-InstallApp` no hace falta el teléfono. El proceso completo, incluidos los
 
 ## Uso
 
-En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena. Su botón enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
+En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar el modo aleatorio y mover la posición. Su botón principal enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
 
 En la PC:
 

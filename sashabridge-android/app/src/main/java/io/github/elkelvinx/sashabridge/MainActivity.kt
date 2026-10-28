@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
-import android.graphics.BitmapFactory
 import android.graphics.drawable.AnimationDrawable
 import android.net.Uri
 import android.os.Bundle
@@ -29,17 +28,17 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
-import io.github.elkelvinx.sashabridge.media.AlbumArt
-import io.github.elkelvinx.sashabridge.media.MediaSnapshot
 import io.github.elkelvinx.sashabridge.protocol.ProtocolCodec
 import io.github.elkelvinx.sashabridge.ui.BridgePhase
+import io.github.elkelvinx.sashabridge.ui.PlayerCard
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * Main screen: the state of the bridge, the track of the active player, and the settings the
- * bridge needs.
+ * Main screen: the state of the bridge, the track of the active player with its controls
+ * ([PlayerCard]), and the settings the bridge needs.
  *
  * Everything shown comes from [BridgeRepository] and from the system, observed while the
  * screen is visible, so it matches what the service does, also after rotating or reopening
@@ -62,9 +61,6 @@ class MainActivity : AppCompatActivity() {
     /** Pose currently shown, so that an animation is not restarted by an unrelated update. */
     private var shownPose: SashaPose? = null
 
-    /** Identifier of the art currently shown, to decode each image only once. */
-    private var shownArtId: String? = null
-
     /** Display names of player packages, resolved once each. */
     private val appLabels = HashMap<String, String>()
 
@@ -74,10 +70,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sasha: ImageView
     private lateinit var hourglass: ImageView
     private lateinit var grantAccessButton: Button
-    private lateinit var cover: ImageView
-    private lateinit var trackTitle: TextView
-    private lateinit var trackArtist: TextView
-    private lateinit var trackSource: TextView
     private lateinit var batteryCard: View
     private lateinit var toggleButton: Button
 
@@ -98,10 +90,6 @@ class MainActivity : AppCompatActivity() {
         sasha = findViewById(R.id.sasha)
         hourglass = findViewById(R.id.hourglass)
         grantAccessButton = findViewById(R.id.grantAccessButton)
-        cover = findViewById(R.id.cover)
-        trackTitle = findViewById(R.id.trackTitle)
-        trackArtist = findViewById(R.id.trackArtist)
-        trackSource = findViewById(R.id.trackSource)
         batteryCard = findViewById(R.id.batteryCard)
         toggleButton = findViewById(R.id.toggleButton)
         findViewById<TextView>(R.id.footer).text =
@@ -114,6 +102,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.batteryButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         }
+        val player = PlayerCard(findViewById(R.id.main), repository::sendCommand, ::appLabel)
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -131,7 +120,13 @@ class MainActivity : AppCompatActivity() {
                         toggleButton.setText(if (enabled) R.string.button_turn_off else R.string.button_turn_on)
                     }
                 }
-                launch { repository.media.collect(::showTrack) }
+                launch { repository.media.collect(player::show) }
+                launch {
+                    while (true) {
+                        player.tick()
+                        delay(PROGRESS_TICK_MS)
+                    }
+                }
             }
         }
     }
@@ -210,30 +205,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Shows the track of the active player, or that nothing is playing. */
-    private fun showTrack(snapshot: MediaSnapshot?) {
-        showArt(snapshot?.art)
-        if (snapshot == null) {
-            trackTitle.setText(R.string.nothing_playing)
-            trackArtist.isVisible = false
-            trackSource.isVisible = false
-            return
-        }
-        trackTitle.text = snapshot.title ?: getString(R.string.nothing_playing)
-        val artist = listOfNotNull(snapshot.artist, snapshot.playbackContext).joinToString(" • ")
-        trackArtist.text = artist
-        trackArtist.isVisible = artist.isNotEmpty()
-        trackSource.text = getString(R.string.now_playing_source, appLabel(snapshot.source))
-        trackSource.isVisible = true
-    }
-
-    /** Shows [art], decoding it only when it changes, or an empty tile without art. */
-    private fun showArt(art: AlbumArt?) {
-        if (art?.artId == shownArtId) return
-        shownArtId = art?.artId
-        cover.setImageBitmap(art?.let { BitmapFactory.decodeByteArray(it.jpeg, 0, it.jpeg.size) })
-    }
-
     /**
      * Returns the name the user knows a player by, such as "Spotify", or the package name if
      * Android does not let this app see it.
@@ -248,6 +219,12 @@ class MainActivity : AppCompatActivity() {
 
     /** Resolves a color resource for the current theme. */
     private fun color(@ColorRes id: Int): Int = ContextCompat.getColor(this, id)
+
+    private companion object {
+
+        /** Interval between seek bar updates while the screen is visible. */
+        const val PROGRESS_TICK_MS = 250L
+    }
 
     /**
      * Poses of Sasha.
