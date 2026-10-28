@@ -1,9 +1,37 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+<resources>
+    <!-- Wine and coat-brown theme; the night variants of the colors switch it to dark. -->
     <style name="Base.Theme.SashaBridge" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/coat</item>
+        <item name="colorOnSecondary">@color/on_primary</item>
+        <item name="colorTertiary">@color/coat_tan</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="colorSurfaceVariant">@color/surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/on_surface_muted</item>
+        <item name="colorOutline">@color/outline</item>
     </style>
 
     <style name="Theme.SashaBridge" parent="Base.Theme.SashaBridge" />
+
+    <!-- Rounded cards with a hairline border instead of a shadow. -->
+    <style name="Widget.SashaBridge.Card" parent="Widget.Material3.CardView.Outlined">
+        <item name="cardBackgroundColor">@color/surface</item>
+        <item name="strokeColor">@color/outline</item>
+        <item name="cardCornerRadius">20dp</item>
+        <item name="contentPadding">16dp</item>
+    </style>
+
+    <style name="ShapeAppearance.SashaBridge.Cover" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <style name="TextAppearance.SashaBridge.Label" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textColor">@color/on_surface_muted</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.08</item>
+    </style>
 </resources>

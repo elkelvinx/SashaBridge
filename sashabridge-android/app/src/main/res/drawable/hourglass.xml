@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sand runs down for a few seconds, then the hourglass turns over and starts again. -->
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:oneshot="false">
+    <item android:drawable="@drawable/hourglass_0" android:duration="700" />
+    <item android:drawable="@drawable/hourglass_1" android:duration="700" />
+    <item android:drawable="@drawable/hourglass_2" android:duration="700" />
+    <item android:drawable="@drawable/hourglass_3" android:duration="700" />
+    <item android:drawable="@drawable/hourglass_4" android:duration="700" />
+    <item android:drawable="@drawable/hourglass_flip" android:duration="250" />
+</animation-list>

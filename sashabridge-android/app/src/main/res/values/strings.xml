@@ -1,3 +1,38 @@
 <resources>
     <string name="app_name">SashaBridge</string>
+    <string name="tagline">La música del teléfono, en tu PC</string>
+
+    <string name="label_status">Estado</string>
+    <string name="label_now_playing">Sonando ahora</string>
+
+    <!-- Bridge phases: title and detail. -->
+    <string name="phase_no_access">Falta el acceso a notificaciones</string>
+    <string name="phase_no_access_detail">Android solo deja leer qué suena a las apps con este acceso.</string>
+    <string name="phase_disabled">Puente apagado</string>
+    <string name="phase_disabled_detail">La PC no puede conectarse mientras esté apagado.</string>
+    <string name="phase_waiting_listener">Esperando a Android</string>
+    <string name="phase_waiting_listener_detail">El servicio de la app se está activando.</string>
+    <string name="phase_starting">Iniciando…</string>
+    <string name="phase_starting_detail">Preparando la conexión para la PC.</string>
+    <string name="phase_listening">Esperando a la PC</string>
+    <string name="phase_listening_detail">Conecta el teléfono por USB y abre SashaBridge en la PC.</string>
+    <plurals name="phase_connected">
+        <item quantity="one">PC conectada</item>
+        <item quantity="other">%d PC conectadas</item>
+    </plurals>
+    <string name="phase_connected_detail">Las teclas multimedia de la PC controlan este teléfono.</string>
+    <string name="phase_failed">El puente no puede arrancar</string>
+
+    <string name="nothing_playing">Nada sonando</string>
+    <string name="now_playing_source">en %1$s</string>
+
+    <string name="button_turn_off">Apagar puente</string>
+    <string name="button_turn_on">Encender puente</string>
+    <string name="button_grant_access">Dar acceso</string>
+
+    <string name="battery_title">Batería optimizada</string>
+    <string name="battery_detail">Samsung puede congelar la app en segundo plano y cortar el puente. En Batería, elige «Sin restricciones».</string>
+    <string name="button_battery">Abrir ajustes</string>
+
+    <string name="footer">USB · 127.0.0.1:%1$d · protocolo v%2$d</string>
 </resources>

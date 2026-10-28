@@ -87,6 +87,7 @@ class MusicListenerService : NotificationListenerService() {
             repository.reportStatus(BridgeStatus.Error("no notification access"))
             return
         }
+        repository.setListenerConnected(true)
         listenerJob = serviceScope.launch {
             launch { tracker.media.collect(repository::updateMedia) }
             repository.enabled.collectLatest { enabled ->
@@ -126,6 +127,7 @@ class MusicListenerService : NotificationListenerService() {
         listenerJob = null
         tracker.stop()
         repository.updateMedia(null)
+        repository.setListenerConnected(false)
         server.release()
     }
 

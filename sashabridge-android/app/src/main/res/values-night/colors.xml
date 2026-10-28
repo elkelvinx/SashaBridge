@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme surfaces and text, tinted toward wine. -->
+    <color name="background">#1C1214</color>
+    <color name="surface">#2A1B1F</color>
+    <color name="surface_variant">#3A2529</color>
+    <color name="on_surface">#F5E9E4</color>
+    <color name="on_surface_muted">#B9A39D</color>
+    <color name="primary">#9B2C4B</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="outline">#4A3035</color>
+    <color name="accent_text">@color/coat_tan</color>
+
+    <color name="button_active">#7D4E2C</color>
+    <color name="button_idle">#3A2A2C</color>
+
+    <color name="status_connected">#7CC489</color>
+    <color name="status_waiting">#E0B04A</color>
+    <color name="status_off">#8C7B77</color>
+    <color name="status_error">#E5675A</color>
+</resources>

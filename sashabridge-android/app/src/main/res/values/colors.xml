@@ -1,5 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Brand: wine and the brown of Sasha's coat. -->
+    <color name="wine">#7B1E3A</color>
+    <color name="coat">#8B5A2B</color>
+    <color name="coat_tan">#C98E5A</color>
+
+    <!-- Light theme surfaces and text. -->
+    <color name="background">#F7EFE8</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#F1E3DA</color>
+    <color name="on_surface">#2B1A1D</color>
+    <color name="on_surface_muted">#7A6560</color>
+    <color name="primary">@color/wine</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="outline">#E2D1C7</color>
+    <!-- Coat-colored text, dark enough to read on the light surface. -->
+    <color name="accent_text">#8A5424</color>
+
+    <!-- Status indicators. -->
+    <!-- Main button: a defined coat brown; muted while waiting for a PC. -->
+    <color name="button_active">#6F4325</color>
+    <color name="button_idle">#E6D6CC</color>
+
+    <color name="status_connected">#4E9A5B</color>
+    <color name="status_waiting">#C98E2A</color>
+    <color name="status_off">#9A8A85</color>
+    <color name="status_error">#C0392B</color>
 </resources>

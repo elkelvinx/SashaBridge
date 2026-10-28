@@ -31,6 +31,9 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
     /** Backing state of [media]. */
     private val mutableMedia = MutableStateFlow<MediaSnapshot?>(null)
 
+    /** Backing state of [listenerConnected]. */
+    private val mutableListenerConnected = MutableStateFlow(false)
+
     /** Whether the user wants the bridge on. Persisted; `true` on the first run. */
     val enabled: StateFlow<Boolean> = mutableEnabled.asStateFlow()
 
@@ -39,6 +42,12 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
 
     /** State of the active player, or `null` when there is none. Written by the service. */
     val media: StateFlow<MediaSnapshot?> = mutableMedia.asStateFlow()
+
+    /**
+     * Whether Android has bound the notification listener, which is what lets the bridge read
+     * the players. Written by the service.
+     */
+    val listenerConnected: StateFlow<Boolean> = mutableListenerConnected.asStateFlow()
 
     /**
      * Turns the bridge on or off and remembers the choice. Any thread.
@@ -66,6 +75,15 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
      */
     fun updateMedia(snapshot: MediaSnapshot?) {
         mutableMedia.value = snapshot
+    }
+
+    /**
+     * Records whether the notification listener is bound. Any thread.
+     *
+     * @param connected `true` between `onListenerConnected` and `onListenerDisconnected`.
+     */
+    fun setListenerConnected(connected: Boolean) {
+        mutableListenerConnected.value = connected
     }
 
     companion object {
