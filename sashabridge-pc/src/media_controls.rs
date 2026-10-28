@@ -373,6 +373,40 @@ mod tests {
         controls.clear();
     }
 
+    /// A flyout's shuffle request reaches the client as a toggle command.
+    #[test]
+    #[ignore = "publishes a real media session on this PC; run with `cargo test -- --ignored`"]
+    fn windows_shuffle_request_becomes_a_command() {
+        let window = crate::smtc_window::spawn().unwrap();
+        let (commands, mut receiver) = mpsc::channel(4);
+        let mut controls = MediaControls::new(&window, commands).unwrap();
+        controls
+            .show(&MediaView {
+                title: Some(PROBE_TITLE.to_owned()),
+                artist: Some("Test".to_owned()),
+                album: None,
+                duration: Some(Duration::from_secs(100)),
+                position: Duration::from_secs(10),
+                playing: true,
+                cover: None,
+                shuffle: Some(ShuffleMode::On),
+            })
+            .unwrap();
+        let mut session = None;
+        assert!(eventually(|| { session = probe_session(); session.is_some() }), "probe session not found");
+        let session = session.unwrap();
+        assert!(eventually(|| shuffle_state(&session) == (true, Some(true))), "shuffle must be offered and on");
+
+        let accepted = session.TryChangeShuffleActiveAsync(false).unwrap().join().unwrap();
+
+        assert!(accepted, "Windows must accept the request");
+        assert!(
+            eventually(|| receiver.try_recv() == Ok(PcCommand::ToggleShuffle)),
+            "the request must become a command"
+        );
+        controls.clear();
+    }
+
     /// Every button the phone understands maps to its command; the rest are ignored.
     #[test]
     fn maps_smtc_buttons_to_commands() {

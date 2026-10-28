@@ -9,10 +9,11 @@ import io.github.elkelvinx.sashabridge.protocol.ShuffleMode
  * whose identifier names what pressing it will do, so the identifier reveals the current mode,
  * and sending it moves to the next mode, exactly like the button in the app.
  *
- * Observed on Spotify for Android (October 2026): `TURN_SMART_SHUFFLE_OFF` while smart shuffle
- * is on. The other identifiers follow the same pattern and are confirmed on the device in
- * phase 5: `TURN_SHUFFLE_ON` while shuffle is off, `TURN_SMART_SHUFFLE_ON` while plain shuffle
- * is on, and `TURN_SHUFFLE_OFF` while shuffle is on and smart shuffle is not available.
+ * Observed on Spotify for Android (October 2026), cycling through every mode: `TURN_SHUFFLE_ON`
+ * while shuffle is off, `TURN_SHUFFLE_OFF` while plain shuffle is on, and
+ * `TURN_SMART_SHUFFLE_OFF` while smart shuffle is on. Pressing the action moves OFF, then ON,
+ * then SMART, then OFF again; the identifier of plain shuffle does not announce that smart
+ * shuffle comes next.
  *
  * Pure and thread-safe.
  */
@@ -40,7 +41,7 @@ object ShuffleControl {
      */
     fun modeOf(actionIds: List<String>): ShuffleMode? = when (findToggleAction(actionIds)) {
         "TURN_SHUFFLE_ON" -> ShuffleMode.OFF
-        "TURN_SMART_SHUFFLE_ON", "TURN_SHUFFLE_OFF" -> ShuffleMode.ON
+        "TURN_SHUFFLE_OFF" -> ShuffleMode.ON
         "TURN_SMART_SHUFFLE_OFF" -> ShuffleMode.SMART
         else -> null
     }

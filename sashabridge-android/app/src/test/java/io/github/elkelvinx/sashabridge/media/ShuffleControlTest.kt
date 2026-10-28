@@ -19,12 +19,12 @@ class ShuffleControlTest {
         assertEquals("TURN_SMART_SHUFFLE_OFF", ShuffleControl.findToggleAction(actions))
     }
 
-    /** The identifier names what pressing the action does, which reveals the current mode. */
+    /** The identifiers observed while cycling through every mode on the device. */
     @Test
-    fun mapsEveryShuffleIdentifier() {
+    fun mapsEveryObservedShuffleIdentifier() {
         assertEquals(ShuffleMode.OFF, ShuffleControl.modeOf(listOf("TURN_SHUFFLE_ON")))
-        assertEquals(ShuffleMode.ON, ShuffleControl.modeOf(listOf("TURN_SMART_SHUFFLE_ON")))
         assertEquals(ShuffleMode.ON, ShuffleControl.modeOf(listOf("TURN_SHUFFLE_OFF")))
+        assertEquals(ShuffleMode.SMART, ShuffleControl.modeOf(listOf("TURN_SMART_SHUFFLE_OFF")))
     }
 
     /** A player without a shuffle action, such as YouTube, has no controllable mode. */

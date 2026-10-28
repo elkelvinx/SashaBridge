@@ -12,9 +12,11 @@ constraintlayout = "2.1.4"
 # kotlinx-serialization was compiled with (2.4.10 for 1.12.0); AGP 9.2.1 alone brings 2.2.10.
 kotlin = "2.4.21"
 kotlinxSerialization = "1.12.0"
-# Pinned to the version Ktor 2.3.11 was built with: newer versions removed an internal API that
-# Ktor 2.x calls (NoSuchMethodError on LockFreeLinkedListHead.addLast). Raise it with Ktor 3.x in phase 5.
-kotlinxCoroutines = "1.7.1"
+# Ktor and kotlinx-coroutines move together: Ktor calls internal coroutine APIs, so keep the
+# coroutines version at least the one Ktor declares (1.11.0 for Ktor 3.6.0).
+kotlinxCoroutines = "1.11.0"
+ktor = "3.6.0"
+lifecycle = "2.11.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -27,6 +29,12 @@ androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", ve
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+ktor-server-cio = { group = "io.ktor", name = "ktor-server-cio", version.ref = "ktor" }
+ktor-server-websockets = { group = "io.ktor", name = "ktor-server-websockets", version.ref = "ktor" }
+ktor-client-cio = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
+ktor-client-websockets = { group = "io.ktor", name = "ktor-client-websockets", version.ref = "ktor" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

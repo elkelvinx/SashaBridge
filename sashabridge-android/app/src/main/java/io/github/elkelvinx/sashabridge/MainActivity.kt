@@ -12,11 +12,20 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
+import kotlinx.coroutines.launch
 
+/**
+ * Screen with the bridge on/off button.
+ *
+ * The button writes [BridgeRepository.enabled] and the screen shows its value, so it always
+ * matches what the service does, also after the activity is recreated (A7). Phase 6 adds the
+ * server status and the current track. Main thread.
+ */
 class MainActivity : AppCompatActivity() {
-
-    // Variable para saber si el puente está prendido o apagado
-    private var puenteActivo = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,29 +44,27 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
 
-        // Configurar el botón
+        val repository = BridgeRepository.get(this)
         val btnToggle = findViewById<Button>(R.id.btnToggleBridge)
         val tvStatus = findViewById<TextView>(R.id.tvStatus)
 
-        btnToggle.setOnClickListener {
-            puenteActivo = !puenteActivo // Cambiamos el estado
+        btnToggle.setOnClickListener { repository.setEnabled(!repository.enabled.value) }
 
-            // Enviamos el mensaje por "radio" al servicio
-            val intent = Intent("io.github.elkelvinx.sashabridge.TOGGLE_BRIDGE")
-            intent.putExtra("ESTADO", puenteActivo)
-            sendBroadcast(intent)
-
-            // Cambiamos los colores y textos de la interfaz
-            if (puenteActivo) {
-                btnToggle.text = "DESCONECTAR"
-                btnToggle.setBackgroundColor(Color.parseColor("#DA3633")) // Rojo
-                tvStatus.text = "PUENTE ACTIVO"
-                tvStatus.setTextColor(Color.parseColor("#3FB950")) // Verde
-            } else {
-                btnToggle.text = "CONECTAR"
-                btnToggle.setBackgroundColor(Color.parseColor("#3FB950")) // Verde
-                tvStatus.text = "PUENTE PAUSADO"
-                tvStatus.setTextColor(Color.parseColor("#8B949E")) // Gris
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                repository.enabled.collect { enabled ->
+                    if (enabled) {
+                        btnToggle.text = "DESCONECTAR"
+                        btnToggle.setBackgroundColor(Color.parseColor("#DA3633")) // Rojo
+                        tvStatus.text = "PUENTE ACTIVO"
+                        tvStatus.setTextColor(Color.parseColor("#3FB950")) // Verde
+                    } else {
+                        btnToggle.text = "CONECTAR"
+                        btnToggle.setBackgroundColor(Color.parseColor("#3FB950")) // Verde
+                        tvStatus.text = "PUENTE PAUSADO"
+                        tvStatus.setTextColor(Color.parseColor("#8B949E")) // Gris
+                    }
+                }
             }
         }
     }

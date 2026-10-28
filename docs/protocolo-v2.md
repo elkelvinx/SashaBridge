@@ -115,7 +115,7 @@ Orden para el reproductor activo.
 1. **Saludo.** Al abrir la sesión, cada extremo envía su `hello` antes que cualquier otro mensaje.
 2. **Estado inicial.** Tras su `hello`, el teléfono envía el estado actual sin esperar a que cambie nada: `media.art` (si hay carátula) seguido de `media.state`, o bien `media.cleared`.
 3. **Carátula antes del estado.** Un `media.art` se envía siempre antes del primer `media.state` que hace referencia a su `artId`.
-4. **Una carátula por sesión.** El teléfono envía cada `artId` una sola vez por sesión. Los siguientes `media.state` de la misma pista solo lo citan.
+4. **Solo carátulas nuevas.** El teléfono envía un `media.art` cuando el `artId` del estado es distinto del último que envió en la sesión. Los siguientes `media.state` con el mismo `artId` solo lo citan. La PC guarda únicamente la última carátula recibida, así que al volver a una pista anterior el teléfono envía su carátula otra vez.
 5. **Uso de la carátula en la PC.** La PC muestra la carátula solo si el `artId` del `media.state` coincide con el de una imagen recibida. Si `artId` es `null`, quita la carátula. Así un estado nunca se muestra con la imagen de otra pista.
 
 ## 6. Versiones

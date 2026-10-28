@@ -20,11 +20,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-    packaging {
-        resources.excludes.add("META-INF/INDEX.LIST")
-        resources.excludes.add("META-INF/io.netty.versions.properties")
-    }
-
     buildTypes {
         release {
             optimization {
@@ -35,6 +30,11 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    testOptions {
+        // android.util.Log and SystemClock return defaults instead of throwing in JVM tests,
+        // so that the server can run there.
+        unitTests.isReturnDefaultValues = true
     }
     sourceSets {
         // Protocol fixtures shared with the Rust client, available to the unit tests
@@ -50,14 +50,17 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.material)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.websockets)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    // The server tests connect to it as the PC does.
+    testImplementation(libs.ktor.client.cio)
+    testImplementation(libs.ktor.client.websockets)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
-    // Ktor Server for the webSockets
-    implementation("io.ktor:ktor-server-core:2.3.11")
-    implementation("io.ktor:ktor-server-netty:2.3.11")
-    implementation("io.ktor:ktor-server-websockets:2.3.11")
 }
