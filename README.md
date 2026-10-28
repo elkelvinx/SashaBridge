@@ -60,5 +60,6 @@ cargo run
 | Síntoma | Causa | Solución |
 |---|---|---|
 | Un flyout de terceros (FluentFlyout, ModernFlyouts) no aparece al pulsar las teclas multimedia, aunque la música sí responde | La ventana activa se ejecuta como administrador. Windows impide que un programa normal vea las teclas pulsadas en ella | Abrir esa aplicación sin privilegios de administrador. El flyout nativo de Windows no tiene este problema |
-| Las teclas multimedia de la PC controlan Spotify para PC en lugar del teléfono | Windows envía las teclas a la sesión multimedia principal, y Spotify para PC registra la suya | Cerrar Spotify en la PC |
+| Las teclas multimedia de la PC controlan otra app de música (Spotify para PC, YouTube Music en el navegador) en lugar del teléfono | Windows envía las teclas a una sola sesión multimedia, normalmente la que empezó a sonar más recientemente. Al pausar esa sesión, la siguiente pulsación va a otra que siga sonando | Comportamiento de Windows. Pausar o cerrar la otra app |
+| El flyout no muestra el botón de modo aleatorio | SashaBridge publica el modo aleatorio en la sesión de Windows, pero FluentFlyout no ofrece ese botón (tampoco para otras apps) y el flyout nativo de Windows tampoco | Ninguna por ahora: depende del flyout |
 | La app del teléfono deja de enviar datos o de obedecer comandos durante un rato | El ahorro de batería de Samsung congela la app en segundo plano | Batería *Sin restricciones* para SashaBridge (ver `INSTALACION.md`, sección 4.5) |
