@@ -47,7 +47,7 @@ Sin `-InstallApp` no hace falta el teléfono. El proceso completo, incluidos los
 
 ## Uso
 
-En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar el modo aleatorio y mover la posición. Su botón principal enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
+En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar los modos aleatorio y repetir, mover la posición y ver la cola de la app que suena. En horizontal muestra el estado y el reproductor en dos columnas. Su botón principal, en vertical, enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
 
 En la PC:
 

@@ -9,7 +9,7 @@ Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, desp
 | PC | `cargo clippy --all-targets -- -D warnings` | Análisis estático sin avisos |
 | PC | `cargo test` | Fixtures del protocolo, regla de la carátula (R6), caché de carátulas, espera exponencial y botones de Windows |
 | PC | `cargo doc --no-deps` | Documentación del código |
-| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; elección del reproductor; posición; modo aleatorio; mensajes de una sesión; estado de la pantalla; y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos) |
+| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; elección del reproductor; posición; modos aleatorio y repetir; mensajes de una sesión; estado de la pantalla; formato de los tiempos; y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos) |
 | Android | `.\gradlew.bat :app:lintDebug` | Análisis estático de la app |
 
 Gradle necesita `JAVA_HOME` apuntando al JDK de Android Studio, por ejemplo `C:\Program Files\Android\Android Studio\jbr`.
@@ -65,7 +65,7 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 - **Fecha:** 2026-10-28.
 - **Teléfono:** Samsung Galaxy S22 Ultra (SM-S908U1), Android 16.
 - **PC:** Windows 10 Pro 19045.
-- **Pruebas automáticas:** 18 tests de Rust más 2 manuales contra Windows; 49 tests de Android; clippy y lint sin avisos nuevos.
+- **Pruebas automáticas:** 18 tests de Rust más 2 manuales contra Windows; 56 tests de Android; clippy y lint sin ningún aviso.
 
 | ID | Resultado | Evidencia |
 |---|---|---|
@@ -82,3 +82,16 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | E11 | **Correcto** | Tras `adb install -r`, Android volvió a enlazar el servicio y la PC se reconectó, sin tocar los permisos. |
 
 Además se comprobó el ciclo completo del modo aleatorio desde Windows (`smtc-inspect.ps1 -ToggleShuffle`): desactivado, aleatorio, inteligente y otra vez desactivado.
+
+### Pantalla del teléfono
+
+Comprobado en el mismo dispositivo después del rediseño de la tarjeta "Sonando":
+
+| Comprobación | Resultado |
+|---|---|
+| Botones de la pantalla | Reproducir, pausar, anterior, siguiente, aleatorio y mover la barra llegan al reproductor activo. |
+| Repetir | Tres pulsaciones recorren el ciclo de Spotify: `TURN_REPEAT_ALL_ON` (sin repetir), `TURN_REPEAT_ONE_ON` (todas) y `TURN_REPEAT_OFF` (una); el icono muestra cada modo. |
+| Cambio de canción | Con "siguiente", la carátula anterior se desliza mientras llega la nueva (0,75 s en la prueba) y la canción nueva aparece ya con su carátula, sin pasar por el icono de espera. |
+| Cola | Muestra la cola de la app que suena y salta a la canción tocada. |
+| Horizontal | Dos columnas sin desplazamiento: estado y Sasha a la izquierda, reproductor completo a la derecha; el botón de apagar el puente solo aparece en vertical. |
+| Modo claro | Vertical y horizontal legibles, con el velo claro sobre la carátula desenfocada. |

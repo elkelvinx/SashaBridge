@@ -1,12 +1,30 @@
 package io.github.elkelvinx.sashabridge.media
 
+/** Repeat modes a player can be in. */
+enum class RepeatMode {
+    /** Playback stops at the end of the queue. */
+    OFF,
+
+    /** The whole queue or context starts over. */
+    ALL,
+
+    /** The current track starts over. */
+    ONE,
+}
+
 /**
- * Finds the repeat button of players that expose it as a custom action.
+ * Reads and changes the repeat mode of players that expose it as a custom action.
  *
- * Like shuffle, the framework media session has no repeat state. Spotify offers a custom
- * action such as `TURN_REPEAT_ONE_ON`, and YouTube Music clients such as Echo Music offer
- * `TOGGLE_REPEAT_MODE`; sending the action moves to the player's next repeat mode, exactly
- * like its own button.
+ * Like shuffle, the framework media session has no repeat state. Spotify offers one custom
+ * action whose identifier names what pressing it will do, so the identifier reveals the
+ * current mode, and sending it moves to the next mode, exactly like the button in the app.
+ * YouTube Music clients such as Echo Music offer `TOGGLE_REPEAT_MODE`, which can be pressed
+ * but does not reveal the mode; the official YouTube Music app offers no repeat action.
+ *
+ * Observed on Spotify for Android (October 2026), cycling through every mode:
+ * `TURN_REPEAT_ALL_ON` ("Empezar a repetir todas las canciones") while repeat is off,
+ * `TURN_REPEAT_ONE_ON` ("Empezar a repetir una canción") while the whole context repeats, and
+ * `TURN_REPEAT_OFF` while one track repeats. Pressing moves OFF, then ALL, then ONE, then OFF.
  *
  * Pure and thread-safe.
  */
@@ -23,4 +41,23 @@ object RepeatControl {
      */
     fun findToggleAction(actionIds: List<String>): String? =
         actionIds.firstOrNull { REPEAT_MARKER in it }
+
+    /**
+     * Derives the current repeat mode from the player's custom actions.
+     *
+     * In the ONE mode Spotify offers to stop repeating (`TURN_REPEAT_OFF`), so any
+     * `TURN_REPEAT_..._OFF` action means that one track repeats.
+     *
+     * @param actionIds Identifiers of the player's custom actions.
+     * @return The mode, or `null` if there is no repeat action or it does not reveal the mode.
+     */
+    fun modeOf(actionIds: List<String>): RepeatMode? {
+        val action = findToggleAction(actionIds) ?: return null
+        return when {
+            action == "TURN_REPEAT_ALL_ON" -> RepeatMode.OFF
+            action == "TURN_REPEAT_ONE_ON" -> RepeatMode.ALL
+            action.startsWith("TURN_REPEAT") && action.endsWith("_OFF") -> RepeatMode.ONE
+            else -> null
+        }
+    }
 }

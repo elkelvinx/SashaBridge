@@ -247,6 +247,7 @@ class MediaSessionTracker(
         )
         val album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)
         val durationMs = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0 }
+        val actionIds = state?.customActions?.map { it.action }.orEmpty()
 
         return MediaSnapshot(
             trackId = MediaSnapshot.trackIdOf(
@@ -267,9 +268,10 @@ class MediaSessionTracker(
             reportedPositionMs = state?.position ?: PlaybackPositionCalculator.UNKNOWN_POSITION,
             positionUpdateTimeMs = state?.lastPositionUpdateTime ?: 0L,
             playbackSpeed = state?.playbackSpeed ?: 0f,
-            shuffle = ShuffleControl.modeOf(state?.customActions?.map { it.action }.orEmpty()),
+            shuffle = ShuffleControl.modeOf(actionIds),
             art = artEncoder.encode(metadata),
-            canRepeat = RepeatControl.findToggleAction(state?.customActions?.map { it.action }.orEmpty()) != null,
+            canRepeat = RepeatControl.findToggleAction(actionIds) != null,
+            repeat = RepeatControl.modeOf(actionIds),
         )
     }
 

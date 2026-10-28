@@ -90,7 +90,7 @@ Primer mensaje de cada sesión.
 | Campo | Tipo | Anulable | Restricciones |
 |---|---|---|---|
 | `protocol` | entero | No | Versión del protocolo del emisor, mayor o igual que 1. Hoy, `2`. |
-| `client` | texto | No | Identificación del cliente, en el formato `nombre/versión` (`sashabridge-pc/0.1.0`). Solo informativo. |
+| `client` | texto | No | Identificación del cliente, en el formato `nombre/versión` (`sashabridge-pc/2.0.0`). Solo informativo. |
 
 ### `cmd`
 

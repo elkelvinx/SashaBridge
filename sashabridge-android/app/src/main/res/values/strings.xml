@@ -38,6 +38,9 @@
     <string name="control_shuffle_smart">Modo aleatorio inteligente</string>
     <string name="control_seek">Posición de la canción</string>
     <string name="control_repeat">Repetir</string>
+    <string name="control_repeat_off">Repetir desactivado</string>
+    <string name="control_repeat_all">Repetir todas</string>
+    <string name="control_repeat_one">Repetir una canción</string>
     <string name="button_queue">Cola</string>
     <string name="queue_title_default">Cola de reproducción</string>
     <string name="queue_position">%1$d</string>
