@@ -88,6 +88,8 @@ internal class ClientSession(
                     Log.w(LOG_TAG, "The PC uses a newer protocol; unknown messages will be ignored")
                 }
             }
+            // Captures belong to the /pen route; the media session has nothing to do with them.
+            is PcMessage.AnnotateRequest -> Log.w(LOG_TAG, "Ignoring an annotate.request on the media route")
         }
     }
 }

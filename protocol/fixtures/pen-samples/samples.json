@@ -1,0 +1,52 @@
+{
+  "samples": [
+    {
+      "timeMs": 1000,
+      "x": 1200,
+      "y": 64000,
+      "pressure": 0,
+      "tiltX": -10,
+      "tiltY": 25,
+      "inContact": false,
+      "inRange": true,
+      "barrel": false,
+      "eraser": false
+    },
+    {
+      "timeMs": 1004,
+      "x": 1300,
+      "y": 63800,
+      "pressure": 21845,
+      "tiltX": -12,
+      "tiltY": 24,
+      "inContact": true,
+      "inRange": true,
+      "barrel": false,
+      "eraser": false
+    },
+    {
+      "timeMs": 1008,
+      "x": 65535,
+      "y": 0,
+      "pressure": 65535,
+      "tiltX": 90,
+      "tiltY": -90,
+      "inContact": true,
+      "inRange": true,
+      "barrel": true,
+      "eraser": false
+    },
+    {
+      "timeMs": 4294967295,
+      "x": 0,
+      "y": 32768,
+      "pressure": 100,
+      "tiltX": 0,
+      "tiltY": 0,
+      "inContact": true,
+      "inRange": true,
+      "barrel": false,
+      "eraser": true
+    }
+  ]
+}

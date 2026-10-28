@@ -30,6 +30,75 @@ pub enum PhoneMessage {
     /// No player is active.
     #[serde(rename = "media.cleared")]
     MediaCleared,
+    /// Whether the phone's annotation screen is open and waiting for captures.
+    #[serde(rename = "annotate.status")]
+    AnnotateStatus(AnnotateStatus),
+    /// A capture annotated on the phone.
+    #[serde(rename = "annotate.result")]
+    AnnotateResult(AnnotateImage),
+    /// The user discarded a capture on the phone.
+    #[serde(rename = "annotate.cancelled")]
+    AnnotateCancelled(AnnotateCancelled),
+}
+
+/// State of the phone's annotation screen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnotateStatus {
+    /// Whether the screen is open, so that captures copied on the PC are sent on their own.
+    pub armed: bool,
+}
+
+/// An image to annotate, or the annotated result.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnotateImage {
+    /// Identifier the PC gave the capture; the result carries the same one.
+    pub request_id: RequestId,
+    /// Media type of the image, currently always `image/png`.
+    pub mime: String,
+    /// Width of the image in pixels.
+    pub width: NonZeroU32,
+    /// Height of the image in pixels.
+    pub height: NonZeroU32,
+    /// Image bytes in standard base64.
+    pub data: String,
+}
+
+/// A capture the user discarded.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnotateCancelled {
+    /// Identifier of the discarded capture.
+    pub request_id: RequestId,
+}
+
+/// Identifier of a capture: any text that is not empty.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct RequestId(String);
+
+impl RequestId {
+    /// Returns the identifier as text.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for RequestId {
+    type Error = &'static str;
+
+    /// Accepts any text except the empty one.
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.is_empty() { Err("requestId must not be empty") } else { Ok(Self(value)) }
+    }
+}
+
+impl From<RequestId> for String {
+    /// Returns the identifier as text.
+    fn from(id: RequestId) -> Self {
+        id.0
+    }
 }
 
 /// Greeting sent by the phone.
@@ -107,6 +176,9 @@ pub enum PcMessage {
     /// Order for the active player.
     #[serde(rename = "cmd")]
     Cmd(Command),
+    /// A capture for the phone to annotate.
+    #[serde(rename = "annotate.request")]
+    AnnotateRequest(AnnotateImage),
 }
 
 /// Greeting sent by the PC.

@@ -6,3 +6,6 @@
 # Windows batch files need CRLF; the Gradle wrapper script runs on Unix shells and needs LF.
 *.bat text eol=crlf
 gradlew text eol=lf
+
+# Binary protocol fixtures are compared byte for byte.
+*.bin binary

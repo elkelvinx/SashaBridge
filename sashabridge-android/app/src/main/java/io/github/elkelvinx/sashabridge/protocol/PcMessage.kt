@@ -54,6 +54,30 @@ sealed interface PcMessage {
             }
         }
     }
+
+    /**
+     * A capture for the phone to annotate, sent on the `/pen` route.
+     *
+     * @property requestId Identifier the PC gives the capture; the result carries it back.
+     * @property mime Media type of the image, currently always `image/png`.
+     * @property width Width of the image in pixels.
+     * @property height Height of the image in pixels.
+     * @property data Image bytes in standard Base64, without line breaks.
+     * @throws IllegalArgumentException if [requestId] is empty or a dimension is not positive.
+     */
+    @Serializable
+    @SerialName("annotate.request")
+    data class AnnotateRequest(
+        val requestId: String,
+        val mime: String,
+        val width: Int,
+        val height: Int,
+        val data: String,
+    ) : PcMessage {
+        init {
+            requireValidImage(requestId, width, height)
+        }
+    }
 }
 
 /**

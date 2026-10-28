@@ -67,14 +67,18 @@ impl NowPlaying {
         self.last_state = None;
     }
 
-    /// Applies a message other than `hello`, which the connection handles.
+    /// Applies a message other than `hello`, which the connection handles. Messages of the
+    /// `/pen` route do not change the media overlay.
     ///
     /// # Errors
     ///
     /// Fails when a `media.art` is not valid base64 or cannot be written to disk.
     pub fn apply(&mut self, message: PhoneMessage) -> anyhow::Result<Option<Display>> {
         match message {
-            PhoneMessage::Hello(_) => Ok(None),
+            PhoneMessage::Hello(_)
+            | PhoneMessage::AnnotateStatus(_)
+            | PhoneMessage::AnnotateResult(_)
+            | PhoneMessage::AnnotateCancelled(_) => Ok(None),
             PhoneMessage::MediaArt(art) => {
                 let image = STANDARD.decode(&art.data).context("invalid base64 in media.art")?;
                 self.covers.store(&art.art_id, &image).context("cannot write the album art")?;

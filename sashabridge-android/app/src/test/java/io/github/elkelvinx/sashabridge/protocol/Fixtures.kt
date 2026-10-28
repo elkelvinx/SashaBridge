@@ -36,6 +36,14 @@ internal object Fixtures {
      */
     fun read(path: String): String = File(resource(path).toURI()).readText(Charsets.UTF_8)
 
+    /**
+     * Returns the bytes of one binary fixture.
+     *
+     * @param path Path relative to `protocol/fixtures`, such as `pen-samples/samples.bin`.
+     * @return The file contents.
+     */
+    fun bytes(path: String): ByteArray = File(resource(path).toURI()).readBytes()
+
     /** Resolves [path] under `fixtures/` on the test classpath. */
     private fun resource(path: String) =
         requireNotNull(javaClass.classLoader?.getResource("fixtures/$path")) {

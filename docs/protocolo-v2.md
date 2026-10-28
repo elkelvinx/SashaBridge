@@ -5,7 +5,8 @@ Contrato entre la app Android (servidor) y el cliente de Windows. Este documento
 ## 1. Transporte
 
 - **Conexión:** WebSocket en `ws://127.0.0.1:8080/`. En la PC esa dirección es el extremo local del túnel `adb forward tcp:8080 tcp:8080`, que llega al teléfono por USB.
-- **Mensajes:** cada mensaje viaja en un frame de texto, codificado en UTF-8, con un único objeto JSON. No se usan frames binarios.
+- **Rutas:** `/` lleva la música (secciones 3 a 5). `/pen` lleva el S Pen (sección 9), en una conexión aparte para que una captura o una carátula grande no retrase los trazos.
+- **Mensajes:** cada mensaje viaja en un frame de texto, codificado en UTF-8, con un único objeto JSON. La única excepción son las muestras del lápiz de la ruta `/pen`, que van en frames binarios.
 - **Sesión:** una conexión es una sesión. Lo que el teléfono haya enviado a una sesión anterior no cuenta para la siguiente.
 
 ## 2. Formato común
@@ -135,16 +136,74 @@ protocol/fixtures/
 ├── phone-to-pc/
 │   ├── valid/       Mensajes v2 del teléfono que deben aceptarse
 │   └── invalid/     Mensajes que deben rechazarse
-└── pc-to-phone/
-    ├── valid/
-    └── invalid/
+├── pc-to-phone/
+│   ├── valid/
+│   └── invalid/
+└── pen-samples/
+    ├── samples.bin  Frame binario de muestras del lápiz
+    └── samples.json Las mismas muestras, decodificadas
 ```
 
 **Qué comprueban los tests**, en Kotlin (`./gradlew :app:testDebugUnitTest`) y en Rust (`cargo test`), con todos los archivos de cada carpeta:
 
 - **`valid/`:** el mensaje se decodifica; al volver a codificarlo da el mismo JSON (sin contar el orden de los campos); y al decodificarlo otra vez da el mismo objeto.
 - **`invalid/`:** la decodificación falla.
+- **`pen-samples/`:** decodificar `samples.bin` da exactamente las muestras de `samples.json` en los dos lenguajes, y el codificador del teléfono produce esos mismos bytes. Los dos archivos se generan con `tools/pen_fixtures.py`.
 
 Los tests recorren las carpetas al ejecutarse, de modo que un fixture nuevo queda cubierto en los dos lenguajes sin tocar el código de los tests. Una carpeta vacía hace fallar el test.
 
 **Regla de mantenimiento:** cualquier cambio en el protocolo empieza por este documento y por los fixtures, y después se adapta el código hasta que los tests de los dos lados pasen.
+
+## 9. Ruta `/pen`: el S Pen
+
+Conexión aparte, en `ws://127.0.0.1:8080/pen`, para las funciones del S Pen. Empieza igual que la de música: cada extremo envía su `hello` antes que cualquier otro mensaje. Los tipos son nuevos, así que no cambian la versión del protocolo (sección 6).
+
+### Anotar
+
+La PC envía capturas de pantalla al teléfono; el usuario las anota con el S Pen y el teléfono devuelve la imagen anotada.
+
+| Mensaje | Sentido | Campos |
+|---|---|---|
+| `annotate.status` | Teléfono → PC | `armed` (booleano): la pantalla "Anotar" está abierta y esperando capturas. |
+| `annotate.request` | PC → teléfono | `requestId` (texto no vacío), `mime` (hoy `image/png`), `width` y `height` (enteros mayores que 0) y `data` (la imagen en Base64). |
+| `annotate.result` | Teléfono → PC | Los mismos campos que `annotate.request`, con el `requestId` de la captura de origen y la imagen ya anotada. |
+| `annotate.cancelled` | Teléfono → PC | `requestId` de la captura que el usuario descartó. |
+
+```json
+{"type":"annotate.status","armed":true}
+{"type":"annotate.request","requestId":"c4f1a2","mime":"image/png","width":1280,"height":720,"data":"iVBORw0KGgo="}
+{"type":"annotate.result","requestId":"c4f1a2","mime":"image/png","width":1280,"height":720,"data":"iVBORw0KGgo="}
+{"type":"annotate.cancelled","requestId":"c4f1a2"}
+```
+
+**Reglas:**
+1. Tras su `hello`, el teléfono envía `annotate.status`, y lo vuelve a enviar cada vez que la pantalla "Anotar" se abre o se cierra.
+2. Las imágenes que el usuario copia en la PC (por ejemplo, con `Win+Shift+S`) solo se envían mientras `armed` es `true`. Una captura pedida expresamente con el atajo de SashaBridge se envía siempre; si la pantalla no está abierta, el teléfono la ofrece en una notificación, porque Android no deja abrir pantallas desde segundo plano.
+3. Cada `annotate.request` termina con un `annotate.result` o un `annotate.cancelled` con su mismo `requestId`, salvo que la sesión se cierre antes.
+
+### Muestras del lápiz
+
+En el modo Tableta, el teléfono envía las lecturas del S Pen en **frames binarios**. A la frecuencia del lápiz (unas 240 lecturas por segundo), JSON costaría varias veces más bytes. Todos los enteros son little-endian.
+
+**Cabecera (4 bytes):**
+
+| Bytes | Campo | Valor |
+|---|---|---|
+| 0 | Tipo de frame | `0x50` ("P"): muestras del lápiz |
+| 1 | Versión del formato | `1` |
+| 2-3 | Número de muestras | Entero sin signo de 16 bits |
+
+**Cada muestra (14 bytes):**
+
+| Bytes | Campo | Tipo | Significado |
+|---|---|---|---|
+| 0-3 | `timeMs` | u32 | Tiempo de actividad del teléfono en ms; da la vuelta en 2^32 y solo importan las diferencias |
+| 4-5 | `x` | u16 | Posición horizontal sobre la superficie de dibujo: 0 a la izquierda, 65535 a la derecha |
+| 6-7 | `y` | u16 | Posición vertical: 0 arriba, 65535 abajo |
+| 8-9 | `pressure` | u16 | Presión: 0 sin presión, 65535 la máxima |
+| 10 | `tiltX` | i8 | Inclinación hacia la derecha, en grados de -90 a 90 |
+| 11 | `tiltY` | i8 | Inclinación hacia el usuario, en grados de -90 a 90 |
+| 12 | Estado | bits | 1: la punta toca la pantalla; 2: el lápiz está al alcance (flotando o tocando); 4: botón lateral pulsado; 8: borrador |
+| 13 | Reservado | u8 | `0` |
+
+Un frame cuya longitud no sea `4 + 14 × número de muestras`, o de otro tipo o versión, es inválido y se descarta. Un frame sin muestras es válido.

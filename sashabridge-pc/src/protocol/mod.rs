@@ -2,6 +2,7 @@
 //! `docs/protocolo-v2.md`. [`v2`] holds the message types; this module turns the PC's
 //! commands into frames and frames from the phone into messages.
 
+pub mod pen_samples;
 pub mod v2;
 
 use std::time::Duration;

@@ -95,6 +95,64 @@ sealed interface PhoneMessage {
     @Serializable
     @SerialName("media.cleared")
     data object MediaCleared : PhoneMessage
+
+    /**
+     * State of the annotation screen, sent on the `/pen` route after `hello` and on every change.
+     *
+     * @property armed Whether the screen is open and waiting, so that the PC sends the captures
+     *   the user copies without being asked.
+     */
+    @Serializable
+    @SerialName("annotate.status")
+    data class AnnotateStatus(val armed: Boolean) : PhoneMessage
+
+    /**
+     * A capture annotated on the phone.
+     *
+     * @property requestId Identifier of the capture it came from.
+     * @property mime Media type of the image, currently always `image/png`.
+     * @property width Width of the image in pixels.
+     * @property height Height of the image in pixels.
+     * @property data Image bytes in standard Base64, without line breaks.
+     * @throws IllegalArgumentException if [requestId] is empty or a dimension is not positive.
+     */
+    @Serializable
+    @SerialName("annotate.result")
+    data class AnnotateResult(
+        val requestId: String,
+        val mime: String,
+        val width: Int,
+        val height: Int,
+        val data: String,
+    ) : PhoneMessage {
+        init {
+            requireValidImage(requestId, width, height)
+        }
+    }
+
+    /**
+     * The user discarded a capture.
+     *
+     * @property requestId Identifier of the discarded capture.
+     * @throws IllegalArgumentException if [requestId] is empty.
+     */
+    @Serializable
+    @SerialName("annotate.cancelled")
+    data class AnnotateCancelled(val requestId: String) : PhoneMessage {
+        init {
+            require(requestId.isNotEmpty()) { "requestId must not be empty" }
+        }
+    }
+}
+
+/**
+ * Checks the fields that every annotation image shares.
+ *
+ * @throws IllegalArgumentException if [requestId] is empty or a dimension is not positive.
+ */
+internal fun requireValidImage(requestId: String, width: Int, height: Int) {
+    require(requestId.isNotEmpty()) { "requestId must not be empty" }
+    require(width > 0 && height > 0) { "image size must be positive, was ${width}x$height" }
 }
 
 /** Values of the `shuffle` field of [PhoneMessage.MediaState]. */
