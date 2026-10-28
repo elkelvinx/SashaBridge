@@ -56,10 +56,7 @@ dependencies {
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.websockets)
     testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
     // The server tests connect to it as the PC does.
     testImplementation(libs.ktor.client.cio)
     testImplementation(libs.ktor.client.websockets)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.junit)
 }

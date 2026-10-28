@@ -114,9 +114,8 @@ impl CoverCache {
     }
 }
 
-/// 64-bit FNV-1a hash: small, stable across runs and good enough for file names and for
-/// identifying the images of v1 messages, which carry no identifier.
-pub fn fnv1a(bytes: &[u8]) -> u64 {
+/// 64-bit FNV-1a hash: small, stable across runs and good enough for file names.
+fn fnv1a(bytes: &[u8]) -> u64 {
     const OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
     const PRIME: u64 = 0x0000_0100_0000_01b3;
     bytes.iter().fold(OFFSET_BASIS, |hash, &byte| (hash ^ u64::from(byte)).wrapping_mul(PRIME))

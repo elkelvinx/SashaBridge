@@ -1,39 +1,14 @@
-//! Wire formats between the phone and the PC.
-//!
-//! [`v1`] is the format of the phone app before phase 5 and [`v2`] the typed protocol
-//! specified in `docs/protocolo-v2.md`. Both coexist until phase 7:
-//! - the PC tells incoming messages apart by the `type` field that every v2 message carries;
-//! - the PC sends v2 commands only after the phone has announced v2 with its `hello`, and
-//!   the v1 text commands until then ([`PcCommand::encode`]).
+//! Wire format between the phone and the PC: protocol v2, specified in
+//! `docs/protocolo-v2.md`. [`v2`] holds the message types; this module turns the PC's
+//! commands into frames and frames from the phone into messages.
 
-pub mod v1;
 pub mod v2;
 
 use std::time::Duration;
 
 use anyhow::Context;
 
-pub use v1::MediaUpdate;
-
-/// Text frame from the phone, decoded with the protocol version it uses.
-#[derive(Debug, Clone, PartialEq)]
-pub enum PhoneFrame {
-    /// Message of a v1 phone app.
-    V1(MediaUpdate),
-    /// Typed message.
-    V2(v2::PhoneMessage),
-}
-
-/// Protocol that the connected phone speaks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PhoneProtocol {
-    /// No `hello` received: the phone only understands v1 text commands.
-    V1,
-    /// The phone sent a v2 `hello`.
-    V2,
-}
-
-/// Order from the PC for the phone's active player, independent of the protocol version.
+/// Order from the PC for the phone's active player.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PcCommand {
     /// Starts playback.
@@ -51,30 +26,10 @@ pub enum PcCommand {
 }
 
 impl PcCommand {
-    /// Encodes the command for a phone that speaks `protocol`.
-    ///
-    /// v1 has a single play/pause toggle, so `Play` and `Pause` both become `PLAY_PAUSE`
-    /// there (A10 is only fixed with v2), and it has no shuffle command.
-    ///
-    /// Returns `None` when `protocol` cannot express the command.
-    pub fn encode(self, protocol: PhoneProtocol) -> Option<String> {
-        match protocol {
-            PhoneProtocol::V1 => self.to_v1_text(),
-            // Serializing these types cannot fail: every field is a plain value.
-            PhoneProtocol::V2 => serde_json::to_string(&v2::PcMessage::Cmd(self.to_v2())).ok(),
-        }
-    }
-
-    /// Encodes the command as a v1 text frame, if v1 has one.
-    fn to_v1_text(self) -> Option<String> {
-        let text = match self {
-            Self::Play | Self::Pause => "PLAY_PAUSE".to_owned(),
-            Self::Next => "NEXT".to_owned(),
-            Self::Previous => "PREV".to_owned(),
-            Self::Seek(position) => format!("SEEK:{}", position.as_millis()),
-            Self::ToggleShuffle => return None,
-        };
-        Some(text)
+    /// Encodes the command as a `cmd` text frame.
+    pub fn encode(self) -> String {
+        // Serializing these types cannot fail: every field is a plain value.
+        serde_json::to_string(&v2::PcMessage::Cmd(self.to_v2())).unwrap_or_default()
     }
 
     /// Converts the command to its v2 form.
@@ -93,8 +48,6 @@ impl PcCommand {
 }
 
 /// Returns the `hello` the PC sends when a session opens.
-///
-/// A v1 phone app treats it as an unknown command and ignores it.
 pub fn pc_hello() -> String {
     let hello = v2::PcMessage::Hello(v2::PcHello {
         protocol: v2::PROTOCOL_VERSION,
@@ -104,19 +57,14 @@ pub fn pc_hello() -> String {
     serde_json::to_string(&hello).unwrap_or_default()
 }
 
-/// Decodes a text frame from the phone: v2 when it is a JSON object with a `type` field,
-/// v1 otherwise.
+/// Decodes a text frame from the phone.
 ///
 /// # Errors
 ///
-/// Fails when the frame is not JSON or is not a valid message of the detected version.
-pub fn decode_phone_frame(text: &str) -> anyhow::Result<PhoneFrame> {
-    let value: serde_json::Value = serde_json::from_str(text).context("frame is not JSON")?;
-    if value.get("type").is_some() {
-        serde_json::from_value(value).map(PhoneFrame::V2).context("invalid v2 message")
-    } else {
-        v1::from_value(value).map(PhoneFrame::V1)
-    }
+/// Fails when the frame is not a valid v2 message, including a message whose `type` this
+/// client does not know.
+pub fn decode_phone_frame(text: &str) -> anyhow::Result<v2::PhoneMessage> {
+    serde_json::from_str(text).context("invalid v2 message")
 }
 
 #[cfg(test)]
@@ -208,17 +156,18 @@ mod tests {
         assert_rejected::<PcMessage>("pc-to-phone/invalid");
     }
 
-    /// Frames with a `type` field are decoded as v2 and frames without it as v1.
+    /// The frame decoder accepts the valid fixtures and rejects anything that is not v2,
+    /// including the v1 format that the phone used before.
     #[test]
-    fn frames_are_routed_by_the_type_field() {
+    fn frames_decode_only_as_v2() {
         for (name, text) in fixtures("phone-to-pc/valid") {
-            let frame = decode_phone_frame(&text).unwrap();
-            assert!(matches!(frame, PhoneFrame::V2(_)), "{name} must be v2");
+            assert!(decode_phone_frame(&text).is_ok(), "{name} must decode");
         }
-        for (name, text) in fixtures("phone-to-pc/legacy-v1") {
-            let frame = decode_phone_frame(&text).unwrap();
-            assert!(matches!(frame, PhoneFrame::V1(_)), "{name} must be v1");
+        for (name, text) in fixtures("phone-to-pc/invalid") {
+            assert!(decode_phone_frame(&text).is_err(), "{name} must be rejected");
         }
+        let v1_media = r#"{"title":"T","artist":"A","duration":1,"isPlaying":true,"position":0}"#;
+        assert!(decode_phone_frame(v1_media).is_err());
         assert!(decode_phone_frame("NEXT").is_err());
     }
 
@@ -253,9 +202,9 @@ mod tests {
         assert_eq!(fixture_hello.protocol, v2::PROTOCOL_VERSION);
     }
 
-    /// Against a v2 phone, the commands are exactly the v2 fixtures; PLAY and PAUSE are separate (A10).
+    /// The commands are exactly the fixtures; PLAY and PAUSE are separate (A10).
     #[test]
-    fn v2_commands_match_the_fixtures() {
+    fn commands_match_the_fixtures() {
         let cases = [
             (PcCommand::Play, "cmd-play.json"),
             (PcCommand::Pause, "cmd-pause.json"),
@@ -265,20 +214,8 @@ mod tests {
             (PcCommand::ToggleShuffle, "cmd-toggle-shuffle.json"),
         ];
         for (command, file) in cases {
-            let encoded = command.encode(PhoneProtocol::V2).unwrap();
+            let encoded = command.encode();
             assert_eq!(json(&encoded), json(&fixture("pc-to-phone/valid", file)), "{command:?}");
         }
-    }
-
-    /// Against a v1 phone, the commands are the text frames it recognizes, and shuffle is not sent.
-    #[test]
-    fn v1_commands_are_text_frames() {
-        let encode = |command: PcCommand| command.encode(PhoneProtocol::V1);
-        assert_eq!(encode(PcCommand::Play).as_deref(), Some("PLAY_PAUSE"));
-        assert_eq!(encode(PcCommand::Pause).as_deref(), Some("PLAY_PAUSE"));
-        assert_eq!(encode(PcCommand::Next).as_deref(), Some("NEXT"));
-        assert_eq!(encode(PcCommand::Previous).as_deref(), Some("PREV"));
-        assert_eq!(encode(PcCommand::Seek(Duration::from_secs(60))).as_deref(), Some("SEEK:60000"));
-        assert_eq!(encode(PcCommand::ToggleShuffle), None);
     }
 }

@@ -5,9 +5,8 @@
 //! failed handshake, which is what `adb forward` produces when the phone server is down,
 //! is just another retry.
 //!
-//! Each session starts with the PC's `hello`. The phone's messages are decoded in either
-//! protocol version, and commands are sent in v2 once the phone has announced it with its
-//! own `hello`, and as v1 text until then.
+//! Each session starts with the PC's `hello`, followed by the phone's; after that the phone
+//! sends its state and the PC its commands, all in protocol v2.
 
 use std::convert::Infallible;
 use std::time::Duration;
@@ -27,7 +26,7 @@ use crate::media_controls::MediaControls;
 use crate::now_playing::{Display, NowPlaying};
 use crate::process::DeviceLink;
 use crate::protocol::v2::{PROTOCOL_VERSION, PhoneMessage};
-use crate::protocol::{PcCommand, PhoneFrame, PhoneProtocol, decode_phone_frame, pc_hello};
+use crate::protocol::{PcCommand, decode_phone_frame, pc_hello};
 
 /// WebSocket connection to the phone.
 type PhoneSocket = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -103,7 +102,6 @@ async fn run_session(
         warn!(%error, "cannot greet the phone, connection lost");
         return;
     }
-    let mut protocol = PhoneProtocol::V1;
     let mut watchdog = interval(AUDIO_WATCHDOG_PERIOD);
     watchdog.set_missed_tick_behavior(MissedTickBehavior::Skip);
     watchdog.reset();
@@ -111,7 +109,7 @@ async fn run_session(
     loop {
         tokio::select! {
             frame = stream.next() => match frame {
-                Some(Ok(Message::Text(text))) => handle_frame(&text, &mut protocol, controls, now_playing),
+                Some(Ok(Message::Text(text))) => handle_frame(&text, controls, now_playing),
                 Some(Ok(Message::Close(frame))) => {
                     info!(?frame, "the phone closed the connection");
                     return;
@@ -128,12 +126,8 @@ async fn run_session(
                 }
             },
             Some(command) = commands.recv() => {
-                let Some(text) = command.encode(protocol) else {
-                    info!(?command, "the phone app does not support this command yet (protocol v1)");
-                    continue;
-                };
-                debug!(?command, ?protocol, "sending command");
-                if let Err(error) = sink.send(Message::text(text)).await {
+                debug!(?command, "sending command");
+                if let Err(error) = sink.send(Message::text(command.encode())).await {
                     warn!(%error, "cannot send the command, connection lost");
                     return;
                 }
@@ -146,23 +140,16 @@ async fn run_session(
 /// Decodes a frame from the phone and shows its effect in the media overlay.
 ///
 /// Malformed frames and failures to show them are logged and skipped; the session goes on.
-fn handle_frame(
-    text: &str,
-    protocol: &mut PhoneProtocol,
-    controls: &mut MediaControls,
-    now_playing: &mut NowPlaying,
-) {
+fn handle_frame(text: &str, controls: &mut MediaControls, now_playing: &mut NowPlaying) {
     let display = match decode_phone_frame(text) {
-        Ok(PhoneFrame::V1(update)) => now_playing.apply_v1(update).map(Some),
-        Ok(PhoneFrame::V2(PhoneMessage::Hello(hello))) => {
-            *protocol = PhoneProtocol::V2;
-            info!(device = %hello.device, protocol = hello.protocol.get(), "the phone speaks protocol v2");
+        Ok(PhoneMessage::Hello(hello)) => {
+            info!(device = %hello.device, protocol = hello.protocol.get(), "the phone greeted");
             if hello.protocol > PROTOCOL_VERSION {
                 warn!("the phone uses a newer protocol; unknown messages will be ignored");
             }
             return;
         }
-        Ok(PhoneFrame::V2(message)) => now_playing.apply_v2(message),
+        Ok(message) => now_playing.apply(message),
         Err(error) => {
             warn!("ignoring a message from the phone: {error:#}");
             return;

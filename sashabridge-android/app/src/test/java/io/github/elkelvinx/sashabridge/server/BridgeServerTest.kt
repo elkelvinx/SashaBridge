@@ -33,7 +33,7 @@ import io.ktor.client.plugins.websocket.WebSockets as ClientWebSockets
 
 /**
  * The server on a real socket, with a Ktor client in the role of the PC: greeting and initial
- * state (R2), commands in both versions, closing sessions on stop, and the start and stop
+ * state (R2), commands, closing sessions on stop, and the start and stop
  * races behind A4 and A5.
  */
 class BridgeServerTest {
@@ -129,16 +129,20 @@ class BridgeServerTest {
         }
     }
 
-    /** v2 and v1 commands reach the executor; the PC's hello and invalid frames do not stop the session. */
+    /**
+     * Commands reach the executor. The PC's hello, invalid frames and the old v1 text commands
+     * are not commands, and do not stop the session.
+     */
     @Test
-    fun commandsInBothVersionsAreExecuted() = runBlocking {
+    fun commandsAreExecuted() = runBlocking {
         server().start()
 
         connect {
             send(Frame.Text(ProtocolCodec.encode(PcMessage.Hello(2, "test/1"))))
             send(Frame.Text("garbage"))
-            send(Frame.Text(ProtocolCodec.encode(PcMessage.Command(CommandAction.PAUSE))))
             send(Frame.Text("NEXT"))
+            send(Frame.Text(ProtocolCodec.encode(PcMessage.Command(CommandAction.PAUSE))))
+            send(Frame.Text(ProtocolCodec.encode(PcMessage.Command(CommandAction.NEXT))))
 
             withTimeout(5.seconds) {
                 assertEquals(PcMessage.Command(CommandAction.PAUSE), commands.receive())

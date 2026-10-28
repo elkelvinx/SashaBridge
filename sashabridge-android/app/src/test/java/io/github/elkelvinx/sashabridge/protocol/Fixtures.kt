@@ -31,7 +31,7 @@ internal object Fixtures {
     /**
      * Returns the content of one fixture.
      *
-     * @param path Path relative to `protocol/fixtures`, such as `phone-to-pc/legacy-v1/media.json`.
+     * @param path Path relative to `protocol/fixtures`, such as `phone-to-pc/valid/media-art.json`.
      * @return The UTF-8 content.
      */
     fun read(path: String): String = File(resource(path).toURI()).readText(Charsets.UTF_8)

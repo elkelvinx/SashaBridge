@@ -4,10 +4,10 @@ import android.util.Log
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
 import io.github.elkelvinx.sashabridge.protocol.MediaStateEncoder
-import io.github.elkelvinx.sashabridge.protocol.PcFrame
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import io.github.elkelvinx.sashabridge.protocol.PhoneMessage
 import io.github.elkelvinx.sashabridge.protocol.ProtocolCodec
+import io.github.elkelvinx.sashabridge.protocol.ProtocolException
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.readText
@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
  *
  * The phone greets first and then sends the current state without waiting for a change (R2),
  * because [media] is a StateFlow: a new collector receives its value right away. Every later
- * change follows. Frames from the PC are read in either protocol version.
+ * change follows.
  *
  * Runs on the coroutine of the WebSocket handler, on Ktor's dispatcher. Only the sender
  * coroutine writes to the socket, so frames never interleave.
@@ -74,18 +74,20 @@ internal class ClientSession(
      * @param text Content of the frame.
      */
     private fun handle(text: String) {
-        when (val frame = PcFrame.parse(text)) {
-            is PcFrame.V1 -> onCommand(frame.command)
-            is PcFrame.V2 -> when (val message = frame.message) {
-                is PcMessage.Command -> onCommand(message)
-                is PcMessage.Hello -> {
-                    Log.i(LOG_TAG, "PC client ${message.client} speaks protocol ${message.protocol}")
-                    if (message.protocol > ProtocolCodec.PROTOCOL_VERSION) {
-                        Log.w(LOG_TAG, "The PC uses a newer protocol; unknown messages will be ignored")
-                    }
+        val message = try {
+            ProtocolCodec.decodePcMessage(text)
+        } catch (error: ProtocolException) {
+            Log.w(LOG_TAG, "Ignoring a frame from the PC: ${error.message}")
+            return
+        }
+        when (message) {
+            is PcMessage.Command -> onCommand(message)
+            is PcMessage.Hello -> {
+                Log.i(LOG_TAG, "PC client ${message.client} speaks protocol ${message.protocol}")
+                if (message.protocol > ProtocolCodec.PROTOCOL_VERSION) {
+                    Log.w(LOG_TAG, "The PC uses a newer protocol; unknown messages will be ignored")
                 }
             }
-            is PcFrame.Invalid -> Log.w(LOG_TAG, "Ignoring a frame from the PC: ${frame.reason}")
         }
     }
 }

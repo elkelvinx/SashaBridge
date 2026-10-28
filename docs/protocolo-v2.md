@@ -124,28 +124,9 @@ Orden para el reproductor activo.
 - Añadir un campo anulable o un tipo de mensaje nuevo no cambia la versión, porque los receptores ignoran lo que no conocen. Las funciones futuras, como el S Pen, usarán tipos con prefijo propio (`pen.*`).
 - Si un extremo anuncia una versión mayor que la propia, el receptor lo registra en el log y sigue procesando los mensajes que conoce.
 
-## 7. Convivencia con v1
+## 7. Historia
 
-La versión 1 es el formato que usa hoy la app. No tiene campo `type`:
-
-- **Teléfono a PC:** un objeto JSON con `title`, `artist`, `duration`, `isPlaying`, `position` y, cuando cambia la pista, `albumArt` en Base64. Los tiempos van en milisegundos, y la app envía `0` cuando no conoce la duración y `-1` cuando no conoce la posición.
-- **PC a teléfono:** texto plano: `PLAY_PAUSE`, `NEXT`, `PREV` o `SEEK:<ms>`.
-
-**Cómo se distinguen:**
-- **En la PC:** un objeto JSON con `type` es v2; sin `type` es v1.
-- **En el teléfono:** un frame que no es JSON se interpreta como comando v1, con `LegacyCommandParser`.
-- **Formato de los comandos:** la PC solo envía comandos v2 después de recibir el `hello` del teléfono. Hasta entonces usa el texto de v1, que los dos servidores entienden.
-
-**Calendario de la transición:**
-
-| Al cerrar la fase | El teléfono envía | La PC acepta | Comandos de la PC |
-|---|---|---|---|
-| 2 (contrato) | v1 | v1 | v1 |
-| 4 (cliente v2) | v1 | v1 y v2 | v1, o v2 si recibe `hello` |
-| 5 (servidor v2) | v2, y acepta comandos v1 | v1 y v2 | v2 |
-| 7 (cierre) | v2 | v2 | v2 |
-
-En la Fase 7 se retira todo el código de v1 de los dos lados.
+La versión 1 era el formato de la app original: un objeto JSON sin campo `type` con el estado del reproductor, y órdenes en texto plano (`PLAY_PAUSE`, `NEXT`, `PREV` y `SEEK:<ms>`). Las dos versiones convivieron durante la refactorización, de la Fase 2 a la Fase 6, para poder actualizar el teléfono y la PC por separado. Desde la versión 2.0 de SashaBridge ningún lado la entiende: un mensaje v1 es un mensaje inválido y se descarta.
 
 ## 8. Fixtures
 
@@ -153,8 +134,7 @@ En la Fase 7 se retira todo el código de v1 de los dos lados.
 protocol/fixtures/
 ├── phone-to-pc/
 │   ├── valid/       Mensajes v2 del teléfono que deben aceptarse
-│   ├── invalid/     Mensajes que deben rechazarse
-│   └── legacy-v1/   Mensajes v1 que la PC acepta durante la transición
+│   └── invalid/     Mensajes que deben rechazarse
 └── pc-to-phone/
     ├── valid/
     └── invalid/
@@ -164,7 +144,6 @@ protocol/fixtures/
 
 - **`valid/`:** el mensaje se decodifica; al volver a codificarlo da el mismo JSON (sin contar el orden de los campos); y al decodificarlo otra vez da el mismo objeto.
 - **`invalid/`:** la decodificación falla.
-- **`legacy-v1/`** (solo Rust): el mensaje se reconoce como v1.
 
 Los tests recorren las carpetas al ejecutarse, de modo que un fixture nuevo queda cubierto en los dos lenguajes sin tocar el código de los tests. Una carpeta vacía hace fallar el test.
 

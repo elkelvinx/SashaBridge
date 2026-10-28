@@ -157,7 +157,7 @@ Instala el APK y concede el acceso a notificaciones. Después, en el teléfono:
 - *Ajustes > Aplicaciones > SashaBridge > Batería*: **Sin restricciones**.
 - *Ajustes > Batería > Límites de uso en segundo plano > Apps que nunca entran en suspensión*: añade **SashaBridge**.
 
-Sin estos dos ajustes, Samsung congela la app en segundo plano y deja de enviar datos y de obedecer comandos hasta que algo la despierta.
+Sin estos dos ajustes, Samsung congela la app en segundo plano y deja de enviar datos y de obedecer comandos hasta que algo la despierta. Mientras el primero falte, la app lo avisa en su pantalla con un botón que abre sus ajustes.
 
 ### 4.6 Ejecutar
 

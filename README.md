@@ -6,7 +6,17 @@ SashaBridge conecta un teléfono Android con una PC Windows por USB. Hace tres c
 - Publica la canción que suena en el teléfono en el panel multimedia de Windows (SMTC): título, artista, carátula y estado de reproducción.
 - Permite controlar el reproductor del teléfono con las teclas multimedia y el panel de Windows.
 
-> El protocolo entre el teléfono y la PC está especificado en `docs/protocolo-v2.md`. La documentación de arquitectura se completa en la Fase 7 del plan de refactorización.
+La app se llama así por Sasha, una perrita salchicha: aparece en la pantalla del teléfono y muestra el estado del puente.
+
+## Documentación
+
+| Documento | Contenido |
+|---|---|
+| `INSTALACION.md` | Requisitos, preparación y traslado del proyecto a otra PC |
+| `docs/arquitectura.md` | Piezas de cada lado, hilos, flujos y decisiones de diseño |
+| `docs/protocolo-v2.md` | Contrato entre el teléfono y la PC |
+| `docs/verificacion.md` | Pruebas automáticas y manuales, escenarios de aceptación y resultado de la última regresión |
+| `docs/diagnostico-fase0.md` | Diagnóstico de la versión original, con la evidencia de cada defecto |
 
 ## Estructura
 
@@ -15,9 +25,8 @@ SashaBridge conecta un teléfono Android con una PC Windows por USB. Hace tres c
 | `sashabridge-android/` | App Android (Kotlin): servicio de escucha de notificaciones y servidor WebSocket |
 | `sashabridge-pc/` | Cliente Windows (Rust): túnel adb, scrcpy e integración con SMTC |
 | `protocol/fixtures/` | Mensajes de ejemplo del protocolo v2, compartidos por los tests de Kotlin y de Rust (ver `docs/protocolo-v2.md`) |
-| `tools/` | Scripts de entorno: `setup.ps1` (preparación completa) y `fetch-scrcpy.ps1` |
-| `INSTALACION.md` | Requisitos, preparación y traslado del proyecto a otra PC |
-| `docs/` | Documentación técnica, diagnósticos y material antiguo (`docs/legacy/`) |
+| `tools/` | `setup.ps1` (preparación completa), `fetch-scrcpy.ps1`, `smtc-inspect.ps1` (inspección de las sesiones multimedia de Windows) y `sasha_sprite.py` (generador de los dibujos de Sasha) |
+| `docs/` | Documentación técnica (ver la tabla anterior) y material de la versión original (`docs/legacy/`) |
 
 ## Requisitos
 
@@ -36,7 +45,11 @@ powershell -ExecutionPolicy Bypass -File .\tools\setup.ps1 -InstallApp
 
 Sin `-InstallApp` no hace falta el teléfono. El proceso completo, incluidos los requisitos, los ajustes de batería del teléfono y cómo llevar el proyecto a otra PC y subirlo a GitHub, está en `INSTALACION.md`.
 
-## Ejecución
+## Uso
+
+En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena. Su botón enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
+
+En la PC:
 
 ```powershell
 cd sashabridge-pc
