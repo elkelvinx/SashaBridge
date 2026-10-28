@@ -2,6 +2,7 @@ package io.github.elkelvinx.sashabridge.media
 
 import android.graphics.Bitmap
 import android.media.MediaMetadata
+import androidx.core.graphics.scale
 import java.io.ByteArrayOutputStream
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -71,7 +72,7 @@ class AlbumArtEncoder {
         val scaled = if (width == bitmap.width && height == bitmap.height) {
             bitmap
         } else {
-            Bitmap.createScaledBitmap(bitmap, width, height, true)
+            bitmap.scale(width, height)
         }
         try {
             val stream = ByteArrayOutputStream()

@@ -1,12 +1,12 @@
 [versions]
-agp = "9.2.1"
-coreKtx = "1.10.1"
+agp = "9.5.0"
+coreKtx = "1.19.1"
 junit = "4.13.2"
-appcompat = "1.6.1"
-material = "1.10.0"
-activityKtx = "1.8.0"
+appcompat = "1.8.0"
+material = "1.14.0"
+activityKtx = "1.13.0"
 # Kotlin compiler used through the serialization plugin. It must be at least the version
-# kotlinx-serialization was compiled with (2.4.10 for 1.12.0); AGP 9.2.1 alone brings 2.2.10.
+# kotlinx-serialization was compiled with (2.4.10 for 1.12.0); AGP alone brings an older one.
 kotlin = "2.4.21"
 kotlinxSerialization = "1.12.0"
 # Ktor and kotlinx-coroutines move together: Ktor calls internal coroutine APIs, so keep the
