@@ -11,6 +11,7 @@ import android.view.ScaleGestureDetector
 import android.view.View
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withMatrix
+import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -73,10 +74,14 @@ class InkCanvasView @JvmOverloads constructor(
     var thickness: Int = 1
 
     /**
-     * Called when the text tool taps the capture, with the capture coordinates of the tap; the
-     * screen asks for the text and calls [addText].
+     * Called when the text tool taps the capture, with the capture coordinates of the tap and,
+     * if the tap is on a note, that note, to edit it. The screen asks for the text and its size
+     * and calls [placeText].
      */
-    var onTextRequest: ((Float, Float) -> Unit)? = null
+    var onTextRequest: ((Float, Float, InkText?) -> Unit)? = null
+
+    /** Text size step a new note starts with: it follows the thickness (thin is small). */
+    val defaultTextStep: Int get() = thickness.coerceIn(TEXT_SIZES.indices)
 
     /** Called after every change of the marks, to update the undo and redo buttons. */
     var onChange: (() -> Unit)? = null
@@ -165,13 +170,36 @@ class InkCanvasView @JvmOverloads constructor(
     }
 
     /**
-     * Places a note at capture coordinates (x, y), in the current color and thickness.
-     *
-     * @param text The note; blank text is ignored.
+     * Text size of [step], from 0 (small) to 3 (huge), in capture pixels: relative to the
+     * capture's size, so a note reads the same on a small or a large capture.
      */
-    fun addText(x: Float, y: Float, text: String) {
-        if (text.isBlank()) return
-        commit(InkText(x, y, text.trimEnd(), color, lineWidth() / TEXT_STROKE_RATIO))
+    fun textSize(step: Int): Float = mediumLineWidth() / TEXT_STROKE_RATIO * TEXT_SIZES[step.coerceIn(TEXT_SIZES.indices)]
+
+    /** The size step closest to [size], to show a note's size when editing it. */
+    fun textStep(size: Float): Int = TEXT_SIZES.indices.minBy { abs(textSize(it) - size) }
+
+    /**
+     * Places a note at capture coordinates (x, y) in the current color, or edits [replacing]
+     * in place, keeping its position and color. Either way it is one step to undo.
+     *
+     * @param text The note; blank text places nothing, or deletes [replacing].
+     * @param size Text size in capture pixels, from [textSize].
+     * @param replacing The note being edited, or `null` for a new one.
+     */
+    fun placeText(x: Float, y: Float, text: String, size: Float, replacing: InkText?) {
+        val note = text.trimEnd().takeIf { it.isNotBlank() }?.let {
+            InkText(replacing?.x ?: x, replacing?.y ?: y, it, replacing?.color ?: color, size)
+        }
+        val index = shapes.indexOfFirst { it === replacing }
+        if (index < 0) {
+            note?.let(::commit)
+            return
+        }
+        deselect()
+        undoStack.addLast(shapes.toList())
+        redoStack.clear()
+        if (note == null) shapes.removeAt(index) else shapes[index] = note
+        changed()
     }
 
     /** Takes back the last change. */
@@ -206,6 +234,11 @@ class InkCanvasView @JvmOverloads constructor(
         canvas.drawBitmap(source, 0f, 0f, null)
         InkRenderer().draw(canvas, shapes)
         return out
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        requestImmediatePen()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -253,6 +286,7 @@ class InkCanvasView @JvmOverloads constructor(
     private fun handlePen(event: MotionEvent, eraserEnd: Boolean) {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                requestImmediatePen(event)
                 erasing = eraserEnd || event.buttonState and MotionEvent.BUTTON_STYLUS_PRIMARY != 0
                 val (x, y) = capturePoint(event.x, event.y)
                 when {
@@ -344,7 +378,10 @@ class InkCanvasView @JvmOverloads constructor(
     /** Commits the current mark, or asks for the text of a tap. */
     private fun end() {
         if (tool == InkTool.TEXT) {
-            if (!startX.isNaN()) onTextRequest?.invoke(startX, startY)
+            if (startX.isNaN()) return
+            val tolerance = ERASER_RADIUS_PX / currentScale()
+            val note = shapes.lastOrNull { it is InkText && InkGeometry.hits(it, startX, startY, tolerance) } as? InkText
+            onTextRequest?.invoke(startX, startY, note)
             return
         }
         val shape = current ?: return
@@ -447,9 +484,12 @@ class InkCanvasView @JvmOverloads constructor(
     }
 
     /** Line width of the current thickness, in capture pixels, relative to the capture size. */
-    private fun lineWidth(): Float {
+    private fun lineWidth(): Float = mediumLineWidth() * THICKNESSES[thickness.coerceIn(THICKNESSES.indices)]
+
+    /** The medium line width for this capture, in capture pixels. */
+    private fun mediumLineWidth(): Float {
         val source = image ?: return 4f
-        return max(source.width, source.height) / WIDTH_DIVISOR * THICKNESSES[thickness.coerceIn(THICKNESSES.indices)]
+        return max(source.width, source.height) / WIDTH_DIVISOR
     }
 
     /** Movement under which a gesture counts as a tap, in capture pixels. */
@@ -499,6 +539,9 @@ class InkCanvasView @JvmOverloads constructor(
 
         /** Multipliers of the medium width for each thickness. */
         val THICKNESSES = floatArrayOf(0.55f, 1f, 1.9f)
+
+        /** Text sizes (small, medium, large, huge), relative to the medium one. */
+        val TEXT_SIZES = floatArrayOf(0.6f, 1f, 1.7f, 2.6f)
 
         /** Highlighter width, in line widths. */
         const val HIGHLIGHTER_WIDTHS = 4f

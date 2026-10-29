@@ -13,7 +13,7 @@ use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::task;
 use tokio::time::{sleep, timeout};
-use tokio_tungstenite::connect_async;
+use tokio_tungstenite::connect_async_with_config;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, info, warn};
 
@@ -33,7 +33,8 @@ pub async fn run(events: &mut UnboundedReceiver<WindowEvent>, owner: ClipboardOw
     let url = format!("{}pen", bridge_url());
     let mut backoff = Backoff::new(BACKOFF_INITIAL, BACKOFF_MAX);
     loop {
-        match timeout(CONNECT_TIMEOUT, connect_async(url.as_str())).await {
+        // Small frames go out at once instead of waiting to be grouped (Nagle off).
+        match timeout(CONNECT_TIMEOUT, connect_async_with_config(url.as_str(), None, true)).await {
             Ok(Ok((socket, _response))) => {
                 backoff.reset();
                 info!("S Pen route open");

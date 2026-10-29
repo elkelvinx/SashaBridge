@@ -3,6 +3,7 @@ package io.github.elkelvinx.sashabridge.pen
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.AnimationDrawable
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Base64
@@ -12,6 +13,7 @@ import android.view.WindowManager
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -29,6 +31,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
@@ -85,6 +88,7 @@ class AnnotateActivity : AppCompatActivity() {
 
         canvas = findViewById(R.id.inkCanvas)
         waitingPanel = findViewById(R.id.waitingPanel)
+        (findViewById<ImageView>(R.id.waitingSasha).drawable as? AnimationDrawable)?.start()
         penWarning = findViewById(R.id.penWarning)
         closeButton = findViewById(R.id.closeButton)
         bottomBar = findViewById(R.id.bottomBar)
@@ -246,23 +250,32 @@ class AnnotateActivity : AppCompatActivity() {
         if (annotations.pendingCapture.value != null) onCaptureArrived()
     }
 
-    /** Asks for the text of a note tapped at capture coordinates (x, y). */
-    private fun askForText(x: Float, y: Float) {
-        val input = EditText(this).apply {
-            hint = getString(R.string.annotate_text_hint)
-            minLines = 2
+    /**
+     * Asks for the text and size of a note tapped at capture coordinates (x, y), or of the
+     * note [editing] that was tapped, which can also be deleted.
+     */
+    // The dialog's content has no parent until the dialog shows it.
+    @SuppressLint("InflateParams")
+    private fun askForText(x: Float, y: Float, editing: InkText?) {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_text, null)
+        val input = view.findViewById<EditText>(R.id.textInput)
+        val sizes = view.findViewById<MaterialButtonToggleGroup>(R.id.textSizeGroup)
+        val step = editing?.let { canvas.textStep(it.size) } ?: canvas.defaultTextStep
+        sizes.check(TEXT_SIZE_BUTTONS[step])
+        editing?.let { input.setText(it.text) }
+        val place = {
+            val chosen = TEXT_SIZE_BUTTONS.indexOf(sizes.checkedButtonId).coerceAtLeast(0)
+            canvas.placeText(x, y, input.text.toString(), canvas.textSize(chosen), editing)
         }
-        val padding = (resources.displayMetrics.density * DIALOG_PADDING_DP).toInt()
-        val frame = LinearLayout(this).apply {
-            setPadding(padding, padding / 2, padding, 0)
-            addView(input, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        }
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.annotate_text_title)
-            .setView(frame)
-            .setPositiveButton(R.string.annotate_text_place) { _, _ -> canvas.addText(x, y, input.text.toString()) }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(if (editing == null) R.string.annotate_text_title else R.string.annotate_text_edit_title)
+            .setView(view)
+            .setPositiveButton(if (editing == null) R.string.annotate_text_place else R.string.annotate_text_save) { _, _ -> place() }
             .setNegativeButton(R.string.annotate_cancel, null)
-            .show()
+        if (editing != null) {
+            dialog.setNeutralButton(R.string.annotate_text_delete) { _, _ -> canvas.placeText(x, y, "", editing.size, editing) }
+        }
+        dialog.show()
         input.requestFocus()
     }
 
@@ -362,6 +375,8 @@ class AnnotateActivity : AppCompatActivity() {
         const val SWATCH_IDLE_SCALE = 0.72f
         const val SWATCH_ANIMATION_MS = 120L
         const val BAR_MARGIN_DP = 12f
-        const val DIALOG_PADDING_DP = 20f
+
+        /** The size buttons of the note dialog, from small to huge, as [InkCanvasView.textSize] steps. */
+        val TEXT_SIZE_BUTTONS = listOf(R.id.textSizeSmall, R.id.textSizeMedium, R.id.textSizeLarge, R.id.textSizeHuge)
     }
 }

@@ -7,10 +7,12 @@ Writes the adaptive icon layers into the app's drawables:
 
 The launcher crops the layers to its own shape (a rounded square on Samsung) and only the
 central 66dp of the 108dp canvas are guaranteed visible, so Sasha fits in that circle.
-With --preview, also writes a PNG of the icon under several masks and sizes (needs Pillow).
+With --preview, also writes a PNG of the icon under several masks and sizes; with --pc-icon,
+the rounded-square icon as a 256-pixel PNG for the PC client's notifications (both need
+Pillow).
 
 Usage, from the repository root:
-    python tools/sasha_icon.py [--preview preview.png]
+    python tools/sasha_icon.py [--preview preview.png] [--pc-icon sashabridge-pc/assets/sasha-icon.png]
 """
 
 import argparse
@@ -285,8 +287,9 @@ BACKGROUND = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
-def preview(cv, path):
-    from PIL import Image, ImageDraw, ImageFilter
+def masked_icons(cv):
+    """The icon rendered and cropped as launchers show it: rounded square, then circle."""
+    from PIL import Image, ImageDraw
 
     def hex_rgba(value, alpha=255):
         value = value.lstrip("#")
@@ -328,6 +331,20 @@ def preview(cv, path):
         masked = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         masked.paste(icon, (0, 0), m)
         masks.append(masked.crop([int(v) for v in box]))
+    return masks
+
+
+def pc_icon(cv, path, side=256):
+    """Writes the rounded-square icon as a `side`-pixel PNG."""
+    from PIL import Image
+
+    masked_icons(cv)[0].resize((side, side), Image.LANCZOS).save(path)
+
+
+def preview(cv, path):
+    from PIL import Image
+
+    masks = masked_icons(cv)
     tile = masks[0].width
     sheet = Image.new("RGBA", (tile * 2 + 96 + 48 + 80, tile), "#F2ECE8")
     sheet.paste(masks[0], (0, 0), masks[0])
@@ -344,6 +361,7 @@ RES = Path(__file__).resolve().parent.parent / "sashabridge-android" / "app" / "
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--preview", type=Path, help="also write a PNG of the masked icon")
+    parser.add_argument("--pc-icon", type=Path, help="also write the icon of the PC client's notifications")
     args = parser.parse_args()
     dog = sasha()
     (RES / "ic_launcher_foreground.xml").write_text(foreground(dog), encoding="utf-8", newline="\n")
@@ -351,3 +369,5 @@ if __name__ == "__main__":
     (RES / "ic_launcher_monochrome.xml").write_text(monochrome(dog), encoding="utf-8", newline="\n")
     if args.preview:
         preview(dog, args.preview)
+    if args.pc_icon:
+        pc_icon(dog, args.pc_icon)

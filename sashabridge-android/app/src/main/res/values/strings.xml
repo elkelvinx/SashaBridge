@@ -80,6 +80,14 @@
     <string name="annotate_text_title">Texto de la nota</string>
     <string name="annotate_text_hint">Escribe, o usa la escritura a mano del teclado</string>
     <string name="annotate_text_place">Colocar</string>
+    <string name="annotate_text_edit_title">Editar la nota</string>
+    <string name="annotate_text_save">Guardar</string>
+    <string name="annotate_text_delete">Borrar</string>
+    <string name="annotate_text_size">Tamaño</string>
+    <string name="annotate_text_small">Chico</string>
+    <string name="annotate_text_medium">Mediano</string>
+    <string name="annotate_text_large">Grande</string>
+    <string name="annotate_text_huge">Enorme</string>
     <string name="annotate_cancel">Cancelar</string>
     <string name="annotate_discard_title">¿Descartar la anotación?</string>
     <string name="annotate_discard">Descartar</string>

@@ -25,12 +25,14 @@
         android:orientation="vertical"
         android:padding="32dp">
 
+        <!-- Sasha in her painter's beret; the activity starts the animation. -->
         <ImageView
+            android:id="@+id/waitingSasha"
             android:layout_width="180dp"
             android:layout_height="60dp"
             android:importantForAccessibility="no"
             android:scaleType="fitCenter"
-            android:src="@drawable/sasha_wagging" />
+            android:src="@drawable/sasha_painting" />
 
         <TextView
             android:layout_width="wrap_content"

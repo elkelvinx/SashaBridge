@@ -3,7 +3,8 @@
 //! The `/pen` session ([`crate::pen_route`]) sends the images the user copies while the
 //! phone's annotation screen waits, and the one asked for with Ctrl+Alt+A always
 //! ([`crate::hidden_window::WindowEvent::ImageCopied`]), encoded here. Each annotation it
-//! receives goes to the clipboard and to `Pictures\SashaBridge`.
+//! receives goes to the clipboard and to `Pictures\SashaBridge`, announced by a Windows
+//! notification.
 
 use std::fs;
 use std::io;
@@ -24,6 +25,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::MB_OK;
 use crate::bitmap::{self, Rgba};
 use crate::clipboard;
 use crate::hidden_window::ClipboardOwner;
+use crate::notify;
 use crate::protocol::v2::{AnnotateImage, PcMessage, RequestId};
 
 /// Folder inside Pictures where annotations are saved.
@@ -50,15 +52,19 @@ pub async fn capture_request(image: Rgba) -> anyhow::Result<String> {
     .context("the capture encoder stopped")?
 }
 
-/// Puts an annotation on the clipboard, saves it, and chimes.
+/// Puts an annotation on the clipboard, saves it, and announces it with a Windows
+/// notification, or with a sound if Windows refuses the notification.
 pub async fn receive_annotation(result: AnnotateImage, owner: ClipboardOwner) {
     let outcome = task::spawn_blocking(move || -> anyhow::Result<PathBuf> {
         let png = STANDARD.decode(&result.data).context("invalid base64 in annotate.result")?;
         let image = bitmap::decode_png(&png)?;
         clipboard::write_image(owner.hwnd(), &png, &image)?;
         let path = save(&png)?;
-        // SAFETY: a plain request to play the default sound.
-        unsafe { MessageBeep(MB_OK) };
+        if let Err(error) = notify::annotation_ready(&path) {
+            warn!("cannot show the notification: {error:#}");
+            // SAFETY: a plain request to play the default sound.
+            unsafe { MessageBeep(MB_OK) };
+        }
         Ok(path)
     })
     .await;

@@ -1,15 +1,15 @@
 # Verificación de SashaBridge
 
-Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, después las manuales contra Windows y por último los escenarios de aceptación con el teléfono. Al final está el resultado de la regresión de la versión 2.0.
+Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, después las manuales contra Windows y por último los escenarios de aceptación con el teléfono, los de la música y los del S Pen. Al final están los resultados de la regresión de la versión 2.0 y de las pruebas de la 2.1.
 
 ## 1. Pruebas automáticas
 
 | Lado | Comando | Qué cubre |
 |---|---|---|
 | PC | `cargo clippy --all-targets -- -D warnings` | Análisis estático sin avisos |
-| PC | `cargo test` | Fixtures del protocolo, regla de la carátula (R6), caché de carátulas, espera exponencial y botones de Windows |
+| PC | `cargo test` | Fixtures del protocolo y de las muestras del lápiz, regla de la carátula (R6), caché de carátulas, espera exponencial, botones de Windows, conversión de imágenes (DIB y PNG), mapeo de la Tableta a un monitor, eventos del lápiz sintético, y el texto de las notificaciones |
 | PC | `cargo doc --no-deps` | Documentación del código |
-| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; elección del reproductor; posición; modos aleatorio y repetir; mensajes de una sesión; estado de la pantalla; formato de los tiempos; y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos) |
+| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; elección del reproductor; posición; modos aleatorio y repetir; mensajes de una sesión; estado de la pantalla; formato de los tiempos; geometría de las marcas de Anotar (flechas, borrar, mover, recuadro); y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos, y la ruta `/pen` con capturas, monitor, latencia y muestras binarias) |
 | Android | `.\gradlew.bat :app:lintDebug` | Análisis estático de la app |
 
 Gradle necesita `JAVA_HOME` apuntando al JDK de Android Studio, por ejemplo `C:\Program Files\Android\Android Studio\jbr`.
@@ -29,6 +29,7 @@ cargo test -- --ignored
 |---|---|
 | `windows_sees_cover_and_shuffle_changes` | Windows ve aparecer y desaparecer la carátula y el botón de aleatorio |
 | `windows_shuffle_request_becomes_a_command` | Una pulsación del botón de aleatorio llega al cliente como orden |
+| `notification_appears` | Registra la identidad de las notificaciones y muestra una con el icono de Sasha. Se comprueba mirando la pantalla, o en el historial: `[Windows.UI.Notifications.ToastNotificationManager]::History.GetHistory('io.github.elkelvinx.SashaBridge')` |
 
 Con el cliente abierto, `tools/smtc-inspect.ps1` muestra cada sesión multimedia tal como la ve Windows: título, artista, carátula, estado, posición y botón de aleatorio. Con `-ToggleShuffle` pulsa el aleatorio de SashaBridge, útil porque ni el flyout de Windows ni FluentFlyout tienen ese botón. Necesita Windows PowerShell 5.1:
 
@@ -59,6 +60,19 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | E9 | Conectarse a `<IP-Wi-Fi-del-teléfono>:8080` | Conexión rechazada |
 | E10 | Pista sin carátula después de otra con carátula | Windows la muestra sin carátula |
 | E11 | Reinstalar el APK | El servicio vuelve a enlazarse sin tocar los permisos |
+
+### S Pen
+
+| ID | Escenario | Resultado esperado |
+|---|---|---|
+| S1 | Anotar abierta; recortar en la PC con `Win+Shift+S` | La captura aparece en el teléfono en un par de segundos |
+| S2 | Anotar cerrada; `Ctrl+Alt+A` y recortar | Llega una notificación al teléfono; al tocarla se abre la captura |
+| S3 | Dibujar con cada herramienta, borrar con el botón lateral, mover marcas, deshacer | Cada acción se ve al instante y deshacer recorre los pasos en orden |
+| S4 | Empezar un trazo pegado a un borde lateral; forzar el gesto atrás con el dedo | El trazo dibuja; el gesto abre el menú "+" en lugar de salir |
+| S5 | "+" → Enviar a la PC | La imagen queda en el portapapeles y en `Imágenes\SashaBridge`, con notificación de Windows |
+| S6 | Tableta: flotar, dibujar en Paint, botón lateral | El cursor sigue al lápiz, el trazo tiene grosor variable, el botón da clic derecho |
+| S7 | Tableta con dos monitores; botón del monitor | El área cambia de proporción y el lápiz pasa al otro monitor |
+| S8 | Música sonando mientras se usa Anotar o Tableta | Audio, panel de Windows y teclas multimedia siguen igual (E1 a E4) |
 
 ## 4. Regresión de la versión 2.0
 
@@ -95,3 +109,20 @@ Comprobado en el mismo dispositivo después del rediseño de la tarjeta "Sonando
 | Cola | Muestra la cola de la app que suena y salta a la canción tocada. |
 | Horizontal | Dos columnas sin desplazamiento: estado y Sasha a la izquierda, reproductor completo a la derecha; el botón de apagar el puente solo aparece en vertical. |
 | Modo claro | Vertical y horizontal legibles, con el velo claro sobre la carátula desenfocada. |
+
+## 5. Pruebas de la versión 2.1 (S Pen)
+
+- **Fecha:** 2026-10-28.
+- **Mismo teléfono y PC** que la regresión 2.0.
+- **Pruebas automáticas:** 32 tests de Rust más 3 manuales contra Windows; 71 tests de Android; clippy y lint sin ningún aviso.
+
+| ID | Resultado | Evidencia |
+|---|---|---|
+| S1 | **Correcto** | Probado por el usuario. |
+| S2 | **Correcto** | Probado por el usuario. |
+| S3 | **Correcto** | Probado por el usuario, incluida la herramienta Mover. |
+| S4 | **Correcto** | Probado por el usuario tras añadir la franja de exclusión y el menú "+". |
+| S5 | **Correcto** | Probado por el usuario con `Ctrl+V` en Paint. La notificación se comprobó aparte con `notification_appears`: Windows 10 la entregó al centro de actividades. |
+| S6 | **Parcial** | En Paint funciona, con la posición y las proporciones correctas y una latencia por USB de 6 a 13 ms; el usuario nota poca respuesta al dibujar. Después se añadió la entrega de eventos sin agrupar (`requestUnbufferedDispatch`); falta volver a probar. Excalidraw, en el navegador, no responde: por diagnosticar. |
+| S7 | Pendiente | |
+| S8 | Pendiente | |

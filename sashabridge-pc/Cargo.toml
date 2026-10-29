@@ -1,6 +1,6 @@
 [package]
 name = "sashabridge_pc"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2024"
 
 [dependencies]
@@ -17,18 +17,21 @@ tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-# WinRT bindings for the System Media Transport Controls (media_controls.rs).
+# WinRT bindings for the System Media Transport Controls (media_controls.rs) and the
+# notifications (notify.rs).
 windows = { version = "0.62", features = [
+    "Data_Xml_Dom",
     "Foundation",
     "Media",
     "Storage",
     "Storage_Streams",
+    "UI_Notifications",
     "Win32_Foundation",
     "Win32_System_WinRT",
 ]}
 # Win32 bindings for the hidden window, the job object, the single-instance mutex, the
-# clipboard, global shortcut and Pictures folder of the annotation mode, and the synthetic
-# pen and monitors of the tablet mode.
+# clipboard, global shortcut and Pictures folder of the annotation mode, the synthetic pen
+# and monitors of the tablet mode, and the registry entry of the notifications.
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
@@ -40,6 +43,7 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_JobObjects",
     "Win32_System_LibraryLoader",
     "Win32_System_Memory",
+    "Win32_System_Registry",
     "Win32_System_Ole",
     "Win32_System_SystemInformation",
     "Win32_System_Threading",

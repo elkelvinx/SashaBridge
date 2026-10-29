@@ -17,6 +17,7 @@ mod connection;
 mod cover_cache;
 mod hidden_window;
 mod media_controls;
+mod notify;
 mod now_playing;
 mod pen_route;
 mod process;
@@ -79,6 +80,9 @@ async fn run() -> anyhow::Result<()> {
     info!("starting SashaBridge {}", env!("CARGO_PKG_VERSION"));
     let _instance = InstanceLock::acquire()?;
     tablet::use_physical_pixels();
+    if let Err(error) = notify::register() {
+        warn!("notifications are off, annotations will chime instead: {error:#}");
+    }
 
     let paths = ToolPaths::resolve()?;
     info!(dir = %paths.scrcpy.parent().unwrap_or(&paths.scrcpy).display(), "using scrcpy");

@@ -85,7 +85,7 @@ Si se te olvida excluir algo no se rompe nada: git lo sigue ignorando. Solo ocup
 |---|---|---|
 | [Git for Windows](https://git-scm.com/download/win) | Control de versiones | Opciones por defecto |
 | [Rust](https://rustup.rs) (`rustup-init.exe`) | Compilar el cliente de PC | Si lo pide, instala las *Visual Studio C++ Build Tools*: Rust las necesita en Windows para enlazar |
-| [Android Studio](https://developer.android.com/studio) | JDK 21 y SDK de Android | Ábrelo una vez para que instale el SDK y, en *SDK Manager*, marca **Android API 36** |
+| [Android Studio](https://developer.android.com/studio) | JDK 21 y SDK de Android | Ábrelo una vez para que instale el SDK y, en *SDK Manager*, marca **Android API 37** |
 | Driver USB de Samsung | Que `adb` vea el teléfono | Solo si `adb devices` no muestra el teléfono |
 
 En el teléfono: *Opciones de desarrollador > Depuración USB* activada y, al conectarlo, aceptar la huella de la PC.

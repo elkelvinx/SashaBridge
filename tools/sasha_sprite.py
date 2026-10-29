@@ -210,9 +210,9 @@ def sleeping(zs):
     return cv
 
 
-def painter():
-    """Reserved for the S Pen drawing mode: Sasha with a painter's beret."""
-    cv = standing("up")
+def painter(tail):
+    """The S Pen screens: Sasha with a painter's beret, wagging her tail (`tail` as in standing)."""
+    cv = standing(tail)
     # A soft dome tilted toward the snout, with its brim drooping over the forehead.
     cv.rect(31, 0, 34, 0, "r")
     cv.rect(29, 1, 36, 1, "r")
@@ -269,6 +269,8 @@ FRAMES = {
     "sasha_drink_2": drinking(True),
     "sasha_sleep_1": sleeping(1),
     "sasha_sleep_2": sleeping(2),
+    "sasha_paint_1": painter("up"),
+    "sasha_paint_2": painter("side"),
     "hourglass_0": hourglass(0),
     "hourglass_1": hourglass(2),
     "hourglass_2": hourglass(4),
@@ -278,9 +280,7 @@ FRAMES = {
 }
 
 # Frames drawn only in the preview until the feature that uses them exists.
-FUTURE_FRAMES = {
-    "sasha_painter": painter(),
-}
+FUTURE_FRAMES = {}
 
 
 def hex_rgb(value):

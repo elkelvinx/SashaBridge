@@ -31,6 +31,7 @@ import kotlin.math.sin
  *   points included, one batch per input event ([onSamples]).
  * - Fingers do nothing, so a palm resting on the screen draws nothing.
  * - A dot shows where the pen is: a ring while hovering, filled while touching.
+ * - Until the pen is first used, Sasha in her painter's beret and a hint explain the screen.
  *
  * Main thread only.
  */
@@ -89,6 +90,9 @@ class TabletSurfaceView @JvmOverloads constructor(
     /** The hint laid out for the current area, rebuilt when the area changes. */
     private var hintLayout: StaticLayout? = null
 
+    /** Sasha in her painter's beret, above the hint. */
+    private val painter = ContextCompat.getDrawable(context, R.drawable.sasha_paint_1)?.mutate()
+
     /** Takes the pen out of range a moment after the system says it left, unless it touches. */
     private val leaveRange = Runnable { leave() }
 
@@ -100,6 +104,11 @@ class TabletSurfaceView @JvmOverloads constructor(
         removeCallbacks(leaveRange)
         leave()
         edges.release()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        requestImmediatePen()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -145,7 +154,12 @@ class TabletSurfaceView @JvmOverloads constructor(
         // Fingers do nothing; they are consumed so they cannot reach anything else either.
         if (!isPen(event)) return true
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+            MotionEvent.ACTION_DOWN -> {
+                requestImmediatePen(event)
+                removeCallbacks(leaveRange)
+                emit(event, inContact = true, inRange = true)
+            }
+            MotionEvent.ACTION_MOVE -> {
                 removeCallbacks(leaveRange)
                 emit(event, inContact = true, inRange = true)
             }
@@ -278,10 +292,19 @@ class TabletSurfaceView @JvmOverloads constructor(
         }
     }
 
-    /** How to use the tablet, centered in the area until the pen is first used. */
+    /** Sasha and how to use the tablet, centered in the area until the pen is first used. */
     private fun drawHint(canvas: Canvas) {
         val layout = hintLayout ?: return
-        canvas.withTranslation(area.centerX() - layout.width / 2f, area.centerY() - layout.height / 2f) {
+        val sashaWidth = (SASHA_WIDTH_DP * density).toInt()
+        val sashaHeight = (SASHA_HEIGHT_DP * density).toInt()
+        val gap = HINT_GAP_DP * density
+        val top = area.centerY() - (sashaHeight + gap + layout.height) / 2
+        painter?.let { sasha ->
+            val left = (area.centerX() - sashaWidth / 2f).toInt()
+            sasha.setBounds(left, top.toInt(), left + sashaWidth, top.toInt() + sashaHeight)
+            sasha.draw(canvas)
+        }
+        canvas.withTranslation(area.centerX() - layout.width / 2f, top + sashaHeight + gap) {
             layout.draw(this)
         }
     }
@@ -317,6 +340,11 @@ class TabletSurfaceView @JvmOverloads constructor(
 
         /** Width of the hint, as a share of the area's width. */
         const val HINT_WIDTH = 0.7f
+
+        /** Sasha above the hint, at 2.5 dp per sprite pixel, and the space below her. */
+        const val SASHA_WIDTH_DP = 150f
+        const val SASHA_HEIGHT_DP = 50f
+        const val HINT_GAP_DP = 12f
 
         /** Maps 0..1 (clamped) to 0..65535. */
         fun unit(value: Float): Int = (value.coerceIn(0f, 1f) * UNIT_MAX).roundToInt()
