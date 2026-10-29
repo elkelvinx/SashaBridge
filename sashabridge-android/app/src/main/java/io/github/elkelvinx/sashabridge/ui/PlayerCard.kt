@@ -2,8 +2,6 @@ package io.github.elkelvinx.sashabridge.ui
 
 import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
-import android.graphics.RenderEffect
-import android.graphics.Shader
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.SystemClock
@@ -17,7 +15,6 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.annotation.ColorRes
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.scale
 import androidx.core.view.isVisible
 import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.media.AlbumArt
@@ -140,6 +137,10 @@ class PlayerCard(
         }
         queueButton.setOnClickListener { onOpenQueue() }
         seekBar.progressDrawable = wave
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            // The wave moves a little, 20 times a second: the screen need not refresh at 120 Hz.
+            seekBar.requestedFrameRate = View.REQUESTED_FRAME_RATE_CATEGORY_LOW
+        }
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
                 if (fromUser) elapsedTime.text = TrackTime.format(progress.toLong())
@@ -159,11 +160,6 @@ class PlayerCard(
         // A selected single-line text with a marquee ellipsis scrolls when it does not fit.
         trackTitle.isSelected = true
         trackArtist.isSelected = true
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            backdrop.setRenderEffect(
-                RenderEffect.createBlurEffect(BLUR_RADIUS_PX, BLUR_RADIUS_PX, Shader.TileMode.CLAMP),
-            )
-        }
         render(null)
     }
 
@@ -339,8 +335,7 @@ class PlayerCard(
         if (artId == shownArtId) return
         shownArtId = artId
         val bitmap = art?.let { BitmapFactory.decodeByteArray(it.jpeg, 0, it.jpeg.size) }
-        // Shrinking the image first is a cheap blur of its own, and the only one before Android 12.
-        val blurred = bitmap?.scale(BACKDROP_SIZE_PX, BACKDROP_SIZE_PX)
+        val blurred = bitmap?.let(Backdrop::of)
         val backdropAlpha = if (blurred != null) BACKDROP_ALPHA else 0f
         val apply = {
             if (bitmap == null) cover.setImageResource(R.drawable.cover_placeholder) else cover.setImageBitmap(bitmap)
@@ -527,12 +522,6 @@ class PlayerCard(
 
         /** Opacity of the controls while nothing is playing. */
         const val DISABLED_ALPHA = 0.38f
-
-        /** Side of the shrunken art behind the card; smaller is blurrier. */
-        const val BACKDROP_SIZE_PX = 24
-
-        /** Extra blur on Android 12 and later, in pixels. */
-        const val BLUR_RADIUS_PX = 60f
 
         /** Opacity of the blurred art; the scrim on top keeps the text readable. */
         const val BACKDROP_ALPHA = 0.9f

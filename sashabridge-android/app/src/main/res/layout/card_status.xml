@@ -64,31 +64,12 @@
                     tools:text="Las teclas multimedia de la PC controlan este teléfono." />
             </LinearLayout>
 
-            <!-- 2dp per sprite pixel; the hourglass sits on the same grid. -->
-            <FrameLayout
+            <!-- 2dp per sprite pixel. -->
+            <io.github.elkelvinx.sashabridge.ui.SashaView
+                android:id="@+id/sasha"
                 android:layout_width="120dp"
                 android:layout_height="40dp"
-                android:layout_marginStart="8dp">
-
-                <ImageView
-                    android:id="@+id/sasha"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:importantForAccessibility="no"
-                    android:scaleType="fitCenter"
-                    tools:src="@drawable/sasha_awake" />
-
-                <ImageView
-                    android:id="@+id/hourglass"
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_gravity="end|bottom"
-                    android:importantForAccessibility="no"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/hourglass"
-                    android:visibility="gone"
-                    tools:visibility="visible" />
-            </FrameLayout>
+                android:layout_marginStart="8dp" />
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton

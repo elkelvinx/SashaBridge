@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Main screen in landscape: the bridge on the left, the player on the right, both as tall
-     as the screen. The on/off button stays hidden here, so turning the phone into a "now
-     playing" display cannot switch the bridge off by accident; it is in portrait. The scroll
-     only matters when the battery warning does not fit. -->
+<!-- Main screen in landscape, a display to leave on next to the PC: the bridge on the left,
+     the player, which matters most, on the right, both as tall as the screen. The status bar
+     is hidden (the status card shows the battery and the time instead). The on/off button and
+     the connection footer stay hidden here, so turning the phone into a "now playing" display
+     cannot switch the bridge off by accident; both are in portrait. The scroll only matters
+     when the battery warning does not fit. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -15,17 +17,19 @@
     <!-- The two columns share the width by weight and the status card takes the height left in
          its column: two weights deep, on a screen this small that costs nothing noticeable. -->
     <LinearLayout
+        android:id="@+id/mainContent"
+        tools:ignore="InconsistentLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:baselineAligned="false"
         android:orientation="horizontal"
-        android:paddingHorizontal="20dp"
-        android:paddingVertical="8dp">
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="10dp">
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="0.36"
+            android:layout_weight="0.34"
             android:orientation="vertical"
             tools:ignore="NestedWeights">
 
@@ -68,13 +72,13 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/annotateButton"
-                    style="@style/Widget.SashaBridge.AnnotateButton"
+                    style="@style/Widget.SashaBridge.AnnotateButton.Compact"
                     android:layout_width="0dp"
                     android:layout_weight="1" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/tabletButton"
-                    style="@style/Widget.SashaBridge.AnnotateButton"
+                    style="@style/Widget.SashaBridge.AnnotateButton.Compact"
                     android:layout_width="0dp"
                     android:layout_marginStart="10dp"
                     android:layout_weight="1"
@@ -84,12 +88,9 @@
 
             <TextView
                 android:id="@+id/footer"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="@color/on_surface_muted"
-                tools:text="USB · 127.0.0.1:8080 · protocolo v2" />
+                android:visibility="gone" />
         </LinearLayout>
 
         <include
@@ -97,6 +98,6 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginStart="16dp"
-            android:layout_weight="0.64" />
+            android:layout_weight="0.66" />
     </LinearLayout>
 </ScrollView>

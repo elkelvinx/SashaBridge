@@ -127,3 +127,12 @@ Comprobado en el mismo dispositivo después del rediseño de la tarjeta "Sonando
 | S6 | **Correcto** | Latencia por USB de 6 a 13 ms. Con la entrega de eventos sin agrupar (`requestUnbufferedDispatch`), Paint responde rápido y con presión. Excalidraw, en el navegador, dibuja con presión, pero suaviza y reconoce las formas, y eso se nota como retraso; no depende del puente. |
 | S7 | **Correcto** | El lápiz caía en el otro monitor y, en el de la izquierda, fuera del escritorio: Windows mide los puntos inyectados desde la esquina del escritorio virtual, no desde el monitor principal. Corregido; el usuario dibujó en los dos monitores. La prueba manual `pointer_devices` muestra el área que Windows asigna al lápiz sintético. |
 | S8 | **Correcto** | La música, el panel de Windows y las teclas multimedia siguen igual mientras se usan Anotar y Tableta. |
+
+### Pantalla principal en horizontal como adorno
+
+Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador puesto a cero y leído 20 s después), con Spotify sonando y la PC conectada:
+
+| Versión | Fotogramas en 20 s | Por segundo |
+|---|---|---|
+| 2.1 | 2441 | ~120: la app redibujaba en cada refresco de la pantalla |
+| Después de la optimización | 585 | ~29: los 20 pasos de la onda y los ~9 cuadros de Sasha |

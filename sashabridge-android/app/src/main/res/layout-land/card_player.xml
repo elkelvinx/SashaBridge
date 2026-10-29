@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Player card in landscape, as tall as the screen and readable at a glance: the art and the
-     track details side by side, then the controls centered and the seek bar, both across the
-     whole card. Same views and ids as the portrait card in layout/card_player.xml. -->
+<!-- Player card in landscape, as tall as the screen and readable at a glance. The art, what
+     stands out most, is as tall as the row it shares with the details: "Sonando" with the
+     queue and the app at the top, the track in up to two lines (no marquee, which would keep
+     the screen redrawing), and the controls at the bottom, shuffle and repeat stacked at the
+     end. The seek bar runs along the whole card. Same views and ids as the portrait card in
+     layout/card_player.xml. -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -37,16 +40,15 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="16dp"
-            android:paddingBottom="8dp">
+            android:paddingHorizontal="14dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="6dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
                 android:baselineAligned="false"
-                android:gravity="center_vertical"
                 android:orientation="horizontal"
                 tools:ignore="NestedWeights">
 
@@ -55,24 +57,24 @@
                     android:id="@+id/cover"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:maxWidth="240dp"
                     android:elevation="6dp"
                     android:importantForAccessibility="no"
+                    android:maxWidth="240dp"
                     android:scaleType="centerCrop"
                     android:src="@drawable/cover_placeholder"
                     app:shapeAppearanceOverlay="@style/ShapeAppearance.SashaBridge.Cover" />
 
                 <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="20dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="16dp"
                     android:layout_weight="1"
                     android:orientation="vertical">
 
-                    <!-- "Sonando" or "En pausa", and the icon of the player app. -->
+                    <!-- "Sonando" or "En pausa", the queue and the player app, at the very top. -->
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="40dp"
+                        android:layout_height="36dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
                         tools:ignore="UseCompoundDrawables">
@@ -89,7 +91,7 @@
                             android:id="@+id/queueButton"
                             style="@style/Widget.Material3.Button.TonalButton.Icon"
                             android:layout_width="wrap_content"
-                            android:layout_height="40dp"
+                            android:layout_height="36dp"
                             android:layout_marginEnd="8dp"
                             android:minHeight="0dp"
                             android:paddingVertical="0dp"
@@ -112,12 +114,15 @@
                         android:id="@+id/trackInfo"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
                         android:orientation="vertical">
 
                         <TextView
                             android:id="@+id/trackTitle"
-                            style="@style/Widget.SashaBridge.Marquee"
-                            android:layout_marginTop="4dp"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:maxLines="2"
                             android:textAppearance="?attr/textAppearanceHeadlineSmall"
                             android:textColor="@color/on_surface"
                             android:textStyle="bold"
@@ -125,8 +130,11 @@
 
                         <TextView
                             android:id="@+id/trackArtist"
-                            style="@style/Widget.SashaBridge.Marquee"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
+                            android:ellipsize="end"
+                            android:maxLines="1"
                             android:textAppearance="?attr/textAppearanceTitleMedium"
                             android:textColor="@color/on_surface_muted"
                             tools:text="Azumi Takahashi, Lotus Juice" />
@@ -141,60 +149,77 @@
                             android:textColor="@color/accent_text"
                             tools:text="en Spotify" />
                     </LinearLayout>
+
+                    <Space
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <!-- Previous, play/pause, next; shuffle and repeat stacked at the end. -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageButton
+                            android:id="@+id/previousButton"
+                            style="@style/Widget.SashaBridge.SkipButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/control_previous"
+                            android:src="@drawable/ic_skip_previous" />
+
+                        <ImageButton
+                            android:id="@+id/playPauseButton"
+                            android:layout_width="60dp"
+                            android:layout_height="60dp"
+                            android:layout_marginHorizontal="10dp"
+                            android:background="@drawable/play_button_background"
+                            android:contentDescription="@string/control_play"
+                            android:src="@drawable/ic_play"
+                            app:tint="@color/on_primary" />
+
+                        <ImageButton
+                            android:id="@+id/nextButton"
+                            style="@style/Widget.SashaBridge.SkipButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/control_next"
+                            android:src="@drawable/ic_skip_next" />
+
+                        <Space
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <ImageButton
+                                android:id="@+id/shuffleButton"
+                                style="@style/Widget.SashaBridge.ControlButton"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:contentDescription="@string/control_shuffle_off"
+                                android:src="@drawable/ic_shuffle"
+                                android:visibility="gone"
+                                tools:visibility="visible" />
+
+                            <ImageButton
+                                android:id="@+id/repeatButton"
+                                style="@style/Widget.SashaBridge.ControlButton"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:contentDescription="@string/control_repeat"
+                                android:src="@drawable/ic_repeat"
+                                android:visibility="gone"
+                                tools:visibility="visible" />
+                        </LinearLayout>
+                    </LinearLayout>
                 </LinearLayout>
-            </LinearLayout>
-
-            <!-- Shuffle, previous, play/pause, next, repeat, centered under the art and details. -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/shuffleButton"
-                    style="@style/Widget.SashaBridge.ControlButton"
-                    android:layout_marginEnd="16dp"
-                    android:contentDescription="@string/control_shuffle_off"
-                    android:src="@drawable/ic_shuffle"
-                    android:visibility="gone"
-                    tools:visibility="visible" />
-
-                <ImageButton
-                    android:id="@+id/previousButton"
-                    style="@style/Widget.SashaBridge.SkipButton"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
-                    android:contentDescription="@string/control_previous"
-                    android:src="@drawable/ic_skip_previous" />
-
-                <ImageButton
-                    android:id="@+id/playPauseButton"
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:layout_marginHorizontal="16dp"
-                    android:background="@drawable/play_button_background"
-                    android:contentDescription="@string/control_play"
-                    android:src="@drawable/ic_play"
-                    app:tint="@color/on_primary" />
-
-                <ImageButton
-                    android:id="@+id/nextButton"
-                    style="@style/Widget.SashaBridge.SkipButton"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
-                    android:contentDescription="@string/control_next"
-                    android:src="@drawable/ic_skip_next" />
-
-                <ImageButton
-                    android:id="@+id/repeatButton"
-                    style="@style/Widget.SashaBridge.ControlButton"
-                    android:layout_marginStart="16dp"
-                    android:contentDescription="@string/control_repeat"
-                    android:src="@drawable/ic_repeat"
-                    android:visibility="gone"
-                    tools:visibility="visible" />
             </LinearLayout>
 
             <!-- Elapsed time, seek bar, duration, across the whole card. -->

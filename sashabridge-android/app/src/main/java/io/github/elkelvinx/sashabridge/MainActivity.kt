@@ -1,12 +1,16 @@
 package io.github.elkelvinx.sashabridge
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
-import android.graphics.drawable.AnimationDrawable
+import android.content.res.Configuration
 import android.graphics.drawable.Drawable
+import android.os.BatteryManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -14,18 +18,19 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.view.View
+import android.view.WindowManager
 import android.widget.Button
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.ColorRes
-import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -39,11 +44,11 @@ import io.github.elkelvinx.sashabridge.protocol.ProtocolCodec
 import io.github.elkelvinx.sashabridge.ui.BridgePhase
 import io.github.elkelvinx.sashabridge.ui.PlayerCard
 import io.github.elkelvinx.sashabridge.ui.QueueSheet
+import io.github.elkelvinx.sashabridge.ui.SashaView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import kotlin.random.Random
 
 /**
  * Main screen: the state of the bridge, the track of the active player with its controls
@@ -53,9 +58,12 @@ import kotlin.random.Random
  * screen is visible, so it matches what the service does, also after rotating or reopening
  * the app (A7). The on/off button only writes [BridgeRepository.enabled].
  *
- * Sasha, the dachshund the app is named after, shows the state too: she chases a tennis ball
- * while a PC is connected, stopping now and then to drink from her bucket, wags her tail next
- * to an hourglass while she waits for one, and sleeps while the bridge is off.
+ * Sasha, the dachshund the app is named after, shows the state too ([SashaView]).
+ *
+ * In landscape the screen is meant to stay on as a display next to the PC, so it saves space
+ * and power: no status bar (the status card shows the battery and the time instead), the
+ * screen stays on only while the phone charges, and every minute the content moves a few
+ * pixels so no part of the OLED panel shows the same thing for hours.
  *
  * Every member runs on the main thread.
  */
@@ -67,14 +75,14 @@ class MainActivity : AppCompatActivity() {
     /** Whether notification access is granted; checked again whenever the screen resumes. */
     private val hasAccess = MutableStateFlow(false)
 
-    /** Pose currently shown, so that an animation is not restarted by an unrelated update. */
-    private var shownPose: SashaPose? = null
+    /** Whether the screen is in landscape, the display layout. */
+    private val landscape: Boolean
+        get() = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    /** Pose that the state of the bridge asks for. */
-    private var phasePose: SashaPose? = null
-
-    /** Whether Sasha is taking one of her drinks, which she only does while playing. */
-    private var drinking = false
+    /** Updates the battery level and keeps the screen on while charging in landscape. */
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = showBattery(intent)
+    }
 
     /**
      * Asks for the notification permission, which lets a capture from the PC wait behind a
@@ -92,8 +100,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusDot: View
     private lateinit var statusTitle: TextView
     private lateinit var statusDetail: TextView
-    private lateinit var sasha: ImageView
-    private lateinit var hourglass: ImageView
+    private lateinit var sasha: SashaView
+    private var batteryLabel: TextView? = null
     private lateinit var grantAccessButton: Button
     private lateinit var batteryCard: View
     private lateinit var toggleButton: Button
@@ -102,8 +110,15 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
+        if (landscape) {
+            WindowCompat.getInsetsController(window, window.decorView).apply {
+                // A swipe from the top shows the status bar for a moment.
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                hide(WindowInsetsCompat.Type.statusBars())
+            }
+        }
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
@@ -113,7 +128,7 @@ class MainActivity : AppCompatActivity() {
         statusTitle = findViewById(R.id.statusTitle)
         statusDetail = findViewById(R.id.statusDetail)
         sasha = findViewById(R.id.sasha)
-        hourglass = findViewById(R.id.hourglass)
+        batteryLabel = findViewById(R.id.batteryLabel)
         grantAccessButton = findViewById(R.id.grantAccessButton)
         batteryCard = findViewById(R.id.batteryCard)
         toggleButton = findViewById(R.id.toggleButton)
@@ -172,9 +187,25 @@ class MainActivity : AppCompatActivity() {
                         delay(PROGRESS_TICK_MS)
                     }
                 }
-                launch { drinkNowAndThen() }
+                if (landscape) launch { shiftNowAndThen() }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // The battery broadcast is sticky: registering returns the current state at once.
+        ContextCompat.registerReceiver(
+            this,
+            batteryReceiver,
+            IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )?.let(::showBattery)
+    }
+
+    override fun onStop() {
+        unregisterReceiver(batteryReceiver)
+        super.onStop()
     }
 
     /**
@@ -195,14 +226,13 @@ class MainActivity : AppCompatActivity() {
     /** Shows [phase] in the status card. */
     private fun showPhase(phase: BridgePhase) {
         val (dotColor, pose) = when (phase) {
-            BridgePhase.NoAccess -> R.color.status_error to SashaPose.AWAKE
-            BridgePhase.Disabled -> R.color.status_off to SashaPose.SLEEPING
+            BridgePhase.NoAccess -> R.color.status_error to SashaView.Pose.AWAKE
+            BridgePhase.Disabled -> R.color.status_off to SashaView.Pose.SLEEPING
             BridgePhase.WaitingForListener, BridgePhase.Starting, BridgePhase.Listening ->
-                R.color.status_waiting to SashaPose.WAITING
-            is BridgePhase.Connected -> R.color.status_connected to SashaPose.RUNNING
-            is BridgePhase.Failed -> R.color.status_error to SashaPose.AWAKE
+                R.color.status_waiting to SashaView.Pose.WAITING
+            is BridgePhase.Connected -> R.color.status_connected to SashaView.Pose.PLAYING
+            is BridgePhase.Failed -> R.color.status_error to SashaView.Pose.AWAKE
         }
-        phasePose = pose
         statusTitle.text = when (phase) {
             BridgePhase.NoAccess -> getString(R.string.phase_no_access)
             BridgePhase.Disabled -> getString(R.string.phase_disabled)
@@ -225,55 +255,57 @@ class MainActivity : AppCompatActivity() {
         grantAccessButton.isVisible = phase == BridgePhase.NoAccess
         // While waiting for a PC the button looks idle, since there is nothing to stop yet;
         // it still works.
-        val idle = pose == SashaPose.WAITING
+        val idle = pose == SashaView.Pose.WAITING
         toggleButton.backgroundTintList =
             ColorStateList.valueOf(color(if (idle) R.color.button_idle else R.color.button_active))
         toggleButton.setTextColor(color(if (idle) R.color.on_surface_muted else R.color.on_primary))
-        showPose(currentPose(pose))
+        sasha.pose = pose
     }
 
-    /** [pose], unless Sasha is drinking in the middle of her game. */
-    private fun currentPose(pose: SashaPose): SashaPose =
-        if (drinking && pose == SashaPose.RUNNING) SashaPose.DRINKING else pose
-
     /**
-     * Every minute or two, at random, while she is playing, Sasha stops for a drink and goes
-     * back to the ball. Runs while the screen is visible; stopping it ends the drink.
+     * Shows the battery level in the status card (landscape only, where the status bar is
+     * hidden) and, in landscape, keeps the screen on while the phone charges.
+     *
+     * @param battery An [Intent.ACTION_BATTERY_CHANGED] broadcast.
      */
-    private suspend fun drinkNowAndThen() {
-        try {
-            while (true) {
-                delay(Random.nextLong(DRINK_INTERVAL_MIN_MS, DRINK_INTERVAL_MAX_MS))
-                val pose = phasePose ?: continue
-                if (pose != SashaPose.RUNNING) continue
-                drinking = true
-                showPose(currentPose(pose))
-                delay(DRINK_MS)
-                drinking = false
-                phasePose?.let { showPose(currentPose(it)) }
-            }
-        } finally {
-            drinking = false
+    private fun showBattery(battery: Intent) {
+        val level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = battery.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+        val charging = battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
+        batteryLabel?.let { label ->
+            label.isVisible = level >= 0 && scale > 0
+            if (label.isVisible) label.text = getString(R.string.battery_level, level * PERCENT / scale)
+            label.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                if (charging) R.drawable.ic_bolt else 0, 0, 0, 0,
+            )
+        }
+        if (landscape && charging) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
-    /** Shows Sasha in [pose], starting its animations, and the hourglass while she waits. */
-    private fun showPose(pose: SashaPose) {
-        if (pose == shownPose) return
-        shownPose = pose
-        sasha.setImageResource(pose.drawable)
-        (sasha.drawable as? AnimationDrawable)?.start()
-        val waiting = pose == SashaPose.WAITING
-        hourglass.isVisible = waiting
-        (hourglass.drawable as? AnimationDrawable)?.let { animation ->
-            if (waiting) {
-                // Every wait starts with the sand at the top.
-                animation.stop()
-                animation.selectDrawable(0)
-                animation.start()
-            } else {
-                animation.stop()
+    /**
+     * Every minute moves the content to the next of a few positions within [SHIFT_DP] of its
+     * place, so a display left on for hours does not wear the same pixels of the OLED panel.
+     * Runs while the screen is visible.
+     */
+    private suspend fun shiftNowAndThen() {
+        // Only the landscape layout has it.
+        val content = findViewById<View?>(R.id.mainContent) ?: return
+        val step = SHIFT_DP * resources.displayMetrics.density
+        var position = 0
+        try {
+            while (true) {
+                delay(SHIFT_INTERVAL_MS)
+                position = (position + 1) % SHIFTS.size
+                content.translationX = SHIFTS[position].first * step
+                content.translationY = SHIFTS[position].second * step
             }
+        } finally {
+            content.translationX = 0f
+            content.translationY = 0f
         }
     }
 
@@ -320,33 +352,14 @@ class MainActivity : AppCompatActivity() {
     private companion object {
 
         /** Interval between seek bar updates while the screen is visible. */
-        const val PROGRESS_TICK_MS = 250L
+        const val PROGRESS_TICK_MS = 500L
 
-        /** Sasha drinks once every 60 to 120 seconds while she plays, for about 4 seconds. */
-        const val DRINK_INTERVAL_MIN_MS = 60_000L
-        const val DRINK_INTERVAL_MAX_MS = 120_000L
-        const val DRINK_MS = 4_000L
-    }
+        /** Battery levels are shown in percent. */
+        const val PERCENT = 100
 
-    /**
-     * Poses of Sasha.
-     *
-     * @property drawable Still image or animation of the pose.
-     */
-    private enum class SashaPose(@param:DrawableRes val drawable: Int) {
-        /** Standing still, looking ahead. */
-        AWAKE(R.drawable.sasha_awake),
-
-        /** Wagging her tail next to a turning hourglass. */
-        WAITING(R.drawable.sasha_wagging),
-
-        /** Running after a tennis ball. */
-        RUNNING(R.drawable.sasha_running),
-
-        /** Drinking from her bucket, a short break from the ball. */
-        DRINKING(R.drawable.sasha_drinking),
-
-        /** Asleep. */
-        SLEEPING(R.drawable.sasha_sleeping),
+        /** The landscape content moves every minute, by up to 3 dp, through these offsets. */
+        const val SHIFT_INTERVAL_MS = 60_000L
+        const val SHIFT_DP = 3f
+        val SHIFTS = listOf(0 to 0, 1 to 0, 1 to 1, 0 to 1, -1 to 1, -1 to 0, -1 to -1, 0 to -1)
     }
 }

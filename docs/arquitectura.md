@@ -94,9 +94,15 @@ La pantalla también ofrece dos funciones que el protocolo todavía no lleva a l
 
 **Cambio de canción.** La tarjeta no cambia de canción hasta tener la carátula nueva. En cuanto empieza el cambio (un botón, o el primer estado de otra pista), la carátula actual se desliza y se frena mientras espera; cuando llega la imagen, sale del todo y entra la nueva desde el otro lado. Si la pista no trae carátula en 1,5 s, se muestra sin ella; si un salto no cambia nada en 3 s, la tarjeta vuelve a su sitio.
 
-**Orientaciones.** `layout/` y `layout-land/` comparten las tarjetas `card_status`, `card_player` y `card_battery`, con los mismos identificadores, así que `MainActivity` y `PlayerCard` no distinguen la orientación. En horizontal la pantalla se divide en dos columnas y el botón de apagar el puente no se muestra, para que girar el teléfono y usarlo como pantalla de "Sonando" no permita apagarlo por accidente.
+**Orientaciones.** `layout/` y `layout-land/` comparten las tarjetas `card_status`, `card_player` y `card_battery`, con los mismos identificadores, así que `PlayerCard` no distingue la orientación. En horizontal la pantalla se divide en dos columnas y el botón de apagar el puente no se muestra, para que girar el teléfono y usarlo como pantalla de "Sonando" no permita apagarlo por accidente.
 
-Sasha, la perrita salchicha que da nombre a la app, acompaña el estado:
+**Horizontal como adorno.** En horizontal la pantalla está pensada para quedarse encendida junto a la PC, así que ahorra espacio y energía:
+- **Espacio:** sin barra de estado (la tarjeta de Estado muestra la batería y la hora), sin el pie de conexión, y la carátula ocupa el alto de su fila.
+- **Pantalla encendida solo cargando:** `FLAG_KEEP_SCREEN_ON` mientras el teléfono carga; sin cargar, se apaga cuando Android diga.
+- **Protección OLED:** cada minuto el contenido se mueve hasta 3 dp, en un ciclo de 8 posiciones.
+- **Pocos fotogramas:** la onda de la barra avanza a 20 fps en lugar de a la frecuencia de la pantalla; el desenfoque de la carátula se calcula una vez por canción (`Backdrop`) en lugar de en la GPU en cada fotograma; el título no usa marquesina; y, en Android 15+, Sasha y la barra piden la categoría de frecuencia baja. Medido en el S22 Ultra con música: de unos 120 fotogramas por segundo a unos 29.
+
+Sasha, la perrita salchicha que da nombre a la app, acompaña el estado. Todo lo suyo (poses, animaciones, reloj de arena y tragos de agua) está en `ui/SashaView`, de modo que un sprite nuevo solo toca `tools/sasha_sprite.py` y esa clase:
 
 | Estado | Animación |
 |---|---|

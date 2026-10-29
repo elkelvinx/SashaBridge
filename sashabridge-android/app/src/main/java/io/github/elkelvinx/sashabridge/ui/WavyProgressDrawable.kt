@@ -8,7 +8,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
-import android.view.animation.LinearInterpolator
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import io.github.elkelvinx.sashabridge.R
 import kotlin.math.PI
@@ -17,10 +17,12 @@ import kotlin.math.sin
 
 /**
  * Track of the seek bar: what is left is a straight light coffee line, and what was played is
- * a very dark red sound wave that travels while the track plays and flattens when it pauses.
+ * a red sound wave that travels while the track plays and flattens when it pauses.
  *
- * The seek bar sets the progress through the drawable's level (0 to 10000). The wave only
- * animates while the drawable is visible, so a hidden screen does not keep redrawing.
+ * The seek bar sets the progress through the drawable's level (0 to 10000). The wave travels
+ * in steps at [FRAMES_PER_SECOND], not at the screen's refresh rate (up to 120 Hz): a slow wave
+ * looks the same, and the screen, often left on as a display, redraws far less. It only
+ * travels while the drawable is visible, so a hidden screen does not keep redrawing.
  *
  * Main thread only.
  *
@@ -56,13 +58,15 @@ class WavyProgressDrawable(context: Context) : Drawable() {
     /** Whether the track plays, which makes the wave rise and travel. */
     private var playing = false
 
-    private val travel = ValueAnimator.ofFloat(0f, (2 * PI).toFloat()).apply {
-        duration = WAVE_PERIOD_MS
-        repeatCount = ValueAnimator.INFINITE
-        interpolator = LinearInterpolator()
-        addUpdateListener {
-            phase = it.animatedValue as Float
+    /** Whether the wave is travelling, with [travel] scheduled. */
+    private var travelling = false
+
+    /** Moves the wave one step and schedules the next one. */
+    private val travel = object : Runnable {
+        override fun run() {
+            phase = (phase + PHASE_STEP) % FULL_TURN
             invalidateSelf()
+            scheduleSelf(this, SystemClock.uptimeMillis() + FRAME_MS)
         }
     }
 
@@ -98,10 +102,12 @@ class WavyProgressDrawable(context: Context) : Drawable() {
     /** Runs the travelling animation only while playing and visible. */
     private fun updateTravel() {
         val run = playing && isVisible
-        when {
-            run && !travel.isStarted -> travel.start()
-            run && travel.isPaused -> travel.resume()
-            !run && travel.isRunning -> travel.pause()
+        if (run == travelling) return
+        travelling = run
+        if (run) {
+            scheduleSelf(travel, SystemClock.uptimeMillis() + FRAME_MS)
+        } else {
+            unscheduleSelf(travel)
         }
     }
 
@@ -161,5 +167,13 @@ class WavyProgressDrawable(context: Context) : Drawable() {
         const val HEIGHT_DP = 16f
         const val WAVE_PERIOD_MS = 1_400L
         const val RISE_MS = 300L
+
+        /** Steps per second of the travelling wave. */
+        const val FRAMES_PER_SECOND = 20
+        const val FRAME_MS = 1_000L / FRAMES_PER_SECOND
+        val FULL_TURN = (2 * PI).toFloat()
+
+        /** How far the wave moves each step, to cross a wavelength every [WAVE_PERIOD_MS]. */
+        val PHASE_STEP = FULL_TURN * FRAME_MS / WAVE_PERIOD_MS
     }
 }

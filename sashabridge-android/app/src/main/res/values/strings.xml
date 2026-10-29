@@ -53,6 +53,11 @@
     <string name="battery_detail">Samsung puede congelar la app en segundo plano y cortar el puente. En Batería, elige «Sin restricciones».</string>
     <string name="button_battery">Abrir ajustes</string>
 
+    <!-- Landscape display: what the hidden status bar would show. -->
+    <string name="battery_level">%1$d %%</string>
+    <string name="clock_format_12" translatable="false">h:mm</string>
+    <string name="clock_format_24" translatable="false">H:mm</string>
+
     <!-- S Pen: annotate captures from the PC. -->
     <string name="button_annotate">Anotar</string>
     <string name="annotate_waiting">Esperando captura</string>
