@@ -90,6 +90,17 @@ data class InkText(
 /** Line width that matches a text size: a text is `width / TEXT_STROKE_RATIO` pixels tall. */
 const val TEXT_STROKE_RATIO = 0.16f
 
+/** Distance between the baselines of a text's lines, relative to its size. */
+const val TEXT_LINE_SPACING = 1.2f
+
+/** A box in capture pixels, such as the area a mark covers. */
+data class InkBounds(val left: Float, val top: Float, val right: Float, val bottom: Float) {
+
+    /** Whether (x, y) is inside the box grown by [margin] on every side. */
+    fun contains(x: Float, y: Float, margin: Float = 0f): Boolean =
+        x in (left - margin)..(right + margin) && y in (top - margin)..(bottom + margin)
+}
+
 /** Geometry of the marks. Pure and thread-safe. */
 object InkGeometry {
 
@@ -102,6 +113,9 @@ object InkGeometry {
 
     /** Average width of a character, relative to the text size, to estimate a text's box. */
     private const val CHAR_WIDTH = 0.55f
+
+    /** How far a text's last line reaches below its baseline, relative to its size. */
+    private const val DESCENT = 0.3f
 
     /**
      * Returns the ends of the two sides of an arrow head.
@@ -145,14 +159,66 @@ object InkGeometry {
                     distanceToSegment(x, y, r, b, l, b) <= reach ||
                     distanceToSegment(x, y, l, b, l, t) <= reach
             }
-            is InkText -> {
-                val lines = shape.text.lines()
-                val right = shape.x + (lines.maxOfOrNull { it.length } ?: 0) * shape.size * CHAR_WIDTH
-                val top = shape.y - shape.size
-                val bottom = shape.y + (lines.size - 1) * shape.size * 1.2f + shape.size * 0.3f
-                x in (shape.x - tolerance)..(right + tolerance) && y in (top - tolerance)..(bottom + tolerance)
-            }
+            is InkText -> bounds(shape).contains(x, y, tolerance)
         }
+    }
+
+    /**
+     * Returns the area [shape] covers, line width included; a text's box is an estimate from
+     * its number of characters.
+     */
+    fun bounds(shape: InkShape): InkBounds = when (shape) {
+        is InkStroke -> box(
+            (0 until shape.size).map { shape.points[it * 3] },
+            (0 until shape.size).map { shape.points[it * 3 + 1] },
+            shape.width,
+        )
+        is InkLine -> box(listOf(shape.x1, shape.x2), listOf(shape.y1, shape.y2), shape.width)
+        is InkRect -> box(listOf(shape.x1, shape.x2), listOf(shape.y1, shape.y2), shape.width)
+        is InkArrow -> {
+            val head = arrowHead(shape)
+            box(listOf(shape.x1, shape.x2, head[0], head[2]), listOf(shape.y1, shape.y2, head[1], head[3]), shape.width)
+        }
+        is InkText -> {
+            val lines = shape.text.lines()
+            InkBounds(
+                left = shape.x,
+                top = shape.y - shape.size,
+                right = shape.x + (lines.maxOfOrNull { it.length } ?: 0) * shape.size * CHAR_WIDTH,
+                bottom = shape.y + (lines.size - 1) * shape.size * TEXT_LINE_SPACING + shape.size * DESCENT,
+            )
+        }
+    }
+
+    /** The box around points [xs], [ys], grown by half of a line [width]. */
+    private fun box(xs: List<Float>, ys: List<Float>, width: Float): InkBounds {
+        val half = width / 2
+        return InkBounds(
+            (xs.minOrNull() ?: 0f) - half,
+            (ys.minOrNull() ?: 0f) - half,
+            (xs.maxOrNull() ?: 0f) + half,
+            (ys.maxOrNull() ?: 0f) + half,
+        )
+    }
+
+    /** Returns a copy of [shape] moved by (dx, dy) capture pixels. */
+    fun translate(shape: InkShape, dx: Float, dy: Float): InkShape = when (shape) {
+        is InkStroke -> InkStroke(
+            FloatArray(shape.points.size) { i ->
+                when (i % 3) {
+                    0 -> shape.points[i] + dx
+                    1 -> shape.points[i] + dy
+                    else -> shape.points[i]
+                }
+            },
+            shape.color,
+            shape.width,
+            shape.highlighter,
+        )
+        is InkLine -> shape.copy(x1 = shape.x1 + dx, y1 = shape.y1 + dy, x2 = shape.x2 + dx, y2 = shape.y2 + dy)
+        is InkRect -> shape.copy(x1 = shape.x1 + dx, y1 = shape.y1 + dy, x2 = shape.x2 + dx, y2 = shape.y2 + dy)
+        is InkArrow -> shape.copy(x1 = shape.x1 + dx, y1 = shape.y1 + dy, x2 = shape.x2 + dx, y2 = shape.y2 + dy)
+        is InkText -> shape.copy(x = shape.x + dx, y = shape.y + dy)
     }
 
     /** Distance from (px, py) to the segment from (ax, ay) to (bx, by). */

@@ -99,6 +99,7 @@ class AnnotateActivity : AppCompatActivity() {
             InkTool.RECTANGLE to findViewById(R.id.toolRectangle),
             InkTool.ARROW to findViewById(R.id.toolArrow),
             InkTool.TEXT to findViewById(R.id.toolText),
+            InkTool.MOVE to findViewById(R.id.toolMove),
         )
         toolButtons.forEach { (tool, button) -> button.setOnClickListener { selectTool(tool) } }
         colorButtons = buildColorButtons()

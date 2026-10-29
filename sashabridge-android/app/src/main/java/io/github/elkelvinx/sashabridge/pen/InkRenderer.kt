@@ -1,6 +1,7 @@
 package io.github.elkelvinx.sashabridge.pen
 
 import android.graphics.Canvas
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Typeface
@@ -25,6 +26,14 @@ class InkRenderer {
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
     private val path = Path()
+    private val selectionShadow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = SELECTION_SHADOW
+    }
+    private val selection = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = SELECTION_COLOR
+    }
 
     /** Draws every shape, in order. */
     fun draw(canvas: Canvas, shapes: List<InkShape>) {
@@ -55,9 +64,26 @@ class InkRenderer {
                 text.color = shape.color
                 text.textSize = shape.size
                 shape.text.lines().forEachIndexed { index, line ->
-                    canvas.drawText(line, shape.x, shape.y + index * shape.size * LINE_SPACING, text)
+                    canvas.drawText(line, shape.x, shape.y + index * shape.size * TEXT_LINE_SPACING, text)
                 }
             }
+        }
+    }
+
+    /**
+     * Draws the dashed box around the mark the move tool holds: white dashes over a dark line,
+     * so it shows on any capture. Screen only; exported images never have it.
+     *
+     * @param dp Capture pixels per screen dp at the current zoom, so the box looks the same
+     *   at any zoom.
+     */
+    fun drawSelection(canvas: Canvas, bounds: InkBounds, dp: Float) {
+        val pad = SELECTION_PADDING_DP * dp
+        selectionShadow.strokeWidth = (SELECTION_WIDTH_DP + 1) * dp
+        selection.strokeWidth = SELECTION_WIDTH_DP * dp
+        selection.pathEffect = DashPathEffect(floatArrayOf(DASH_DP * dp, DASH_DP * dp), 0f)
+        for (paint in listOf(selectionShadow, selection)) {
+            canvas.drawRect(bounds.left - pad, bounds.top - pad, bounds.right + pad, bounds.bottom + pad, paint)
         }
     }
 
@@ -102,7 +128,11 @@ class InkRenderer {
         /** Opacity of the highlighter, out of 255. */
         const val HIGHLIGHTER_ALPHA = 0x66
 
-        /** Distance between lines of a text, relative to its size. */
-        const val LINE_SPACING = 1.2f
+        /** The selection box: white dashes over a translucent dark line, in screen dp. */
+        const val SELECTION_COLOR = 0xFFFFFFFF.toInt()
+        const val SELECTION_SHADOW = 0x99000000.toInt()
+        const val SELECTION_WIDTH_DP = 1.5f
+        const val SELECTION_PADDING_DP = 6f
+        const val DASH_DP = 6f
     }
 }

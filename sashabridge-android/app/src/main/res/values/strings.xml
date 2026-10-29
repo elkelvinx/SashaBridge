@@ -72,6 +72,7 @@
     <string name="annotate_tool_rectangle">Rectángulo</string>
     <string name="annotate_tool_arrow">Flecha</string>
     <string name="annotate_tool_text">Texto</string>
+    <string name="annotate_tool_move">Mover</string>
     <string name="annotate_color">Color %1$d</string>
     <string name="annotate_thin">Fino</string>
     <string name="annotate_medium">Medio</string>

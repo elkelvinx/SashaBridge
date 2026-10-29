@@ -155,6 +155,13 @@
                     android:src="@drawable/ic_text"
                     android:tooltipText="@string/annotate_tool_text" />
 
+                <ImageButton
+                    android:id="@+id/toolMove"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_tool_move"
+                    android:src="@drawable/ic_move"
+                    android:tooltipText="@string/annotate_tool_move" />
+
                 <View style="@style/Widget.SashaBridge.AnnotateDivider" />
 
                 <LinearLayout
