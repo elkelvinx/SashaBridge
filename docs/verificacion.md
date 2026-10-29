@@ -29,6 +29,7 @@ cargo test -- --ignored
 |---|---|
 | `windows_sees_cover_and_shuffle_changes` | Windows ve aparecer y desaparecer la carátula y el botón de aleatorio |
 | `windows_shuffle_request_becomes_a_command` | Una pulsación del botón de aleatorio llega al cliente como orden |
+| `pointer_devices` | Lista los dispositivos de puntero que ve Windows, incluido el lápiz sintético, con el área del escritorio que cubre cada uno |
 | `notification_appears` | Registra la identidad de las notificaciones y muestra una con el icono de Sasha. Se comprueba mirando la pantalla, o en el historial: `[Windows.UI.Notifications.ToastNotificationManager]::History.GetHistory('io.github.elkelvinx.SashaBridge')` |
 
 Con el cliente abierto, `tools/smtc-inspect.ps1` muestra cada sesión multimedia tal como la ve Windows: título, artista, carátula, estado, posición y botón de aleatorio. Con `-ToggleShuffle` pulsa el aleatorio de SashaBridge, útil porque ni el flyout de Windows ni FluentFlyout tienen ese botón. Necesita Windows PowerShell 5.1:
@@ -112,9 +113,9 @@ Comprobado en el mismo dispositivo después del rediseño de la tarjeta "Sonando
 
 ## 5. Pruebas de la versión 2.1 (S Pen)
 
-- **Fecha:** 2026-10-28.
-- **Mismo teléfono y PC** que la regresión 2.0.
-- **Pruebas automáticas:** 32 tests de Rust más 3 manuales contra Windows; 71 tests de Android; clippy y lint sin ningún aviso.
+- **Fechas:** 2026-10-28 y 2026-10-29.
+- **Mismo teléfono y PC** que la regresión 2.0. La PC tiene dos monitores de 1920×1080: el principal, y otro a su izquierda y 61 px más arriba, que en Windows empieza en (-1920, -61).
+- **Pruebas automáticas:** 33 tests de Rust más 4 manuales contra Windows; 71 tests de Android; clippy y lint sin ningún aviso.
 
 | ID | Resultado | Evidencia |
 |---|---|---|
@@ -123,6 +124,6 @@ Comprobado en el mismo dispositivo después del rediseño de la tarjeta "Sonando
 | S3 | **Correcto** | Probado por el usuario, incluida la herramienta Mover. |
 | S4 | **Correcto** | Probado por el usuario tras añadir la franja de exclusión y el menú "+". |
 | S5 | **Correcto** | Probado por el usuario con `Ctrl+V` en Paint. La notificación se comprobó aparte con `notification_appears`: Windows 10 la entregó al centro de actividades. |
-| S6 | **Parcial** | En Paint funciona, con la posición y las proporciones correctas y una latencia por USB de 6 a 13 ms; el usuario nota poca respuesta al dibujar. Después se añadió la entrega de eventos sin agrupar (`requestUnbufferedDispatch`); falta volver a probar. Excalidraw, en el navegador, no responde: por diagnosticar. |
-| S7 | Pendiente | |
-| S8 | Pendiente | |
+| S6 | **Correcto** | Latencia por USB de 6 a 13 ms. Con la entrega de eventos sin agrupar (`requestUnbufferedDispatch`), Paint responde rápido y con presión. Excalidraw, en el navegador, dibuja con presión, pero suaviza y reconoce las formas, y eso se nota como retraso; no depende del puente. |
+| S7 | **Correcto** | El lápiz caía en el otro monitor y, en el de la izquierda, fuera del escritorio: Windows mide los puntos inyectados desde la esquina del escritorio virtual, no desde el monitor principal. Corregido; el usuario dibujó en los dos monitores. La prueba manual `pointer_devices` muestra el área que Windows asigna al lápiz sintético. |
+| S8 | **Correcto** | La música, el panel de Windows y las teclas multimedia siguen igual mientras se usan Anotar y Tableta. |

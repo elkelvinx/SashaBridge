@@ -5,6 +5,10 @@
 //! Whiteboard or Affinity see as a real Windows Ink pen: pressure, tilt, hovering, the side
 //! button and the eraser. The phone's drawing area maps onto one monitor, which the phone can
 //! switch ([`Tablet::select`]).
+//!
+//! Windows places injected pen points from the top-left corner of the virtual screen (all
+//! monitors together), not from the primary monitor: with a monitor to the left or above the
+//! primary one, that corner has negative coordinates and every point is shifted by it.
 
 use std::mem::{size_of, zeroed};
 use std::num::NonZeroU32;
@@ -26,7 +30,7 @@ use windows_sys::Win32::UI::Input::Pointer::{
     POINTER_PEN_INFO,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    MONITORINFOF_PRIMARY, PEN_FLAG_BARREL, PEN_FLAG_ERASER, PEN_FLAG_INVERTED, PEN_FLAG_NONE, PEN_MASK_PRESSURE,
+    GetSystemMetrics, MONITORINFOF_PRIMARY, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, PEN_FLAG_BARREL, PEN_FLAG_ERASER, PEN_FLAG_INVERTED, PEN_FLAG_NONE, PEN_MASK_PRESSURE,
     PEN_MASK_TILT_X, PEN_MASK_TILT_Y, PT_PEN,
 };
 
@@ -156,6 +160,7 @@ fn drive(orders: &Receiver<PenOrder>) {
             PenOrder::Area(area) => {
                 pen.release();
                 pen.area = Some(area);
+                pen.origin = virtual_screen_origin();
             }
             PenOrder::Samples(samples) => samples.iter().for_each(|sample| pen.replay(sample)),
             PenOrder::Lift => pen.release(),
@@ -169,6 +174,8 @@ struct SyntheticPen {
     device: HSYNTHETICPOINTERDEVICE,
     /// Part of the desktop the drawing area maps onto; nothing is injected until it is known.
     area: Option<Area>,
+    /// Top-left corner of the virtual screen, which injected points are measured from.
+    origin: POINT,
     /// Range and contact of the last injected state.
     state: PenState,
     /// Where the pen was last, to lift it in the same place.
@@ -194,6 +201,7 @@ impl SyntheticPen {
         Some(Self {
             device,
             area: None,
+            origin: virtual_screen_origin(),
             state: PenState::default(),
             last_point: POINT { x: 0, y: 0 },
             frame: 0,
@@ -207,7 +215,7 @@ impl SyntheticPen {
             return;
         };
         let now = PenState::of(sample);
-        let point = area.pixel(sample.x, sample.y);
+        let point = relative_to(area.pixel(sample.x, sample.y), self.origin);
         for flags in steps(self.state, now) {
             self.inject(flags, point, Some(sample));
         }
@@ -244,6 +252,19 @@ impl Drop for SyntheticPen {
         // SAFETY: the device was created by `create` and is destroyed once.
         unsafe { DestroySyntheticPointerDevice(self.device) };
     }
+}
+
+/// Top-left corner of the virtual screen, in physical pixels; negative when a monitor sits to
+/// the left of or above the primary one.
+fn virtual_screen_origin() -> POINT {
+    // SAFETY: plain queries without arguments that point anywhere.
+    unsafe { POINT { x: GetSystemMetrics(SM_XVIRTUALSCREEN), y: GetSystemMetrics(SM_YVIRTUALSCREEN) } }
+}
+
+/// `point`, a desktop position, measured from `origin`, the top-left corner of the virtual
+/// screen, as Windows reads injected pen points.
+fn relative_to(point: POINT, origin: POINT) -> POINT {
+    POINT { x: point.x - origin.x, y: point.y - origin.y }
 }
 
 /// Builds the pen record of one injection.
@@ -501,5 +522,57 @@ mod tests {
 
         assert_eq!(pen_flags(&sample(false)), PEN_FLAG_INVERTED);
         assert_eq!(pen_flags(&sample(true)), PEN_FLAG_INVERTED | PEN_FLAG_ERASER);
+    }
+
+    /// Lists the pointer devices Windows knows, with the screen area each one maps to. Run
+    /// with `cargo test pointer_devices -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "diagnostic output only"]
+    fn pointer_devices() {
+        use windows_sys::Win32::UI::Controls::POINTER_DEVICE_INFO;
+        use windows_sys::Win32::UI::Input::Pointer::{GetPointerDeviceRects, GetPointerDevices};
+
+        use_physical_pixels();
+        let _pen = SyntheticPen::create().unwrap_or_else(|| panic!("no synthetic pen"));
+        let mut count = 0u32;
+        // SAFETY: a null buffer asks only for the count.
+        unsafe { GetPointerDevices(&mut count, std::ptr::null_mut()) };
+        // SAFETY: plain C structs, filled by the call below.
+        let mut devices: Vec<POINTER_DEVICE_INFO> = (0..count).map(|_| unsafe { zeroed() }).collect();
+        // SAFETY: the buffer holds `count` records.
+        unsafe { GetPointerDevices(&mut count, devices.as_mut_ptr()) };
+        for device in &devices[..count as usize] {
+            let mut pointer_rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+            let mut display_rect = pointer_rect;
+            // SAFETY: the handle comes from Windows and both rectangles receive values.
+            unsafe { GetPointerDeviceRects(device.device, &mut pointer_rect, &mut display_rect) };
+            let len = device.productString.iter().position(|&c| c == 0).unwrap_or(0);
+            println!(
+                "type={} monitor={:?} name={:?} device=({}, {})-({}, {}) display=({}, {})-({}, {})",
+                device.pointerDeviceType,
+                device.monitor,
+                String::from_utf16_lossy(&device.productString[..len]),
+                pointer_rect.left,
+                pointer_rect.top,
+                pointer_rect.right,
+                pointer_rect.bottom,
+                display_rect.left,
+                display_rect.top,
+                display_rect.right,
+                display_rect.bottom,
+            );
+        }
+    }
+
+    /// With a monitor to the left of and above the primary one, the primary monitor's corner is
+    /// that far into the virtual screen, and the left monitor starts at its corner.
+    #[test]
+    fn points_are_measured_from_the_virtual_screen() {
+        let origin = POINT { x: -1920, y: -61 };
+
+        let primary = relative_to(POINT { x: 0, y: 0 }, origin);
+        assert_eq!((primary.x, primary.y), (1920, 61));
+        let left = relative_to(POINT { x: -1920, y: -61 }, origin);
+        assert_eq!((left.x, left.y), (0, 0));
     }
 }
