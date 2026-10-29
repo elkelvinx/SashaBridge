@@ -34,6 +34,7 @@ import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
 import io.github.elkelvinx.sashabridge.media.PlayerCommand
 import io.github.elkelvinx.sashabridge.pen.AnnotateActivity
+import io.github.elkelvinx.sashabridge.pen.TabletActivity
 import io.github.elkelvinx.sashabridge.protocol.ProtocolCodec
 import io.github.elkelvinx.sashabridge.ui.BridgePhase
 import io.github.elkelvinx.sashabridge.ui.PlayerCard
@@ -129,6 +130,9 @@ class MainActivity : AppCompatActivity() {
             } else {
                 openAnnotate()
             }
+        }
+        findViewById<Button>(R.id.tabletButton).setOnClickListener {
+            startActivity(Intent(this, TabletActivity::class.java))
         }
         grantAccessButton.setOnClickListener {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))

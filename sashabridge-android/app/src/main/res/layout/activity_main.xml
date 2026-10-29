@@ -40,7 +40,7 @@
         <!-- Shown only while Android may freeze the app in the background. -->
         <include layout="@layout/card_battery" />
 
-        <!-- "Anotar" opens the S Pen screen; the bridge button takes the rest of the row. -->
+        <!-- The two S Pen screens, side by side. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -50,21 +50,31 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/annotateButton"
                 style="@style/Widget.SashaBridge.AnnotateButton"
-                android:layout_width="wrap_content"
-                android:layout_height="60dp" />
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/toggleButton"
+                android:id="@+id/tabletButton"
+                style="@style/Widget.SashaBridge.AnnotateButton"
                 android:layout_width="0dp"
-                android:layout_height="60dp"
+                android:layout_height="56dp"
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                android:textAppearance="?attr/textAppearanceTitleMedium"
-                android:textColor="@color/on_primary"
-                app:backgroundTint="@color/button_active"
-                app:cornerRadius="18dp"
-                tools:text="@string/button_turn_off" />
+                android:text="@string/button_tablet"
+                app:icon="@drawable/ic_tablet" />
         </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/toggleButton"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:layout_marginTop="12dp"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textColor="@color/on_primary"
+            app:backgroundTint="@color/button_active"
+            app:cornerRadius="18dp"
+            tools:text="@string/button_turn_off" />
 
         <TextView
             android:id="@+id/footer"

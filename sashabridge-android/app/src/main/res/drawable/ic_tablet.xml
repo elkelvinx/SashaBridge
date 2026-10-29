@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Drawing tablet: a frame with a pen leaning into it. Each part is its own path so their
+     overlap never cancels out. Tinted from the layout or the code. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Tablet frame. -->
+    <path
+        android:fillColor="@android:color/white"
+        android:fillType="evenOdd"
+        android:pathData="M2,6h14v15H2Z M4,8v11h10V8Z" />
+    <!-- Pen barrel. -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M19.6,1.6L22.4,4.4L13.4,13.4L10.6,10.6Z" />
+    <!-- Pen tip. -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M10.6,10.6L13.4,13.4L9.2,14.8Z" />
+</vector>

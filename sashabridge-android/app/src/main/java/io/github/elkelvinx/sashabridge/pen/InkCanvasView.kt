@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Matrix
-import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -12,8 +11,6 @@ import android.view.ScaleGestureDetector
 import android.view.View
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withMatrix
-import androidx.core.view.ViewCompat
-import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -50,9 +47,8 @@ enum class InkTool {
  * - With [InkTool.MOVE], the pen picks up the mark it touches (or whose box it touches) and
  *   drags it; a dashed box shows which one it holds.
  * - Fingers move and zoom the capture; a double tap fits it to the screen again.
- * - With gesture navigation, the side edges belong to "back". Android lets an app take back
- *   only part of each edge, so a band of both edges follows the pen as it hovers: a stroke
- *   that starts at the edge draws instead of leaving the screen.
+ * - With gesture navigation, a stroke that starts at a side edge draws instead of going back
+ *   ([EdgeGuard]).
  * - Marks are kept in capture pixels ([InkShape]), so [export] draws them on the capture at its
  *   own resolution.
  *
@@ -119,9 +115,8 @@ class InkCanvasView @JvmOverloads constructor(
     private val point = FloatArray(2)
     private val renderer = InkRenderer()
 
-    /** Height on screen where the edge band was last placed, or NaN when there is none. */
-    private var edgeBandCenter = Float.NaN
-    private val edgeBands = listOf(Rect(), Rect())
+    /** Keeps the back gesture away from the edges where the pen is. */
+    private val edges = EdgeGuard(this)
 
     private val scaler = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
@@ -159,7 +154,7 @@ class InkCanvasView @JvmOverloads constructor(
      */
     fun setCapture(capture: Bitmap?) {
         image = capture
-        if (capture == null) releaseEdges()
+        if (capture == null) edges.release()
         deselect()
         shapes.clear()
         undoStack.clear()
@@ -232,7 +227,7 @@ class InkCanvasView @JvmOverloads constructor(
     }
 
     override fun onHoverEvent(event: MotionEvent): Boolean {
-        if (image != null && event.actionMasked != MotionEvent.ACTION_HOVER_EXIT && isPen(event)) guardEdges(event.y)
+        if (image != null && event.actionMasked != MotionEvent.ACTION_HOVER_EXIT && isPen(event)) edges.follow(event.y)
         return super.onHoverEvent(event)
     }
 
@@ -240,7 +235,7 @@ class InkCanvasView @JvmOverloads constructor(
         if (image == null) return false
         val tool = event.getToolType(event.actionIndex)
         if (tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER) {
-            guardEdges(event.y)
+            edges.follow(event.y)
             handlePen(event, tool == MotionEvent.TOOL_TYPE_ERASER)
         } else {
             scaler.onTouchEvent(event)
@@ -301,31 +296,6 @@ class InkCanvasView @JvmOverloads constructor(
     private fun isPen(event: MotionEvent): Boolean {
         val tool = event.getToolType(event.actionIndex)
         return tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER
-    }
-
-    /**
-     * Keeps the back gesture off both side edges around screen height [y], where the pen is.
-     *
-     * The band moves only once the pen leaves its middle, so hovering does not ask the system
-     * to recompute the exclusion for every sample.
-     */
-    private fun guardEdges(y: Float) {
-        val density = resources.displayMetrics.density
-        val band = EDGE_BAND_DP * density
-        if (!edgeBandCenter.isNaN() && abs(y - edgeBandCenter) < band / EDGE_BAND_SLACK) return
-        edgeBandCenter = y
-        val top = (y - band / 2).coerceIn(0f, max(0f, height - band)).toInt()
-        val bottom = top + band.toInt()
-        val edge = (EDGE_WIDTH_DP * density).toInt()
-        edgeBands[0].set(0, top, edge, bottom)
-        edgeBands[1].set(width - edge, top, width, bottom)
-        ViewCompat.setSystemGestureExclusionRects(this, edgeBands)
-    }
-
-    /** Gives the side edges back to the back gesture. */
-    private fun releaseEdges() {
-        edgeBandCenter = Float.NaN
-        ViewCompat.setSystemGestureExclusionRects(this, emptyList())
     }
 
     /** Starts a mark at capture coordinates. */
@@ -539,15 +509,5 @@ class InkCanvasView @JvmOverloads constructor(
         /** Reach of the eraser and size of a tap, in screen pixels. */
         const val ERASER_RADIUS_PX = 24f
         const val TAP_SLOP_PX = 18f
-
-        /**
-         * Height of the band kept off the back gesture on each side edge, under the 200 dp
-         * per edge that Android honors, and how wide it reaches into the screen.
-         */
-        const val EDGE_BAND_DP = 190f
-        const val EDGE_WIDTH_DP = 48f
-
-        /** The band moves once the pen is more than 1/4 of its height from its middle. */
-        const val EDGE_BAND_SLACK = 4f
     }
 }

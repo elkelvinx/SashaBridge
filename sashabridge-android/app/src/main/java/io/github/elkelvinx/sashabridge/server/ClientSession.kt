@@ -89,7 +89,10 @@ internal class ClientSession(
                 }
             }
             // Captures belong to the /pen route; the media session has nothing to do with them.
-            is PcMessage.AnnotateRequest -> Log.w(LOG_TAG, "Ignoring an annotate.request on the media route")
+            is PcMessage.AnnotateRequest,
+            is PcMessage.TabletTarget,
+            is PcMessage.TabletPong,
+            -> Log.w(LOG_TAG, "Ignoring a pen route message on the media route")
         }
     }
 }

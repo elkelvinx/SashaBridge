@@ -4,8 +4,11 @@ import io.github.elkelvinx.sashabridge.bridge.BridgeStatus
 import io.github.elkelvinx.sashabridge.media.AlbumArt
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
 import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
+import io.github.elkelvinx.sashabridge.pen.TabletRepository
 import io.github.elkelvinx.sashabridge.protocol.CommandAction
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
+import io.github.elkelvinx.sashabridge.protocol.PenSample
+import io.github.elkelvinx.sashabridge.protocol.PenSampleCodec
 import io.github.elkelvinx.sashabridge.protocol.PhoneMessage
 import io.github.elkelvinx.sashabridge.protocol.ProtocolCodec
 import io.ktor.client.HttpClient
@@ -54,6 +57,9 @@ class BridgeServerTest {
     /** State of the "Anotar" mode that the /pen route serves. */
     private val annotations = AnnotationRepository()
 
+    /** State of the "Tableta" mode that the /pen route serves. */
+    private val tablet = TabletRepository()
+
     /** Servers created by the test, stopped afterwards. */
     private val servers = mutableListOf<BridgeServer>()
 
@@ -68,6 +74,7 @@ class BridgeServerTest {
             bindRetryDelay = 100.milliseconds,
             clock = { 1_000L },
             annotations = annotations,
+            tablet = tablet,
         ).also { servers += it }
 
     @After
@@ -83,6 +90,18 @@ class BridgeServerTest {
     /** Receives and decodes the next message from the phone. */
     private suspend fun DefaultClientWebSocketSession.next(): PhoneMessage =
         ProtocolCodec.decodePhoneMessage((incoming.receive() as Frame.Text).readText())
+
+    /**
+     * Receives the greeting of the /pen route: `hello`, then the state of both S Pen screens,
+     * which are reported concurrently and so arrive in either order.
+     */
+    private suspend fun DefaultClientWebSocketSession.penGreeting(armed: Boolean, active: Boolean) {
+        assertTrue(next() is PhoneMessage.Hello)
+        assertEquals(
+            setOf(PhoneMessage.AnnotateStatus(armed), PhoneMessage.TabletStatus(active)),
+            setOf(next(), next()),
+        )
+    }
 
     /** Waits until [status] matches [predicate]. */
     private suspend fun awaitStatus(status: MutableStateFlow<BridgeStatus>, predicate: (BridgeStatus) -> Boolean) =
@@ -266,8 +285,7 @@ class BridgeServerTest {
         server(status).start()
 
         connect("/pen") {
-            assertTrue(next() is PhoneMessage.Hello)
-            assertEquals(PhoneMessage.AnnotateStatus(armed = false), next())
+            penGreeting(armed = false, active = false)
             withTimeout(5.seconds) { annotations.penConnected.first { it } }
 
             annotations.setArmed(true)
@@ -283,5 +301,46 @@ class BridgeServerTest {
             assertEquals(BridgeStatus.Listening, status.value)
         }
         withTimeout(5.seconds) { annotations.penConnected.first { !it } }
+    }
+
+    /**
+     * The /pen route reports the tablet screen, keeps the monitor the PC names, measures the
+     * pongs, and sends the screen's pen samples as binary frames and its messages as text.
+     */
+    @Test
+    fun penRouteCarriesTheTablet(): Unit = runBlocking {
+        server().start()
+
+        connect("/pen") {
+            penGreeting(armed = false, active = false)
+            withTimeout(5.seconds) { annotations.penConnected.first { it } }
+
+            tablet.setActive(true)
+            assertEquals(PhoneMessage.TabletStatus(active = true), next())
+
+            val target = PcMessage.TabletTarget(monitor = 1, count = 2, name = "DISPLAY2", width = 2560, height = 1440)
+            send(Frame.Text(ProtocolCodec.encode(target)))
+            assertEquals(target, withTimeout(5.seconds) { tablet.target.first { it != null } })
+
+            val samples = listOf(PenSample(10L, 100, 200, 300, 5, -5, inContact = true, inRange = true, barrel = false, eraser = false))
+            tablet.sendSamples(PenSampleCodec.encode(samples))
+            val frame = incoming.receive()
+            assertTrue("pen samples travel as a binary frame", frame is Frame.Binary)
+            assertEquals(samples, PenSampleCodec.decode(frame.data))
+
+            tablet.send(PhoneMessage.TabletSelect(0))
+            assertEquals(PhoneMessage.TabletSelect(0), next())
+
+            send(Frame.Text(ProtocolCodec.encode(PcMessage.TabletPong(0L))))
+            assertTrue(withTimeout(5.seconds) { tablet.latencyMs.first { it != null } } != null)
+        }
+        withTimeout(5.seconds) { tablet.target.first { it == null } }
+    }
+
+    /** Round trips are measured on the 32-bit clock, across its wrap-around. */
+    @Test
+    fun roundTripsWrapAroundTheClock() {
+        assertEquals(30L, TabletRepository.roundTripMs(sentMs = 100L, nowMs = 130L))
+        assertEquals(30L, TabletRepository.roundTripMs(sentMs = 0xFFFF_FFF0L, nowMs = 14L))
     }
 }

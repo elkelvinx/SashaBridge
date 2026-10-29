@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Tableta": a narrow column of controls on the left and the drawing surface beside it. The
+     root stays a FrameLayout (not a merge) because the activity pads it for the cutout. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/tabletRoot"
+    tools:ignore="MergeRootFrame"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".pen.TabletActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="72dp"
+            android:layout_height="match_parent"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingVertical="12dp">
+
+            <ImageButton
+                android:id="@+id/tabletCloseButton"
+                style="@style/Widget.SashaBridge.AnnotateTool"
+                android:contentDescription="@string/tablet_close"
+                android:src="@drawable/ic_close"
+                android:tooltipText="@string/tablet_close" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <!-- The monitor the tablet draws on; touching it moves to the next one. -->
+            <LinearLayout
+                android:id="@+id/monitorButton"
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:background="@drawable/tool_background"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingVertical="8dp">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_monitor"
+                    app:tint="@color/annotate_on_background" />
+
+                <TextView
+                    android:id="@+id/monitorLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textAppearance="?attr/textAppearanceLabelLarge"
+                    android:textColor="@color/annotate_on_background"
+                    tools:text="1/2" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/latencyLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:fontFeatureSettings="tnum"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                android:textColor="@color/annotate_muted"
+                tools:text="9 ms" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+        </LinearLayout>
+
+        <io.github.elkelvinx.sashabridge.pen.TabletSurfaceView
+            android:id="@+id/tabletSurface"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tabletPcWarning"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/annotate_bar"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:text="@string/annotate_no_pc"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="@color/status_error"
+        android:visibility="gone"
+        tools:visibility="visible" />
+</FrameLayout>

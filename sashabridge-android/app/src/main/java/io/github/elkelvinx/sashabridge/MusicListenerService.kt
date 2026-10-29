@@ -12,6 +12,7 @@ import io.github.elkelvinx.sashabridge.bridge.BridgeStatus
 import io.github.elkelvinx.sashabridge.media.MediaCommandExecutor
 import io.github.elkelvinx.sashabridge.media.MediaSessionTracker
 import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
+import io.github.elkelvinx.sashabridge.pen.TabletRepository
 import io.github.elkelvinx.sashabridge.pen.CaptureNotifier
 import io.github.elkelvinx.sashabridge.server.BridgeServer
 import kotlinx.coroutines.CoroutineScope
@@ -79,6 +80,7 @@ class MusicListenerService : NotificationListenerService() {
             onStatus = repository::reportStatus,
             onCommand = commandExecutor::execute,
             annotations = AnnotationRepository.shared,
+            tablet = TabletRepository.shared,
         )
         captureNotifier = CaptureNotifier(this)
     }

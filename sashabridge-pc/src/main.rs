@@ -1,9 +1,10 @@
 //! SashaBridge PC client.
 //!
 //! Mirrors the phone's audio with scrcpy, shows the phone's media state in the Windows
-//! media overlay (SMTC) and sends the media keys back to the phone. It also sends screen
-//! captures to the phone to annotate with the S Pen and puts the annotations on the
-//! clipboard. The phone is reached through an `adb forward` tunnel over USB.
+//! media overlay (SMTC) and sends the media keys back to the phone. With the S Pen, it sends
+//! screen captures to the phone to annotate and puts the annotations on the clipboard, and
+//! turns the phone into a drawing tablet for Windows. The phone is reached through an
+//! `adb forward` tunnel over USB.
 
 #![warn(missing_docs, clippy::missing_docs_in_private_items)]
 
@@ -17,8 +18,10 @@ mod cover_cache;
 mod hidden_window;
 mod media_controls;
 mod now_playing;
+mod pen_route;
 mod process;
 mod protocol;
+mod tablet;
 
 use std::process::ExitCode;
 
@@ -33,6 +36,7 @@ use crate::cover_cache::CoverCache;
 use crate::media_controls::MediaControls;
 use crate::now_playing::NowPlaying;
 use crate::process::{DeviceLink, InstanceLock};
+use crate::tablet::Tablet;
 
 /// Capacity of the queue between SMTC button presses and the connection.
 const COMMAND_QUEUE: usize = 16;
@@ -74,6 +78,7 @@ fn init_tracing() {
 async fn run() -> anyhow::Result<()> {
     info!("starting SashaBridge {}", env!("CARGO_PKG_VERSION"));
     let _instance = InstanceLock::acquire()?;
+    tablet::use_physical_pixels();
 
     let paths = ToolPaths::resolve()?;
     info!(dir = %paths.scrcpy.parent().unwrap_or(&paths.scrcpy).display(), "using scrcpy");
@@ -86,10 +91,11 @@ async fn run() -> anyhow::Result<()> {
     let (command_tx, mut command_rx) = mpsc::channel(COMMAND_QUEUE);
     let mut controls = MediaControls::new(&window, command_tx)?;
     let mut link = DeviceLink::new(&paths, BRIDGE_PORT)?;
+    let mut tablet = Tablet::spawn()?;
 
     let reason = tokio::select! {
         never = connection::run(&mut link, &mut controls, &mut now_playing, &mut command_rx) => match never {},
-        never = annotate::run(&mut window_rx, clipboard_owner) => match never {},
+        never = pen_route::run(&mut window_rx, clipboard_owner, &mut tablet) => match never {},
         reason = shutdown_signal() => reason,
     };
 

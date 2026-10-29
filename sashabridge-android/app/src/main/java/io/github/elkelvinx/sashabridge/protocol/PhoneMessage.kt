@@ -143,7 +143,56 @@ sealed interface PhoneMessage {
             require(requestId.isNotEmpty()) { "requestId must not be empty" }
         }
     }
+
+    /**
+     * State of the tablet screen, sent on the `/pen` route after `hello` and on every change.
+     *
+     * @property active Whether the screen is open; when it closes, the PC lifts its pen.
+     */
+    @Serializable
+    @SerialName("tablet.status")
+    data class TabletStatus(val active: Boolean) : PhoneMessage
+
+    /**
+     * Asks the PC to map the tablet to another monitor.
+     *
+     * @property monitor Index of the monitor, from 0, as in [PcMessage.TabletTarget].
+     * @throws IllegalArgumentException if [monitor] is negative.
+     */
+    @Serializable
+    @SerialName("tablet.select")
+    data class TabletSelect(val monitor: Int) : PhoneMessage {
+        init {
+            require(monitor >= 0) { "monitor must not be negative" }
+        }
+    }
+
+    /**
+     * Measures the round trip to the PC, which answers [PcMessage.TabletPong] at once.
+     *
+     * @property timeMs Phone uptime when sent, from 0 to 2^32 - 1, wrapping like the pen samples.
+     * @throws IllegalArgumentException if [timeMs] is outside that range.
+     */
+    @Serializable
+    @SerialName("tablet.ping")
+    data class TabletPing(val timeMs: Long) : PhoneMessage {
+        init {
+            requireUptime(timeMs)
+        }
+    }
 }
+
+/**
+ * Checks a `timeMs` of the tablet's round trip.
+ *
+ * @throws IllegalArgumentException if [timeMs] is not between 0 and 2^32 - 1.
+ */
+internal fun requireUptime(timeMs: Long) {
+    require(timeMs in 0..MAX_UPTIME_MS) { "timeMs must be between 0 and $MAX_UPTIME_MS" }
+}
+
+/** Largest `timeMs`: it wraps around at 2^32 like the pen samples' time. */
+internal const val MAX_UPTIME_MS = 0xFFFF_FFFFL
 
 /**
  * Checks the fields that every annotation image shares.

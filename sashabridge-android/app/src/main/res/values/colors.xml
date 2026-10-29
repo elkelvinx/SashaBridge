@@ -44,6 +44,12 @@
     <color name="annotate_muted">#FFB9A39D</color>
 
     <!-- Ink colors, as in the user's design reviews: red, orange, green, blue, purple. -->
+    <!-- Tablet surface: the area that maps onto the monitor, its dots and the pen dot. -->
+    <color name="tablet_area">#FF241A1C</color>
+    <color name="tablet_border">#FF9B2C4B</color>
+    <color name="tablet_grid">#33F5E9E4</color>
+    <color name="tablet_pen">#FFF2D58A</color>
+
     <color name="ink_red">#FFE53935</color>
     <color name="ink_orange">#FFFB8C00</color>
     <color name="ink_green">#FF43A047</color>

@@ -78,6 +78,46 @@ sealed interface PcMessage {
             requireValidImage(requestId, width, height)
         }
     }
+
+    /**
+     * Where the tablet draws: one of the PC's monitors. Sent on the `/pen` route after `hello`
+     * and whenever the monitor changes, so the phone gives its drawing area the same shape.
+     *
+     * @property monitor Index of the monitor, from 0.
+     * @property count Number of monitors, to cycle through them with [PhoneMessage.TabletSelect].
+     * @property name Name Windows gives the monitor, for display.
+     * @property width Width of the monitor in pixels.
+     * @property height Height of the monitor in pixels.
+     * @throws IllegalArgumentException if [monitor] is not below [count] or a size is not positive.
+     */
+    @Serializable
+    @SerialName("tablet.target")
+    data class TabletTarget(
+        val monitor: Int,
+        val count: Int,
+        val name: String,
+        val width: Int,
+        val height: Int,
+    ) : PcMessage {
+        init {
+            require(monitor in 0 until count) { "monitor must be between 0 and count - 1" }
+            require(width > 0 && height > 0) { "width and height must be positive" }
+        }
+    }
+
+    /**
+     * Answer to [PhoneMessage.TabletPing], sent at once.
+     *
+     * @property timeMs The `timeMs` of the ping it answers.
+     * @throws IllegalArgumentException if [timeMs] is not between 0 and 2^32 - 1.
+     */
+    @Serializable
+    @SerialName("tablet.pong")
+    data class TabletPong(val timeMs: Long) : PcMessage {
+        init {
+            requireUptime(timeMs)
+        }
+    }
 }
 
 /**

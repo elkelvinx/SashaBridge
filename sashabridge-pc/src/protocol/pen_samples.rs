@@ -32,7 +32,6 @@ mod flag {
 
 /// One reading of the S Pen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code, reason = "read by the tablet mode, phase 3 of SashaBridge 2.1")]
 pub struct PenSample {
     /// Phone uptime in milliseconds, wrapping at `u32::MAX`; only differences matter.
     pub time_ms: u32,
@@ -62,7 +61,6 @@ pub struct PenSample {
 ///
 /// Fails when the frame is not a pen-sample frame of a known version, or when its length
 /// does not match the sample count.
-#[allow(dead_code, reason = "used by the tablet mode, phase 3 of SashaBridge 2.1")]
 pub fn decode(frame: &[u8]) -> anyhow::Result<Vec<PenSample>> {
     ensure!(frame.len() >= HEADER_LEN, "pen frame too short: {} bytes", frame.len());
     if frame[0] != KIND {

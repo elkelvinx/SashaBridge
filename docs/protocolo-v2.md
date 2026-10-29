@@ -181,6 +181,32 @@ La PC envía capturas de pantalla al teléfono; el usuario las anota con el S Pe
 2. Las imágenes que el usuario copia en la PC (por ejemplo, con `Win+Shift+S`) solo se envían mientras `armed` es `true`. Una captura pedida expresamente con el atajo de SashaBridge se envía siempre; si la pantalla no está abierta, el teléfono la ofrece en una notificación, porque Android no deja abrir pantallas desde segundo plano.
 3. Cada `annotate.request` termina con un `annotate.result` o un `annotate.cancelled` con su mismo `requestId`, salvo que la sesión se cierre antes.
 
+### Tableta
+
+El teléfono funciona como una tableta de dibujo: el S Pen mueve un lápiz sintético de Windows sobre uno de los monitores de la PC.
+
+| Mensaje | Sentido | Campos |
+|---|---|---|
+| `tablet.status` | Teléfono → PC | `active` (booleano): la pantalla "Tableta" está abierta. Al pasar a `false`, la PC levanta su lápiz. |
+| `tablet.target` | PC → teléfono | `monitor` (índice desde 0, menor que `count`), `count` (número de monitores, mayor que 0), `name` (el nombre que Windows da al monitor, solo para mostrarlo), y `width` y `height` (píxeles, mayores que 0). |
+| `tablet.select` | Teléfono → PC | `monitor` (índice desde 0): el usuario pide dibujar en ese monitor. La PC responde con un nuevo `tablet.target`; si el índice no existe, vuelve a empezar desde el primero. |
+| `tablet.ping` | Teléfono → PC | `timeMs` (entero de 0 a 2^32 - 1): tiempo de actividad del teléfono, con el mismo reloj que las muestras del lápiz. |
+| `tablet.pong` | PC → teléfono | `timeMs` del `tablet.ping` al que responde, enviado en cuanto llega. |
+
+```json
+{"type":"tablet.status","active":true}
+{"type":"tablet.target","monitor":0,"count":2,"name":"DISPLAY1","width":1920,"height":1080}
+{"type":"tablet.select","monitor":1}
+{"type":"tablet.ping","timeMs":4294967295}
+{"type":"tablet.pong","timeMs":123456}
+```
+
+**Reglas:**
+1. Tras su `hello`, el teléfono envía `tablet.status` y lo repite cada vez que la pantalla "Tableta" se abre o se cierra.
+2. Tras su `hello`, la PC envía `tablet.target` con el monitor actual, y lo repite cada vez que el monitor cambia. El teléfono le da a su área de dibujo la misma proporción que ese monitor, para que un círculo no salga ovalado.
+3. Las coordenadas de las muestras van de una esquina a otra del área de dibujo, que corresponde al monitor entero.
+4. La latencia que muestra el teléfono es la mitad del tiempo entre un `tablet.ping` y su `tablet.pong`.
+
 ### Muestras del lápiz
 
 En el modo Tableta, el teléfono envía las lecturas del S Pen en **frames binarios**. A la frecuencia del lápiz (unas 240 lecturas por segundo), JSON costaría varias veces más bytes. Todos los enteros son little-endian.

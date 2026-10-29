@@ -78,7 +78,10 @@ impl NowPlaying {
             PhoneMessage::Hello(_)
             | PhoneMessage::AnnotateStatus(_)
             | PhoneMessage::AnnotateResult(_)
-            | PhoneMessage::AnnotateCancelled(_) => Ok(None),
+            | PhoneMessage::AnnotateCancelled(_)
+            | PhoneMessage::TabletStatus(_)
+            | PhoneMessage::TabletSelect(_)
+            | PhoneMessage::TabletPing(_) => Ok(None),
             PhoneMessage::MediaArt(art) => {
                 let image = STANDARD.decode(&art.data).context("invalid base64 in media.art")?;
                 self.covers.store(&art.art_id, &image).context("cannot write the album art")?;

@@ -7,6 +7,7 @@ import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.bridge.BridgeStatus
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
 import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
+import io.github.elkelvinx.sashabridge.pen.TabletRepository
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -65,6 +66,7 @@ import kotlinx.coroutines.withContext
  * @param bindRetryDelay Wait between attempts to bind the port.
  * @param clock Returns `SystemClock.elapsedRealtime()`.
  * @param annotations Shared state of the "Anotar" mode, served on the `/pen` route.
+ * @param tablet Shared state of the "Tableta" mode, served on the `/pen` route.
  */
 class BridgeServer(
     private val media: StateFlow<MediaSnapshot?>,
@@ -75,6 +77,7 @@ class BridgeServer(
     private val bindRetryDelay: Duration = BIND_RETRY_DELAY,
     private val clock: () -> Long = SystemClock::elapsedRealtime,
     private val annotations: AnnotationRepository = AnnotationRepository(),
+    private val tablet: TabletRepository = TabletRepository(),
 ) {
 
     /** Running engine, or `null` while stopped. Guarded by [portLock]. */
@@ -210,10 +213,11 @@ class BridgeServer(
                 annotations.setPenSessions(count)
                 Log.i(LOG_TAG, "PC opened the pen route")
                 try {
-                    PenSession(this, annotations, deviceName).run()
+                    PenSession(this, annotations, tablet, deviceName).run()
                 } finally {
                     val left = synchronized(sessions) { penSessions -= this; penSessions.size }
                     annotations.setPenSessions(left)
+                    if (left == 0) tablet.setTarget(null)
                     Log.i(LOG_TAG, "PC closed the pen route")
                 }
             }

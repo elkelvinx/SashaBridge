@@ -39,6 +39,39 @@ pub enum PhoneMessage {
     /// The user discarded a capture on the phone.
     #[serde(rename = "annotate.cancelled")]
     AnnotateCancelled(AnnotateCancelled),
+    /// Whether the phone's tablet screen is open.
+    #[serde(rename = "tablet.status")]
+    TabletStatus(TabletStatus),
+    /// The user asked to map the tablet to another monitor.
+    #[serde(rename = "tablet.select")]
+    TabletSelect(TabletSelect),
+    /// The phone measures the round trip; answered with [`PcMessage::TabletPong`].
+    #[serde(rename = "tablet.ping")]
+    TabletPing(TabletTime),
+}
+
+/// State of the phone's tablet screen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TabletStatus {
+    /// Whether the screen is open; when it closes, the PC lifts its pen.
+    pub active: bool,
+}
+
+/// Monitor the user chose for the tablet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TabletSelect {
+    /// Index of the monitor, from 0, as in [`TabletTarget::monitor`].
+    pub monitor: u32,
+}
+
+/// Time of a round-trip measurement: phone uptime in milliseconds, wrapping at `u32::MAX`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TabletTime {
+    /// Phone uptime when the ping was sent.
+    pub time_ms: u32,
 }
 
 /// State of the phone's annotation screen.
@@ -184,6 +217,76 @@ pub enum PcMessage {
     /// A capture for the phone to annotate.
     #[serde(rename = "annotate.request")]
     AnnotateRequest(AnnotateImage),
+    /// The monitor the tablet draws on.
+    #[serde(rename = "tablet.target")]
+    TabletTarget(TabletTarget),
+    /// Answer to a [`PhoneMessage::TabletPing`], with its time.
+    #[serde(rename = "tablet.pong")]
+    TabletPong(TabletTime),
+}
+
+/// The monitor the tablet draws on, so the phone gives its drawing area the same shape.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "WireTabletTarget", into = "WireTabletTarget")]
+pub struct TabletTarget {
+    /// Index of the monitor, from 0; always below `count`.
+    monitor: u32,
+    /// Number of monitors.
+    count: NonZeroU32,
+    /// Name Windows gives the monitor, for display.
+    name: String,
+    /// Width of the monitor in pixels.
+    width: NonZeroU32,
+    /// Height of the monitor in pixels.
+    height: NonZeroU32,
+}
+
+impl TabletTarget {
+    /// Describes monitor `monitor` of `count`, named `name`, of `width` x `height` pixels.
+    ///
+    /// # Errors
+    ///
+    /// Fails when `monitor` is not below `count`.
+    pub fn new(monitor: u32, count: NonZeroU32, name: String, width: NonZeroU32, height: NonZeroU32) -> Result<Self, String> {
+        WireTabletTarget { monitor, count, name, width, height }.try_into()
+    }
+}
+
+/// Wire form of [`TabletTarget`], before the index is checked against the count.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WireTabletTarget {
+    /// Index of the monitor, from 0.
+    monitor: u32,
+    /// Number of monitors.
+    count: NonZeroU32,
+    /// Name Windows gives the monitor, for display.
+    name: String,
+    /// Width of the monitor in pixels.
+    width: NonZeroU32,
+    /// Height of the monitor in pixels.
+    height: NonZeroU32,
+}
+
+impl TryFrom<WireTabletTarget> for TabletTarget {
+    type Error = String;
+
+    /// Accepts the target only if its monitor exists.
+    fn try_from(wire: WireTabletTarget) -> Result<Self, Self::Error> {
+        if wire.monitor >= wire.count.get() {
+            return Err(format!("monitor {} is not below count {}", wire.monitor, wire.count));
+        }
+        let WireTabletTarget { monitor, count, name, width, height } = wire;
+        Ok(Self { monitor, count, name, width, height })
+    }
+}
+
+impl From<TabletTarget> for WireTabletTarget {
+    /// Writes the target's fields as they are.
+    fn from(target: TabletTarget) -> Self {
+        let TabletTarget { monitor, count, name, width, height } = target;
+        Self { monitor, count, name, width, height }
+    }
 }
 
 /// Greeting sent by the PC.
