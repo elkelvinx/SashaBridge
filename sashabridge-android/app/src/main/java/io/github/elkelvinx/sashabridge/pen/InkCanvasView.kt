@@ -1,0 +1,454 @@
+package io.github.elkelvinx.sashabridge.pen
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Rect
+import android.util.AttributeSet
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
+import android.view.View
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withMatrix
+import androidx.core.view.ViewCompat
+import kotlin.math.abs
+import kotlin.math.hypot
+import kotlin.math.max
+import kotlin.math.min
+
+/** What the S Pen draws on the canvas. */
+enum class InkTool {
+    /** Free-hand line that follows the pressure. */
+    PEN,
+
+    /** Wide translucent free-hand line. */
+    HIGHLIGHTER,
+
+    /** Straight line, to strike text out. */
+    LINE,
+
+    /** Rectangle outline. */
+    RECTANGLE,
+
+    /** Arrow pointing where the pen lifts. */
+    ARROW,
+
+    /** A note, typed or handwritten with the keyboard, placed where the pen taps. */
+    TEXT,
+}
+
+/**
+ * Canvas where a capture is annotated with the S Pen.
+ *
+ * - Only the pen draws, so a palm resting on the screen does nothing. Its eraser end, or the
+ *   side button held down, erases whole marks.
+ * - Fingers move and zoom the capture; a double tap fits it to the screen again.
+ * - With gesture navigation, the side edges belong to "back". Android lets an app take back
+ *   only part of each edge, so a band of both edges follows the pen as it hovers: a stroke
+ *   that starts at the edge draws instead of leaving the screen.
+ * - Marks are kept in capture pixels ([InkShape]), so [export] draws them on the capture at its
+ *   own resolution.
+ *
+ * Main thread only.
+ */
+class InkCanvasView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+) : View(context, attrs) {
+
+    /** Tool the pen draws with. */
+    var tool: InkTool = InkTool.PEN
+
+    /** Color of the next marks, as ARGB. */
+    var color: Int = DEFAULT_COLOR
+
+    /** Thickness of the next marks: 0 thin, 1 medium, 2 thick. */
+    var thickness: Int = 1
+
+    /**
+     * Called when the text tool taps the capture, with the capture coordinates of the tap; the
+     * screen asks for the text and calls [addText].
+     */
+    var onTextRequest: ((Float, Float) -> Unit)? = null
+
+    /** Called after every change of the marks, to update the undo and redo buttons. */
+    var onChange: (() -> Unit)? = null
+
+    private var image: Bitmap? = null
+    private val shapes = mutableListOf<InkShape>()
+    private val undoStack = ArrayDeque<List<InkShape>>()
+    private val redoStack = ArrayDeque<List<InkShape>>()
+
+    /** Mark being drawn, shown but not yet committed. */
+    private var current: InkShape? = null
+
+    /** Points of the stroke being drawn: x, y and pressure. */
+    private val strokePoints = ArrayList<Float>()
+
+    /** Start of the shape being drawn, in capture pixels. */
+    private var startX = 0f
+    private var startY = 0f
+
+    /** Whether the current pen gesture erases. */
+    private var erasing = false
+
+    /** Capture pixels to screen pixels, and back. */
+    private val toScreen = Matrix()
+    private val toCapture = Matrix()
+    private var fitScale = 1f
+    private val point = FloatArray(2)
+    private val renderer = InkRenderer()
+
+    /** Height on screen where the edge band was last placed, or NaN when there is none. */
+    private var edgeBandCenter = Float.NaN
+    private val edgeBands = listOf(Rect(), Rect())
+
+    private val scaler = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScale(detector: ScaleGestureDetector): Boolean {
+            val scale = currentScale()
+            val factor = (detector.scaleFactor).coerceIn(fitScale / scale, fitScale * MAX_ZOOM / scale)
+            toScreen.postScale(factor, factor, detector.focusX, detector.focusY)
+            updateInverse()
+            return true
+        }
+    })
+
+    private val gestures = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+        override fun onScroll(e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
+            toScreen.postTranslate(-distanceX, -distanceY)
+            updateInverse()
+            return true
+        }
+
+        override fun onDoubleTap(e: MotionEvent): Boolean {
+            fit()
+            return true
+        }
+    })
+
+    /** Whether there is something to undo. */
+    val canUndo: Boolean get() = undoStack.isNotEmpty()
+
+    /** Whether there is something to redo. */
+    val canRedo: Boolean get() = redoStack.isNotEmpty()
+
+    /**
+     * Shows [capture] with no marks, fitted to the view.
+     *
+     * @param capture The image to annotate, or `null` to empty the canvas.
+     */
+    fun setCapture(capture: Bitmap?) {
+        image = capture
+        if (capture == null) releaseEdges()
+        shapes.clear()
+        undoStack.clear()
+        redoStack.clear()
+        current = null
+        fit()
+        onChange?.invoke()
+    }
+
+    /**
+     * Places a note at capture coordinates (x, y), in the current color and thickness.
+     *
+     * @param text The note; blank text is ignored.
+     */
+    fun addText(x: Float, y: Float, text: String) {
+        if (text.isBlank()) return
+        commit(InkText(x, y, text.trimEnd(), color, lineWidth() / TEXT_STROKE_RATIO))
+    }
+
+    /** Takes back the last change. */
+    fun undo() {
+        val previous = undoStack.removeLastOrNull() ?: return
+        redoStack.addLast(shapes.toList())
+        shapes.clear()
+        shapes.addAll(previous)
+        changed()
+    }
+
+    /** Applies again the last change taken back. */
+    fun redo() {
+        val next = redoStack.removeLastOrNull() ?: return
+        undoStack.addLast(shapes.toList())
+        shapes.clear()
+        shapes.addAll(next)
+        changed()
+    }
+
+    /**
+     * Draws the marks on a copy of the capture, at its own resolution.
+     *
+     * @return The annotated capture, or `null` if there is no capture.
+     */
+    fun export(): Bitmap? {
+        val source = image ?: return null
+        val out = createBitmap(source.width, source.height)
+        val canvas = Canvas(out)
+        canvas.drawBitmap(source, 0f, 0f, null)
+        InkRenderer().draw(canvas, shapes)
+        return out
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        fit()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val source = image ?: return
+        canvas.withMatrix(toScreen) {
+            drawBitmap(source, 0f, 0f, null)
+            renderer.draw(this, shapes)
+            current?.let { renderer.draw(this, it) }
+        }
+    }
+
+    override fun onHoverEvent(event: MotionEvent): Boolean {
+        if (image != null && event.actionMasked != MotionEvent.ACTION_HOVER_EXIT && isPen(event)) guardEdges(event.y)
+        return super.onHoverEvent(event)
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (image == null) return false
+        val tool = event.getToolType(event.actionIndex)
+        if (tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER) {
+            guardEdges(event.y)
+            handlePen(event, tool == MotionEvent.TOOL_TYPE_ERASER)
+        } else {
+            scaler.onTouchEvent(event)
+            if (!scaler.isInProgress) gestures.onTouchEvent(event)
+        }
+        if (event.actionMasked == MotionEvent.ACTION_UP) performClick()
+        invalidate()
+        return true
+    }
+
+    /** Touches are drawing, not clicks; this keeps accessibility services informed. */
+    override fun performClick(): Boolean = super.performClick()
+
+    /** Draws or erases with the pen. */
+    private fun handlePen(event: MotionEvent, eraserEnd: Boolean) {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                erasing = eraserEnd || event.buttonState and MotionEvent.BUTTON_STYLUS_PRIMARY != 0
+                val (x, y) = capturePoint(event.x, event.y)
+                if (erasing) {
+                    undoStack.addLast(shapes.toList())
+                    redoStack.clear()
+                    erase(x, y)
+                } else {
+                    begin(x, y, event.pressure)
+                }
+            }
+            MotionEvent.ACTION_MOVE -> {
+                for (h in 0 until event.historySize) {
+                    move(event.getHistoricalX(h), event.getHistoricalY(h), event.getHistoricalPressure(h))
+                }
+                move(event.x, event.y, event.pressure)
+            }
+            MotionEvent.ACTION_UP -> {
+                move(event.x, event.y, event.pressure)
+                if (erasing) {
+                    // An eraser pass that touched nothing leaves no step to undo.
+                    if (undoStack.lastOrNull() == shapes) undoStack.removeLastOrNull()
+                    erasing = false
+                    changed()
+                } else {
+                    end()
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                current = null
+                erasing = false
+            }
+        }
+    }
+
+    /** Whether the S Pen, either end, produced [event]. */
+    private fun isPen(event: MotionEvent): Boolean {
+        val tool = event.getToolType(event.actionIndex)
+        return tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER
+    }
+
+    /**
+     * Keeps the back gesture off both side edges around screen height [y], where the pen is.
+     *
+     * The band moves only once the pen leaves its middle, so hovering does not ask the system
+     * to recompute the exclusion for every sample.
+     */
+    private fun guardEdges(y: Float) {
+        val density = resources.displayMetrics.density
+        val band = EDGE_BAND_DP * density
+        if (!edgeBandCenter.isNaN() && abs(y - edgeBandCenter) < band / EDGE_BAND_SLACK) return
+        edgeBandCenter = y
+        val top = (y - band / 2).coerceIn(0f, max(0f, height - band)).toInt()
+        val bottom = top + band.toInt()
+        val edge = (EDGE_WIDTH_DP * density).toInt()
+        edgeBands[0].set(0, top, edge, bottom)
+        edgeBands[1].set(width - edge, top, width, bottom)
+        ViewCompat.setSystemGestureExclusionRects(this, edgeBands)
+    }
+
+    /** Gives the side edges back to the back gesture. */
+    private fun releaseEdges() {
+        edgeBandCenter = Float.NaN
+        ViewCompat.setSystemGestureExclusionRects(this, emptyList())
+    }
+
+    /** Starts a mark at capture coordinates. */
+    private fun begin(x: Float, y: Float, pressure: Float) {
+        startX = x
+        startY = y
+        strokePoints.clear()
+        current = when (tool) {
+            InkTool.PEN, InkTool.HIGHLIGHTER -> {
+                strokePoints.addAll(listOf(x, y, pressure))
+                stroke()
+            }
+            InkTool.LINE -> InkLine(x, y, x, y, color, lineWidth())
+            InkTool.RECTANGLE -> InkRect(x, y, x, y, color, lineWidth())
+            InkTool.ARROW -> InkArrow(x, y, x, y, color, lineWidth())
+            InkTool.TEXT -> null
+        }
+    }
+
+    /** Extends the current mark, or erases, at screen coordinates. */
+    private fun move(screenX: Float, screenY: Float, pressure: Float) {
+        val (x, y) = capturePoint(screenX, screenY)
+        if (erasing) {
+            erase(x, y)
+            return
+        }
+        current = when (val shape = current) {
+            is InkStroke -> {
+                strokePoints.addAll(listOf(x, y, pressure))
+                stroke()
+            }
+            is InkLine -> shape.copy(x2 = x, y2 = y)
+            is InkRect -> shape.copy(x2 = x, y2 = y)
+            is InkArrow -> shape.copy(x2 = x, y2 = y)
+            else -> shape
+        }
+        if (tool == InkTool.TEXT) {
+            startX = startX.takeIf { hypot(x - startX, y - startY) < tapSlop() } ?: Float.NaN
+        }
+    }
+
+    /** Commits the current mark, or asks for the text of a tap. */
+    private fun end() {
+        if (tool == InkTool.TEXT) {
+            if (!startX.isNaN()) onTextRequest?.invoke(startX, startY)
+            return
+        }
+        val shape = current ?: return
+        current = null
+        val tiny = when (shape) {
+            is InkLine -> hypot(shape.x2 - shape.x1, shape.y2 - shape.y1) < tapSlop()
+            is InkRect -> hypot(shape.x2 - shape.x1, shape.y2 - shape.y1) < tapSlop()
+            is InkArrow -> hypot(shape.x2 - shape.x1, shape.y2 - shape.y1) < tapSlop()
+            else -> false
+        }
+        if (!tiny) commit(shape)
+    }
+
+    /** Adds a finished mark as an undoable step. */
+    private fun commit(shape: InkShape) {
+        undoStack.addLast(shapes.toList())
+        redoStack.clear()
+        shapes.add(shape)
+        changed()
+    }
+
+    /** Removes the topmost mark under (x, y). */
+    private fun erase(x: Float, y: Float) {
+        val tolerance = ERASER_RADIUS_PX / currentScale()
+        val index = shapes.indexOfLast { InkGeometry.hits(it, x, y, tolerance) }
+        if (index >= 0) shapes.removeAt(index)
+    }
+
+    /** The stroke being drawn, from [strokePoints]. */
+    private fun stroke(): InkStroke {
+        val highlighter = tool == InkTool.HIGHLIGHTER
+        val width = if (highlighter) lineWidth() * HIGHLIGHTER_WIDTHS else lineWidth()
+        return InkStroke(strokePoints.toFloatArray(), color, width, highlighter)
+    }
+
+    /** Line width of the current thickness, in capture pixels, relative to the capture size. */
+    private fun lineWidth(): Float {
+        val source = image ?: return 4f
+        return max(source.width, source.height) / WIDTH_DIVISOR * THICKNESSES[thickness.coerceIn(THICKNESSES.indices)]
+    }
+
+    /** Movement under which a gesture counts as a tap, in capture pixels. */
+    private fun tapSlop(): Float = TAP_SLOP_PX / currentScale()
+
+    /** Converts screen coordinates to capture coordinates. */
+    private fun capturePoint(x: Float, y: Float): Pair<Float, Float> {
+        point[0] = x
+        point[1] = y
+        toCapture.mapPoints(point)
+        return point[0] to point[1]
+    }
+
+    /** Fits the capture to the view, centered. */
+    private fun fit() {
+        val source = image ?: return
+        if (width == 0 || height == 0) return
+        fitScale = min(width.toFloat() / source.width, height.toFloat() / source.height)
+        toScreen.setScale(fitScale, fitScale)
+        toScreen.postTranslate((width - source.width * fitScale) / 2, (height - source.height * fitScale) / 2)
+        updateInverse()
+    }
+
+    /** Scale of capture pixels on screen. */
+    private fun currentScale(): Float {
+        val values = FloatArray(9)
+        toScreen.getValues(values)
+        return values[Matrix.MSCALE_X]
+    }
+
+    private fun updateInverse() {
+        toScreen.invert(toCapture)
+        invalidate()
+    }
+
+    private fun changed() {
+        invalidate()
+        onChange?.invoke()
+    }
+
+    private companion object {
+        /** Red, the first color of the palette. */
+        const val DEFAULT_COLOR = 0xFFE53935.toInt()
+
+        /** The longer side of the capture divided by this gives the medium line width. */
+        const val WIDTH_DIVISOR = 260f
+
+        /** Multipliers of the medium width for each thickness. */
+        val THICKNESSES = floatArrayOf(0.55f, 1f, 1.9f)
+
+        /** Highlighter width, in line widths. */
+        const val HIGHLIGHTER_WIDTHS = 4f
+
+        /** Largest zoom, relative to the fitted size. */
+        const val MAX_ZOOM = 8f
+
+        /** Reach of the eraser and size of a tap, in screen pixels. */
+        const val ERASER_RADIUS_PX = 24f
+        const val TAP_SLOP_PX = 18f
+
+        /**
+         * Height of the band kept off the back gesture on each side edge, under the 200 dp
+         * per edge that Android honors, and how wide it reaches into the screen.
+         */
+        const val EDGE_BAND_DP = 190f
+        const val EDGE_WIDTH_DP = 48f
+
+        /** The band moves once the pen is more than 1/4 of its height from its middle. */
+        const val EDGE_BAND_SLACK = 4f
+    }
+}

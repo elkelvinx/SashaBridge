@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sasha chases a tennis ball while a PC is connected. -->
+<!-- Sasha chases a tennis ball while a PC is connected: she gallops in place while it bounces
+     ahead and comes back. -->
 <animation-list xmlns:android="http://schemas.android.com/apk/res/android"
     android:oneshot="false">
-    <item android:drawable="@drawable/sasha_run_1" android:duration="120" />
-    <item android:drawable="@drawable/sasha_run_2" android:duration="120" />
-    <item android:drawable="@drawable/sasha_run_3" android:duration="120" />
-    <item android:drawable="@drawable/sasha_run_4" android:duration="120" />
+    <item android:drawable="@drawable/sasha_run_1" android:duration="110" />
+    <item android:drawable="@drawable/sasha_run_2" android:duration="110" />
+    <item android:drawable="@drawable/sasha_run_3" android:duration="110" />
+    <item android:drawable="@drawable/sasha_run_4" android:duration="110" />
+    <item android:drawable="@drawable/sasha_run_5" android:duration="110" />
+    <item android:drawable="@drawable/sasha_run_6" android:duration="110" />
+    <item android:drawable="@drawable/sasha_run_7" android:duration="110" />
+    <item android:drawable="@drawable/sasha_run_8" android:duration="110" />
 </animation-list>

@@ -19,6 +19,11 @@
 
     <style name="Theme.SashaBridge" parent="Base.Theme.SashaBridge" />
 
+    <!-- The annotation screen is always dark, so the capture stands out in either theme. -->
+    <style name="Theme.SashaBridge.Annotate">
+        <item name="android:windowBackground">@color/annotate_background</item>
+    </style>
+
     <!-- Rounded cards with a hairline border instead of a shadow. -->
     <style name="Widget.SashaBridge.Card" parent="Widget.Material3.CardView.Outlined">
         <item name="cardBackgroundColor">@color/surface</item>
@@ -72,5 +77,37 @@
         <item name="android:textColor">@color/on_surface_muted</item>
         <item name="android:textAllCaps">true</item>
         <item name="android:letterSpacing">0.08</item>
+    </style>
+
+    <!-- "Anotar" on the main screen: a tonal pill with the pen, its icon in the wine accent. -->
+    <style name="Widget.SashaBridge.AnnotateButton" parent="Widget.Material3.Button.TonalButton.Icon">
+        <item name="android:layout_height">48dp</item>
+        <item name="android:text">@string/button_annotate</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleMedium</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="cornerRadius">18dp</item>
+        <item name="icon">@drawable/ic_edit</item>
+        <item name="iconTint">@color/accent_text</item>
+        <item name="iconPadding">12dp</item>
+    </style>
+
+    <!-- Square tool button of the annotation bars; selected tools get a wine pill. -->
+    <style name="Widget.SashaBridge.AnnotateTool" parent="">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:background">@drawable/tool_background</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:padding">10dp</item>
+        <item name="tint">@color/annotate_on_background</item>
+    </style>
+
+    <!-- Thin vertical rule between the groups of the annotation bar. -->
+    <style name="Widget.SashaBridge.AnnotateDivider" parent="">
+        <item name="android:layout_width">1dp</item>
+        <item name="android:layout_height">28dp</item>
+        <item name="android:layout_marginStart">6dp</item>
+        <item name="android:layout_marginEnd">6dp</item>
+        <item name="android:background">@color/annotate_muted</item>
     </style>
 </resources>

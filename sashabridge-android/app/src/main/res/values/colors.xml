@@ -23,17 +23,30 @@
     <color name="button_idle">#E6D6CC</color>
 
     <!-- Veil over the blurred art of the player card: lets the colors through, keeps text readable. -->
-    <color name="scrim_top">#B3FFFFFF</color>
-    <color name="scrim_middle">#CCFFFFFF</color>
-    <color name="scrim_bottom">#E6FFFFFF</color>
+    <color name="scrim_top">#A6FFFFFF</color>
+    <color name="scrim_middle">#BFFFFFFF</color>
+    <color name="scrim_bottom">#D9FFFFFF</color>
 
-    <!-- Seek bar: light coffee track, very dark red played part, strong wine ball. -->
+    <!-- Seek bar: light coffee track, dark red played part, strong wine ball. -->
     <color name="seek_track">#C9A27E</color>
-    <color name="seek_played">#4A0B16</color>
+    <color name="seek_played">#7A1830</color>
     <color name="seek_thumb">#A3173F</color>
 
     <color name="status_connected">#4E9A5B</color>
     <color name="status_waiting">#C98E2A</color>
     <color name="status_off">#9A8A85</color>
     <color name="status_error">#C0392B</color>
+
+    <!-- Annotation screen: always dark, so the capture stands out in either theme. -->
+    <color name="annotate_background">#FF121012</color>
+    <color name="annotate_bar">#E61C1214</color>
+    <color name="annotate_on_background">#FFF5E9E4</color>
+    <color name="annotate_muted">#FFB9A39D</color>
+
+    <!-- Ink colors, as in the user's design reviews: red, orange, green, blue, purple. -->
+    <color name="ink_red">#FFE53935</color>
+    <color name="ink_orange">#FFFB8C00</color>
+    <color name="ink_green">#FF43A047</color>
+    <color name="ink_blue">#FF1E88E5</color>
+    <color name="ink_purple">#FF8E24AA</color>
 </resources>

@@ -3,6 +3,7 @@ package io.github.elkelvinx.sashabridge.server
 import io.github.elkelvinx.sashabridge.bridge.BridgeStatus
 import io.github.elkelvinx.sashabridge.media.AlbumArt
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
+import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
 import io.github.elkelvinx.sashabridge.protocol.CommandAction
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import io.github.elkelvinx.sashabridge.protocol.PhoneMessage
@@ -50,6 +51,9 @@ class BridgeServerTest {
     /** Client in the role of the PC. */
     private val client = HttpClient(ClientCIO) { install(ClientWebSockets) }
 
+    /** State of the "Anotar" mode that the /pen route serves. */
+    private val annotations = AnnotationRepository()
+
     /** Servers created by the test, stopped afterwards. */
     private val servers = mutableListOf<BridgeServer>()
 
@@ -63,6 +67,7 @@ class BridgeServerTest {
             port = port,
             bindRetryDelay = 100.milliseconds,
             clock = { 1_000L },
+            annotations = annotations,
         ).also { servers += it }
 
     @After
@@ -71,9 +76,9 @@ class BridgeServerTest {
         client.close()
     }
 
-    /** Opens a session on the server and runs [block] in it. */
-    private suspend fun connect(block: suspend DefaultClientWebSocketSession.() -> Unit) =
-        withTimeout(5.seconds) { client.webSocket(host = "127.0.0.1", port = port, path = "/") { block() } }
+    /** Opens a session on the server, on [path], and runs [block] in it. */
+    private suspend fun connect(path: String = "/", block: suspend DefaultClientWebSocketSession.() -> Unit) =
+        withTimeout(5.seconds) { client.webSocket(host = "127.0.0.1", port = port, path = path) { block() } }
 
     /** Receives and decodes the next message from the phone. */
     private suspend fun DefaultClientWebSocketSession.next(): PhoneMessage =
@@ -249,5 +254,34 @@ class BridgeServerTest {
 
         assertEquals(BridgeStatus.Stopped, status.value)
         assertNull(commands.tryReceive().getOrNull())
+    }
+
+    /**
+     * The /pen route greets, reports whether "Anotar" waits, keeps the captures it receives,
+     * and sends the screen's answers back. It does not count as a connected PC.
+     */
+    @Test
+    fun penRouteCarriesCapturesAndAnswers(): Unit = runBlocking {
+        val status = MutableStateFlow<BridgeStatus>(BridgeStatus.Stopped)
+        server(status).start()
+
+        connect("/pen") {
+            assertTrue(next() is PhoneMessage.Hello)
+            assertEquals(PhoneMessage.AnnotateStatus(armed = false), next())
+            withTimeout(5.seconds) { annotations.penConnected.first { it } }
+
+            annotations.setArmed(true)
+            assertEquals(PhoneMessage.AnnotateStatus(armed = true), next())
+
+            val capture = PcMessage.AnnotateRequest("c1", "image/png", 4, 3, "iVBORw0KGgo=")
+            send(Frame.Text(ProtocolCodec.encode(capture)))
+            assertEquals(capture, withTimeout(5.seconds) { annotations.pendingCapture.first { it != null } })
+
+            val answer = PhoneMessage.AnnotateCancelled("c1")
+            annotations.reply(answer)
+            assertEquals(answer, next())
+            assertEquals(BridgeStatus.Listening, status.value)
+        }
+        withTimeout(5.seconds) { annotations.penConnected.first { !it } }
     }
 }

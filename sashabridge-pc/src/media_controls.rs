@@ -30,7 +30,7 @@ use windows::core::{HSTRING, Ref};
 use crate::now_playing::MediaView;
 use crate::protocol::PcCommand;
 use crate::protocol::v2::ShuffleMode;
-use crate::smtc_window::WindowHandle;
+use crate::hidden_window::WindowHandle;
 
 /// Title, artist and playing flag of the last view logged at info level.
 type LoggedState = (Option<String>, Option<String>, bool);
@@ -260,8 +260,11 @@ fn thumbnail_from_file(path: &Path) -> windows::core::Result<RandomAccessStreamR
 }
 
 /// Queues a command for the connection. Runs on WinRT threads.
+///
+/// Logged at info level so the console shows every play, pause or skip that Windows asks for
+/// (media keys, the flyout), which tells them apart from changes made on the phone.
 fn forward(commands: &mpsc::Sender<PcCommand>, command: PcCommand) {
-    debug!(?command, "SMTC request");
+    info!(?command, "Windows asked the phone");
     if let Err(error) = commands.try_send(command) {
         warn!(%error, ?command, "command dropped");
     }
@@ -345,7 +348,7 @@ mod tests {
     #[test]
     #[ignore = "publishes a real media session on this PC; run with `cargo test -- --ignored`"]
     fn windows_sees_cover_and_shuffle_changes() {
-        let window = crate::smtc_window::spawn().unwrap();
+        let window = crate::hidden_window::spawn(mpsc::unbounded_channel().0).unwrap();
         let (commands, _receiver) = mpsc::channel(4);
         let mut controls = MediaControls::new(&window, commands).unwrap();
         let view = MediaView {
@@ -377,7 +380,7 @@ mod tests {
     #[test]
     #[ignore = "publishes a real media session on this PC; run with `cargo test -- --ignored`"]
     fn windows_shuffle_request_becomes_a_command() {
-        let window = crate::smtc_window::spawn().unwrap();
+        let window = crate::hidden_window::spawn(mpsc::unbounded_channel().0).unwrap();
         let (commands, mut receiver) = mpsc::channel(4);
         let mut controls = MediaControls::new(&window, commands).unwrap();
         controls

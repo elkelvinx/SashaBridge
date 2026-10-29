@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Anotar": waits for a capture from the PC, then lets the S Pen mark it up. The root stays a
+     FrameLayout (not a merge) because the activity applies the window insets to it. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/annotateRoot"
+    tools:ignore="MergeRootFrame"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".pen.AnnotateActivity">
+
+    <io.github.elkelvinx.sashabridge.pen.InkCanvasView
+        android:id="@+id/inkCanvas"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Shown while no capture is open. -->
+    <LinearLayout
+        android:id="@+id/waitingPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="32dp">
+
+        <ImageView
+            android:layout_width="180dp"
+            android:layout_height="60dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter"
+            android:src="@drawable/sasha_wagging" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/annotate_waiting"
+            android:textAppearance="?attr/textAppearanceHeadlineSmall"
+            android:textColor="@color/annotate_on_background" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="@string/annotate_waiting_detail"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="@color/annotate_muted" />
+
+        <TextView
+            android:id="@+id/penWarning"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:text="@string/annotate_no_pc"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/status_error"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </LinearLayout>
+
+    <!-- Leaves the screen while waiting; with a capture open, "+" offers that instead. -->
+    <ImageButton
+        android:id="@+id/closeButton"
+        style="@style/Widget.SashaBridge.AnnotateTool"
+        android:layout_gravity="top|start"
+        android:layout_margin="12dp"
+        android:contentDescription="@string/annotate_close"
+        android:src="@drawable/ic_close"
+        android:tooltipText="@string/annotate_close" />
+
+    <!-- The only bar: history, tools, colors and thickness scroll sideways on narrow screens,
+         while "+" (send or discard) always stays in view at the end. -->
+    <LinearLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_margin="12dp"
+        android:background="@drawable/annotate_bar"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="6dp">
+
+        <HorizontalScrollView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/undoButton"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_undo"
+                    android:src="@drawable/ic_undo"
+                    android:tooltipText="@string/annotate_undo" />
+
+                <ImageButton
+                    android:id="@+id/redoButton"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_redo"
+                    android:src="@drawable/ic_redo"
+                    android:tooltipText="@string/annotate_redo" />
+
+                <View style="@style/Widget.SashaBridge.AnnotateDivider" />
+
+                <ImageButton
+                    android:id="@+id/toolPen"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_tool_pen"
+                    android:src="@drawable/ic_edit"
+                    android:tooltipText="@string/annotate_tool_pen" />
+
+                <ImageButton
+                    android:id="@+id/toolHighlighter"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_tool_highlighter"
+                    android:src="@drawable/ic_highlight"
+                    android:tooltipText="@string/annotate_tool_highlighter" />
+
+                <ImageButton
+                    android:id="@+id/toolLine"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_tool_line"
+                    android:src="@drawable/ic_line"
+                    android:tooltipText="@string/annotate_tool_line" />
+
+                <ImageButton
+                    android:id="@+id/toolRectangle"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_tool_rectangle"
+                    android:src="@drawable/ic_rectangle"
+                    android:tooltipText="@string/annotate_tool_rectangle" />
+
+                <ImageButton
+                    android:id="@+id/toolArrow"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_tool_arrow"
+                    android:src="@drawable/ic_arrow"
+                    android:tooltipText="@string/annotate_tool_arrow" />
+
+                <ImageButton
+                    android:id="@+id/toolText"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_tool_text"
+                    android:src="@drawable/ic_text"
+                    android:tooltipText="@string/annotate_tool_text" />
+
+                <View style="@style/Widget.SashaBridge.AnnotateDivider" />
+
+                <LinearLayout
+                    android:id="@+id/colorRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+
+                <View style="@style/Widget.SashaBridge.AnnotateDivider" />
+
+                <ImageButton
+                    android:id="@+id/thinButton"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_thin"
+                    android:padding="17dp"
+                    android:src="@drawable/color_swatch"
+                    android:tooltipText="@string/annotate_thin" />
+
+                <ImageButton
+                    android:id="@+id/mediumButton"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_medium"
+                    android:padding="13dp"
+                    android:src="@drawable/color_swatch"
+                    android:tooltipText="@string/annotate_medium" />
+
+                <ImageButton
+                    android:id="@+id/thickButton"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_thick"
+                    android:padding="9dp"
+                    android:src="@drawable/color_swatch"
+                    android:tooltipText="@string/annotate_thick" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <ImageButton
+            android:id="@+id/actionsButton"
+            style="@style/Widget.SashaBridge.AnnotateTool"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/play_button_background"
+            android:contentDescription="@string/annotate_actions"
+            android:src="@drawable/ic_add"
+            android:tooltipText="@string/annotate_actions"
+            app:tint="@color/on_primary" />
+    </LinearLayout>
+</FrameLayout>

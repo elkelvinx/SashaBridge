@@ -1,19 +1,24 @@
 //! SashaBridge PC client.
 //!
 //! Mirrors the phone's audio with scrcpy, shows the phone's media state in the Windows
-//! media overlay (SMTC) and sends the media keys back to the phone. The phone is reached
-//! through an `adb forward` tunnel over USB.
+//! media overlay (SMTC) and sends the media keys back to the phone. It also sends screen
+//! captures to the phone to annotate with the S Pen and puts the annotations on the
+//! clipboard. The phone is reached through an `adb forward` tunnel over USB.
 
 #![warn(missing_docs, clippy::missing_docs_in_private_items)]
 
+mod annotate;
+mod backoff;
+mod bitmap;
+mod clipboard;
 mod config;
 mod connection;
 mod cover_cache;
+mod hidden_window;
 mod media_controls;
 mod now_playing;
 mod process;
 mod protocol;
-mod smtc_window;
 
 use std::process::ExitCode;
 
@@ -75,13 +80,16 @@ async fn run() -> anyhow::Result<()> {
 
     let covers = CoverCache::open_default().context("cannot prepare the cover directory")?;
     let mut now_playing = NowPlaying::new(covers);
-    let window = smtc_window::spawn()?;
+    let (window_events, mut window_rx) = mpsc::unbounded_channel();
+    let window = hidden_window::spawn(window_events)?;
+    let clipboard_owner = window.clipboard_owner();
     let (command_tx, mut command_rx) = mpsc::channel(COMMAND_QUEUE);
     let mut controls = MediaControls::new(&window, command_tx)?;
     let mut link = DeviceLink::new(&paths, BRIDGE_PORT)?;
 
     let reason = tokio::select! {
         never = connection::run(&mut link, &mut controls, &mut now_playing, &mut command_rx) => match never {},
+        never = annotate::run(&mut window_rx, clipboard_owner) => match never {},
         reason = shutdown_signal() => reason,
     };
 

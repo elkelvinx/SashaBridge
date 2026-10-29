@@ -53,5 +53,40 @@
     <string name="battery_detail">Samsung puede congelar la app en segundo plano y cortar el puente. En Batería, elige «Sin restricciones».</string>
     <string name="button_battery">Abrir ajustes</string>
 
+    <!-- S Pen: annotate captures from the PC. -->
+    <string name="button_annotate">Anotar</string>
+    <string name="annotate_waiting">Esperando captura</string>
+    <string name="annotate_waiting_detail">En la PC, recorta con Win+Shift+S o pulsa Ctrl+Alt+A. La captura aparecerá aquí.</string>
+    <string name="annotate_no_pc">La PC no está conectada. Abre SashaBridge en la PC con el teléfono por USB.</string>
+    <string name="annotate_close">Cerrar</string>
+    <string name="annotate_undo">Deshacer</string>
+    <string name="annotate_redo">Rehacer</string>
+    <string name="annotate_actions">Enviar o descartar</string>
+    <string name="annotate_actions_title">Captura</string>
+    <string name="annotate_send">Enviar a la PC</string>
+    <string name="annotate_discard_capture">Descartar captura</string>
+    <string name="annotate_send_offline">La PC no está conectada; la captura sigue aquí hasta que vuelva.</string>
+    <string name="annotate_tool_pen">Lápiz</string>
+    <string name="annotate_tool_highlighter">Resaltador</string>
+    <string name="annotate_tool_line">Línea recta</string>
+    <string name="annotate_tool_rectangle">Rectángulo</string>
+    <string name="annotate_tool_arrow">Flecha</string>
+    <string name="annotate_tool_text">Texto</string>
+    <string name="annotate_color">Color %1$d</string>
+    <string name="annotate_thin">Fino</string>
+    <string name="annotate_medium">Medio</string>
+    <string name="annotate_thick">Grueso</string>
+    <string name="annotate_text_title">Texto de la nota</string>
+    <string name="annotate_text_hint">Escribe, o usa la escritura a mano del teclado</string>
+    <string name="annotate_text_place">Colocar</string>
+    <string name="annotate_cancel">Cancelar</string>
+    <string name="annotate_discard_title">¿Descartar la anotación?</string>
+    <string name="annotate_discard">Descartar</string>
+    <string name="annotate_sent">Enviada a la PC</string>
+    <string name="annotate_queued">Llegó otra captura; se abrirá al terminar esta.</string>
+    <string name="annotate_notification_channel">Capturas para anotar</string>
+    <string name="annotate_notification_title">Captura lista para anotar</string>
+    <string name="annotate_notification_text">Toca para abrirla en SashaBridge.</string>
+
     <string name="footer">USB · 127.0.0.1:%1$d · protocolo v%2$d</string>
 </resources>

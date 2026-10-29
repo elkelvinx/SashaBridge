@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Offers a capture from the PC when the annotation screen is closed. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Lets the main screen show a player's name, such as "Spotify", instead of its package. -->
     <queries>
@@ -32,6 +34,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Rotating keeps the annotation canvas instead of recreating it. -->
+        <activity
+            android:name=".pen.AnnotateActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="false"
+            android:theme="@style/Theme.SashaBridge.Annotate"
+            android:windowSoftInputMode="adjustResize" />
         <service android:name= ".MusicListenerService"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"

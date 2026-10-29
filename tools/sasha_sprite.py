@@ -12,9 +12,10 @@ Usage, from the repository root:
 import argparse
 from pathlib import Path
 
-# Size of the dog frames. The hourglass has its own canvas, drawn over the bottom-right
-# corner of the dog frame at HOURGLASS_OFFSET.
-DOG_W, DOG_H = 52, 20
+# Size of the dog frames, wide enough for the ball to roll ahead and for the bucket. The
+# hourglass has its own canvas, drawn over the bottom-right corner of the dog frame at
+# HOURGLASS_OFFSET.
+DOG_W, DOG_H = 60, 20
 HOURGLASS_SIZE = 11
 HOURGLASS_OFFSET = (DOG_W - HOURGLASS_SIZE, DOG_H - HOURGLASS_SIZE)
 
@@ -34,6 +35,10 @@ PALETTE = {
     "e": "#D9F3FD",  # hourglass empty inside
     "a": "#F2D58A",  # sand
     "r": "#A3243B",  # painter's beret
+    "m": "#56606B",  # bucket rim and hoop
+    "n": "#9AA4AE",  # bucket
+    "u": "#4FA3E0",  # water
+    "p": "#E07A8B",  # tongue
 }
 
 
@@ -125,8 +130,12 @@ def ball(cv, x, y):
     cv.dot("w", (x + 1, y + 1), (x + 2, y + 2))
 
 
-def running(stride, ball_y):
-    """Gallop: `stride` 0 stretches the legs out, 1 gathers them under the body."""
+def running(stride, ball_x, ball_y):
+    """Gallop in place: `stride` 0 stretches the legs out, 1 gathers them under the body.
+
+    The ball is at (`ball_x`, `ball_y`). She stays put on purpose: moving a pixel sprite a
+    pixel at a time reads as stutter, not as running.
+    """
     cv = Canvas(DOG_W, DOG_H)
     lift = -1 if stride == 0 else 0
     body(cv, dy=lift)
@@ -145,7 +154,38 @@ def running(stride, ball_y):
         leg(cv, "b", (10, base), (12, base + 1), (14, base + 2))
         leg(cv, "s", (24, base), (22, base + 1), (20, base + 2))
         leg(cv, "b", (27, base), (25, base + 1), (23, base + 2))
-    ball(cv, 46, ball_y)
+    ball(cv, ball_x, ball_y)
+    return cv
+
+
+def drinking(lap):
+    """Head down in a bucket of water; on `lap` frames the tongue shows and water splashes."""
+    cv = Canvas(DOG_W, DOG_H)
+    cv.rect(8, 8, 29, 13, "b")
+    cv.clear((8, 8))
+    cv.rect(10, 13, 27, 13, "s")
+    leg(cv, "s", (12, 14), (12, 15), (12, 16))
+    leg(cv, "s", (24, 14), (24, 15), (24, 16))
+    leg(cv, "b", (9, 14), (9, 15), (9, 16))
+    leg(cv, "b", (27, 14), (27, 15), (27, 16))
+    cv.dot("b", (7, 9), (7, 8), (6, 8), (6, 7), (5, 7), (5, 6), (4, 6), (4, 5), (3, 5), (3, 4))
+    # Neck sloping down, then the head lowered into the bucket, under the line of the back.
+    cv.rect(27, 8, 32, 12, "b")
+    head(cv, dx=3, dy=6)
+    cv.dot("k", (38, 10))
+    cv.rect(28, 9, 29, 11, "c")
+    cv.dot("g", (28, 12))
+    if lap:
+        # The tongue shows past the rim and the water splashes.
+        cv.dot("p", (41, 10))
+        cv.overlay[(46, 8)] = "u"
+        cv.overlay[(48, 7)] = "u"
+        cv.overlay[(44, 7)] = "u"
+    # The bucket hides the snout below its rim.
+    cv.rect(41, 11, 50, 11, "m")
+    cv.rect(42, 12, 49, 12, "u")
+    cv.rect(42, 13, 49, 16, "n")
+    cv.rect(42, 14, 49, 14, "m")
     return cv
 
 
@@ -216,10 +256,17 @@ def hourglass(moved, sideways=False):
 FRAMES = {
     "sasha_awake": standing("up"),
     "sasha_wag": standing("side"),
-    "sasha_run_1": running(0, 9),
-    "sasha_run_2": running(1, 12),
-    "sasha_run_3": running(0, 15),
-    "sasha_run_4": running(1, 12),
+    # The legs alternate every frame while the ball bounces twice, rolling ahead and back.
+    "sasha_run_1": running(0, 46, 9),
+    "sasha_run_2": running(1, 47, 12),
+    "sasha_run_3": running(0, 49, 15),
+    "sasha_run_4": running(1, 50, 12),
+    "sasha_run_5": running(0, 51, 9),
+    "sasha_run_6": running(1, 50, 12),
+    "sasha_run_7": running(0, 49, 15),
+    "sasha_run_8": running(1, 47, 12),
+    "sasha_drink_1": drinking(False),
+    "sasha_drink_2": drinking(True),
     "sasha_sleep_1": sleeping(1),
     "sasha_sleep_2": sleeping(2),
     "hourglass_0": hourglass(0),

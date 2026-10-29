@@ -6,6 +6,7 @@ import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.bridge.BridgeStatus
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
+import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -49,7 +50,9 @@ import kotlinx.coroutines.withContext
  * - A port that cannot be bound is reported as [BridgeStatus.Error] and retried, instead of
  *   crashing the app (A5).
  *
- * Each connection is served by a [ClientSession]. Every state change goes to [onStatus].
+ * Each connection to `/` is served by a [ClientSession], and each connection to `/pen`, the
+ * S Pen route, by a [PenSession]. Only the music sessions count as connected PCs in the
+ * status; a PC opens one of each. Every state change goes to [onStatus].
  *
  * [start] and [stop] can be called from any thread; they suspend and do the blocking work on
  * [Dispatchers.IO].
@@ -61,6 +64,7 @@ import kotlinx.coroutines.withContext
  * @param port TCP port to listen on.
  * @param bindRetryDelay Wait between attempts to bind the port.
  * @param clock Returns `SystemClock.elapsedRealtime()`.
+ * @param annotations Shared state of the "Anotar" mode, served on the `/pen` route.
  */
 class BridgeServer(
     private val media: StateFlow<MediaSnapshot?>,
@@ -70,13 +74,17 @@ class BridgeServer(
     private val port: Int = BridgeConfig.PORT,
     private val bindRetryDelay: Duration = BIND_RETRY_DELAY,
     private val clock: () -> Long = SystemClock::elapsedRealtime,
+    private val annotations: AnnotationRepository = AnnotationRepository(),
 ) {
 
     /** Running engine, or `null` while stopped. Guarded by [portLock]. */
     private var engine: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
 
-    /** Open sessions, closed on [stop]. Guarded by its own monitor. */
+    /** Open music sessions, closed on [stop]. Guarded by its own monitor. */
     private val sessions = mutableSetOf<WebSocketSession>()
+
+    /** Open `/pen` sessions, closed on [stop]. Guarded by the monitor of [sessions]. */
+    private val penSessions = mutableSetOf<WebSocketSession>()
 
     /** Whether the engine is listening; sessions that end after [stop] must not report a state. */
     @Volatile
@@ -123,7 +131,12 @@ class BridgeServer(
             running = false
             engine?.let { server ->
                 engine = null
-                val open = synchronized(sessions) { sessions.toList().also { sessions.clear() } }
+                val open = synchronized(sessions) {
+                    (sessions + penSessions).also {
+                        sessions.clear()
+                        penSessions.clear()
+                    }
+                }
                 open.forEach { session ->
                     try {
                         session.close(CloseReason(CloseReason.Codes.GOING_AWAY, "Bridge stopped"))
@@ -190,6 +203,18 @@ class BridgeServer(
                     synchronized(sessions) { sessions -= this }
                     Log.i(LOG_TAG, "PC disconnected")
                     reportSessions()
+                }
+            }
+            webSocket("/pen") {
+                val count = synchronized(sessions) { penSessions += this; penSessions.size }
+                annotations.setPenSessions(count)
+                Log.i(LOG_TAG, "PC opened the pen route")
+                try {
+                    PenSession(this, annotations, deviceName).run()
+                } finally {
+                    val left = synchronized(sessions) { penSessions -= this; penSessions.size }
+                    annotations.setPenSessions(left)
+                    Log.i(LOG_TAG, "PC closed the pen route")
                 }
             }
         }

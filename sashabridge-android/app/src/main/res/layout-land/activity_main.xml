@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Main screen in landscape: the bridge on the left, the player on the right. The on/off
-     button stays hidden here, so turning the phone into a "now playing" display cannot switch
-     the bridge off by accident; it is in portrait. -->
+<!-- Main screen in landscape: the bridge on the left, the player on the right, both as tall
+     as the screen. The on/off button stays hidden here, so turning the phone into a "now
+     playing" display cannot switch the bridge off by accident; it is in portrait. The scroll
+     only matters when the battery warning does not fit. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
@@ -10,37 +12,44 @@
     android:fillViewport="true"
     tools:context=".MainActivity">
 
+    <!-- The two columns share the width by weight and the status card takes the height left in
+         its column: two weights deep, on a screen this small that costs nothing noticeable. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:baselineAligned="false"
         android:orientation="horizontal"
         android:paddingHorizontal="20dp"
-        android:paddingVertical="12dp">
+        android:paddingVertical="8dp">
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="0.4"
-            android:orientation="vertical">
+            android:layout_height="match_parent"
+            android:layout_weight="0.36"
+            android:orientation="vertical"
+            tools:ignore="NestedWeights">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/app_name"
-                android:textAppearance="?attr/textAppearanceHeadlineSmall"
+                android:textAppearance="?attr/textAppearanceTitleLarge"
                 android:textColor="@color/on_surface"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="8dp"
                 android:text="@string/tagline"
                 android:textAppearance="?attr/textAppearanceBodyMedium"
                 android:textColor="@color/on_surface_muted" />
 
-            <include layout="@layout/card_status" />
+            <include
+                layout="@layout/card_status"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
             <include layout="@layout/card_battery" />
 
@@ -50,11 +59,18 @@
                 android:layout_height="wrap_content"
                 android:visibility="gone" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/annotateButton"
+                style="@style/Widget.SashaBridge.AnnotateButton"
+                android:layout_width="wrap_content"
+                android:layout_marginTop="10dp"
+                android:minWidth="200dp" />
+
             <TextView
                 android:id="@+id/footer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="6dp"
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textColor="@color/on_surface_muted"
                 tools:text="USB · 127.0.0.1:8080 · protocolo v2" />
@@ -63,8 +79,8 @@
         <include
             layout="@layout/card_player"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_marginStart="16dp"
-            android:layout_weight="0.6" />
+            android:layout_weight="0.64" />
     </LinearLayout>
 </ScrollView>

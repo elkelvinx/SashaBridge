@@ -40,16 +40,31 @@
         <!-- Shown only while Android may freeze the app in the background. -->
         <include layout="@layout/card_battery" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/toggleButton"
+        <!-- "Anotar" opens the S Pen screen; the bridge button takes the rest of the row. -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="60dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:textAppearance="?attr/textAppearanceTitleMedium"
-            android:textColor="@color/on_primary"
-            app:backgroundTint="@color/button_active"
-            app:cornerRadius="18dp"
-            tools:text="@string/button_turn_off" />
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/annotateButton"
+                style="@style/Widget.SashaBridge.AnnotateButton"
+                android:layout_width="wrap_content"
+                android:layout_height="60dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/toggleButton"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textColor="@color/on_primary"
+                app:backgroundTint="@color/button_active"
+                app:cornerRadius="18dp"
+                tools:text="@string/button_turn_off" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/footer"

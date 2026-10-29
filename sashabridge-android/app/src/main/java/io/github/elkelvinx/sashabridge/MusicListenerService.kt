@@ -11,6 +11,8 @@ import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
 import io.github.elkelvinx.sashabridge.bridge.BridgeStatus
 import io.github.elkelvinx.sashabridge.media.MediaCommandExecutor
 import io.github.elkelvinx.sashabridge.media.MediaSessionTracker
+import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
+import io.github.elkelvinx.sashabridge.pen.CaptureNotifier
 import io.github.elkelvinx.sashabridge.server.BridgeServer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +53,9 @@ class MusicListenerService : NotificationListenerService() {
     /** WebSocket server. Created in [onCreate], run while the listener is connected. */
     private lateinit var server: BridgeServer
 
+    /** Offers captures from the PC while the annotation screen is closed. Created in [onCreate]. */
+    private lateinit var captureNotifier: CaptureNotifier
+
     /** Runs the commands of the PC and of the app's screen. Created in [onCreate]. */
     private lateinit var commandExecutor: MediaCommandExecutor
 
@@ -73,7 +78,9 @@ class MusicListenerService : NotificationListenerService() {
             deviceName = Build.MODEL,
             onStatus = repository::reportStatus,
             onCommand = commandExecutor::execute,
+            annotations = AnnotationRepository.shared,
         )
+        captureNotifier = CaptureNotifier(this)
     }
 
     /**
@@ -97,6 +104,7 @@ class MusicListenerService : NotificationListenerService() {
             launch { tracker.media.collect(repository::updateMedia) }
             launch { tracker.queue.collect(repository::updateQueue) }
             launch { repository.commands.collect { commandExecutor.execute(it) } }
+            launch { offerCaptures() }
             repository.enabled.collectLatest { enabled ->
                 if (enabled) {
                     Log.i(LOG_TAG, "Bridge enabled, starting the server")
@@ -137,6 +145,20 @@ class MusicListenerService : NotificationListenerService() {
         repository.updateQueue(null)
         repository.setListenerConnected(false)
         server.release()
+    }
+
+    /**
+     * Shows the capture notification while a capture from the PC waits and the annotation
+     * screen is closed; an open screen takes the capture itself. Main thread.
+     */
+    private suspend fun offerCaptures() {
+        val annotations = AnnotationRepository.shared
+        annotations.pendingCapture.collect { capture ->
+            when {
+                capture == null -> captureNotifier.cancel()
+                !annotations.armed.value -> captureNotifier.show()
+            }
+        }
     }
 
     /** Component name of this listener. */

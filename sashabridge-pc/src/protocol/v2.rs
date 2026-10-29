@@ -79,6 +79,11 @@ pub struct AnnotateCancelled {
 pub struct RequestId(String);
 
 impl RequestId {
+    /// Creates the identifier of the `number`-th capture of this run, `capture-<number>`.
+    pub fn numbered(number: u64) -> Self {
+        Self(format!("capture-{number}"))
+    }
+
     /// Returns the identifier as text.
     pub fn as_str(&self) -> &str {
         &self.0

@@ -14,9 +14,13 @@
     <color name="button_active">#7D4E2C</color>
     <color name="button_idle">#3A2A2C</color>
 
-    <color name="scrim_top">#991C1214</color>
-    <color name="scrim_middle">#B32A1B1F</color>
-    <color name="scrim_bottom">#E02A1B1F</color>
+    <!-- 5 points thinner than before (60/70/88 %), so the blurred art shows a little more. -->
+    <color name="scrim_top">#8C1C1214</color>
+    <color name="scrim_middle">#A62A1B1F</color>
+    <color name="scrim_bottom">#D42A1B1F</color>
+
+    <!-- On the dark card the played part needs a lighter red to stand out from the track. -->
+    <color name="seek_played">#C2405F</color>
 
     <color name="status_connected">#7CC489</color>
     <color name="status_waiting">#E0B04A</color>

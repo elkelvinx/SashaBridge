@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Highlighter tool: a tilted marker with a chisel tip over the band it paints. Each part is
+     its own path so their overlap never cancels out. Tinted from the layout or the code. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Barrel. -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M10.05,10.41L16.41,4.05L19.95,7.59L13.59,13.95Z" />
+    <!-- Chisel tip. -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M10.7,11.06L12.94,13.3L10.29,15.95L8.05,13.71Z" />
+    <!-- Painted band. -->
+    <path
+        android:fillAlpha="0.6"
+        android:fillColor="@android:color/white"
+        android:pathData="M3,18.5h18v3H3Z" />
+</vector>

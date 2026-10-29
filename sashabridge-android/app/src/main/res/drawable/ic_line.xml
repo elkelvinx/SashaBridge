@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Straight line tool: a diagonal segment with a handle at each end. Each part is its own
+     path so their overlap never cancels out. Tinted from the layout or the code. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M4.79,17.79L17.79,4.79L19.21,6.21L6.21,19.21Z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M3,18.5a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0Z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M16,5.5a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0Z" />
+</vector>

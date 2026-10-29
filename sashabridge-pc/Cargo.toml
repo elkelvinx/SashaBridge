@@ -7,6 +7,8 @@ edition = "2024"
 anyhow             = "1"
 base64             = "0.22"
 futures-util       = "0.3"
+# Captures and annotations travel as PNG; the clipboard holds bitmaps (S Pen "Anotar" mode).
+png                = "0.18"
 serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
 tokio              = { version = "1", features = ["full"] }
@@ -24,15 +26,24 @@ windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_System_WinRT",
 ]}
-# Win32 bindings for the hidden window, the job object and the single-instance mutex.
+# Win32 bindings for the hidden window, the job object, the single-instance mutex, and the
+# clipboard, global shortcut and Pictures folder of the annotation mode.
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
     "Win32_Security",
+    "Win32_System_Com",
+    "Win32_System_DataExchange",
+    "Win32_System_Diagnostics_Debug",
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_JobObjects",
     "Win32_System_LibraryLoader",
+    "Win32_System_Memory",
+    "Win32_System_Ole",
+    "Win32_System_SystemInformation",
     "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ]}
 

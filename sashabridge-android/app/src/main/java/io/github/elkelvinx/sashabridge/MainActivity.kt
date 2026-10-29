@@ -1,5 +1,6 @@
 package io.github.elkelvinx.sashabridge
 
+import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -7,6 +8,7 @@ import android.content.res.ColorStateList
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
@@ -16,6 +18,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
@@ -30,6 +33,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
 import io.github.elkelvinx.sashabridge.media.PlayerCommand
+import io.github.elkelvinx.sashabridge.pen.AnnotateActivity
 import io.github.elkelvinx.sashabridge.protocol.ProtocolCodec
 import io.github.elkelvinx.sashabridge.ui.BridgePhase
 import io.github.elkelvinx.sashabridge.ui.PlayerCard
@@ -38,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 /**
  * Main screen: the state of the bridge, the track of the active player with its controls
@@ -48,8 +53,8 @@ import kotlinx.coroutines.launch
  * the app (A7). The on/off button only writes [BridgeRepository.enabled].
  *
  * Sasha, the dachshund the app is named after, shows the state too: she chases a tennis ball
- * while a PC is connected, wags her tail next to an hourglass while she waits for one, and
- * sleeps while the bridge is off.
+ * while a PC is connected, stopping now and then to drink from her bucket, wags her tail next
+ * to an hourglass while she waits for one, and sleeps while the bridge is off.
  *
  * Every member runs on the main thread.
  */
@@ -63,6 +68,19 @@ class MainActivity : AppCompatActivity() {
 
     /** Pose currently shown, so that an animation is not restarted by an unrelated update. */
     private var shownPose: SashaPose? = null
+
+    /** Pose that the state of the bridge asks for. */
+    private var phasePose: SashaPose? = null
+
+    /** Whether Sasha is taking one of her drinks, which she only does while playing. */
+    private var drinking = false
+
+    /**
+     * Asks for the notification permission, which lets a capture from the PC wait behind a
+     * notification while "Anotar" is closed; the screen opens whatever the answer.
+     */
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { openAnnotate() }
 
     /** Display names of player packages, resolved once each. */
     private val appLabels = HashMap<String, String>()
@@ -102,6 +120,16 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.footer, BridgeConfig.PORT, ProtocolCodec.PROTOCOL_VERSION)
 
         toggleButton.setOnClickListener { repository.setEnabled(!repository.enabled.value) }
+        findViewById<Button>(R.id.annotateButton).setOnClickListener {
+            val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            if (needsPermission) {
+                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                openAnnotate()
+            }
+        }
         grantAccessButton.setOnClickListener {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
@@ -140,6 +168,7 @@ class MainActivity : AppCompatActivity() {
                         delay(PROGRESS_TICK_MS)
                     }
                 }
+                launch { drinkNowAndThen() }
             }
         }
     }
@@ -169,6 +198,7 @@ class MainActivity : AppCompatActivity() {
             is BridgePhase.Connected -> R.color.status_connected to SashaPose.RUNNING
             is BridgePhase.Failed -> R.color.status_error to SashaPose.AWAKE
         }
+        phasePose = pose
         statusTitle.text = when (phase) {
             BridgePhase.NoAccess -> getString(R.string.phase_no_access)
             BridgePhase.Disabled -> getString(R.string.phase_disabled)
@@ -195,7 +225,32 @@ class MainActivity : AppCompatActivity() {
         toggleButton.backgroundTintList =
             ColorStateList.valueOf(color(if (idle) R.color.button_idle else R.color.button_active))
         toggleButton.setTextColor(color(if (idle) R.color.on_surface_muted else R.color.on_primary))
-        showPose(pose)
+        showPose(currentPose(pose))
+    }
+
+    /** [pose], unless Sasha is drinking in the middle of her game. */
+    private fun currentPose(pose: SashaPose): SashaPose =
+        if (drinking && pose == SashaPose.RUNNING) SashaPose.DRINKING else pose
+
+    /**
+     * Every minute or two, at random, while she is playing, Sasha stops for a drink and goes
+     * back to the ball. Runs while the screen is visible; stopping it ends the drink.
+     */
+    private suspend fun drinkNowAndThen() {
+        try {
+            while (true) {
+                delay(Random.nextLong(DRINK_INTERVAL_MIN_MS, DRINK_INTERVAL_MAX_MS))
+                val pose = phasePose ?: continue
+                if (pose != SashaPose.RUNNING) continue
+                drinking = true
+                showPose(currentPose(pose))
+                delay(DRINK_MS)
+                drinking = false
+                phasePose?.let { showPose(currentPose(it)) }
+            }
+        } finally {
+            drinking = false
+        }
     }
 
     /** Shows Sasha in [pose], starting its animations, and the hourglass while she waits. */
@@ -242,6 +297,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Opens the S Pen annotation screen. */
+    private fun openAnnotate() {
+        startActivity(Intent(this, AnnotateActivity::class.java))
+    }
+
     /** Opens the play queue of the active player; touching a track jumps to it. */
     private fun openQueue() {
         val queue = repository.queue.value ?: return
@@ -257,6 +317,11 @@ class MainActivity : AppCompatActivity() {
 
         /** Interval between seek bar updates while the screen is visible. */
         const val PROGRESS_TICK_MS = 250L
+
+        /** Sasha drinks once every 60 to 120 seconds while she plays, for about 4 seconds. */
+        const val DRINK_INTERVAL_MIN_MS = 60_000L
+        const val DRINK_INTERVAL_MAX_MS = 120_000L
+        const val DRINK_MS = 4_000L
     }
 
     /**
@@ -273,6 +338,9 @@ class MainActivity : AppCompatActivity() {
 
         /** Running after a tennis ball. */
         RUNNING(R.drawable.sasha_running),
+
+        /** Drinking from her bucket, a short break from the ball. */
+        DRINKING(R.drawable.sasha_drinking),
 
         /** Asleep. */
         SLEEPING(R.drawable.sasha_sleeping),
