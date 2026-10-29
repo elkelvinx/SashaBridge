@@ -218,6 +218,8 @@ def painter(tail):
     cv.rect(29, 1, 36, 1, "r")
     cv.rect(28, 2, 37, 2, "r")
     cv.dot("r", (38, 3), (37, 3))
+    # One pixel down, so the top of the beret keeps its outline inside the frame.
+    cv.px = {(x, y + 1): c for (x, y), c in cv.px.items()}
     return cv
 
 
