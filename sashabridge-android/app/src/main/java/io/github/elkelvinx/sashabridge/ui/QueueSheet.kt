@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.core.widget.NestedScrollView
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.media.PlayerQueue
@@ -76,6 +77,9 @@ object QueueSheet {
 
         dialog.setContentView(sheet)
         dialog.behavior.skipCollapsed = true
+        // Open in full: in landscape the peek height hides part of it, and dragging it up from
+        // the bottom edge is the system's home gesture.
+        dialog.behavior.state = BottomSheetBehavior.STATE_EXPANDED
         dialog.show()
         activeRow?.let { row ->
             sheet.findViewById<NestedScrollView>(R.id.queueScroll).doOnLayout { scroll ->

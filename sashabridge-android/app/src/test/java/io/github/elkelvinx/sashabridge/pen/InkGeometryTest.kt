@@ -102,4 +102,71 @@ class InkGeometryTest {
         assertFalse(box.contains(120f, 35f))
         assertTrue(box.contains(120f, 35f, margin = 10f))
     }
+
+    /** The corner nearest to a point, by the half of the box it is in. */
+    @Test
+    fun nearestCorner() {
+        val box = InkBounds(0f, 0f, 100f, 50f)
+
+        assertEquals(InkCorner.TOP_LEFT, box.nearestCorner(10f, 10f))
+        assertEquals(InkCorner.BOTTOM_RIGHT, box.nearestCorner(90f, 40f))
+        assertEquals(InkCorner.TOP_RIGHT, box.nearestCorner(90f, 5f))
+    }
+
+    /** Dragging the bottom-right corner stretches a rectangle with its top-left corner fixed. */
+    @Test
+    fun rectangleStretchesFreely() {
+        val rect = InkRect(0f, 0f, 100f, 50f, red, 4f)
+        val box = InkBounds(0f, 0f, 100f, 50f)
+
+        val resized = InkGeometry.resize(rect, box, InkCorner.BOTTOM_RIGHT, 100f, 0f, minSize = 10f) as InkRect
+
+        assertEquals(InkRect(0f, 0f, 200f, 50f, red, 4f), resized)
+    }
+
+    /** Dragging the top-left corner moves that corner; the bottom-right one stays. */
+    @Test
+    fun oppositeCornerStaysPut() {
+        val rect = InkRect(0f, 0f, 100f, 50f, red, 4f)
+        val box = InkBounds(0f, 0f, 100f, 50f)
+
+        val resized = InkGeometry.resize(rect, box, InkCorner.TOP_LEFT, 50f, 25f, minSize = 10f) as InkRect
+
+        assertEquals(InkRect(50f, 25f, 100f, 50f, red, 4f), resized)
+    }
+
+    /** A note grows in proportion: its letters get bigger, from the fixed corner. */
+    @Test
+    fun textGrowsInProportion() {
+        val note = InkText(0f, 20f, "hola", red, 20f)
+        val box = InkBounds(0f, 0f, 44f, 26f)
+
+        val resized = InkGeometry.resize(note, box, InkCorner.BOTTOM_RIGHT, 44f, 2f, minSize = 10f) as InkText
+
+        assertEquals(40f, resized.size, 0.001f)
+        assertEquals(0f, resized.x, 0.001f)
+        assertEquals(40f, resized.y, 0.001f)
+    }
+
+    /** A stroke scales its points and its line width alike. */
+    @Test
+    fun strokeScalesItsWidth() {
+        val stroke = InkStroke(floatArrayOf(0f, 0f, 0.5f, 10f, 10f, 0.5f), red, 2f, highlighter = false)
+
+        val scaled = InkGeometry.scale(stroke, 2f, 2f, 0f, 0f) as InkStroke
+
+        assertTrue(scaled.points.contentEquals(floatArrayOf(0f, 0f, 0.5f, 20f, 20f, 0.5f)))
+        assertEquals(4f, scaled.width, 0.001f)
+    }
+
+    /** Shrinking stops at the smallest size, and pulling past the fixed corner never flips. */
+    @Test
+    fun resizeStopsAtTheSmallestSize() {
+        val rect = InkRect(0f, 0f, 100f, 50f, red, 4f)
+        val box = InkBounds(0f, 0f, 100f, 50f)
+
+        val resized = InkGeometry.resize(rect, box, InkCorner.BOTTOM_RIGHT, -500f, -500f, minSize = 10f) as InkRect
+
+        assertEquals(InkRect(0f, 0f, 10f, 10f, red, 4f), resized)
+    }
 }

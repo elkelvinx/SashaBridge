@@ -6,15 +6,19 @@ import android.graphics.BitmapFactory
 import android.graphics.drawable.AnimationDrawable
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Base64
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -30,6 +34,7 @@ import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -50,6 +55,8 @@ import kotlinx.coroutines.withContext
  * "+" offers "Enviar", which returns the annotated PNG to the PC for its clipboard, and
  * "Descartar". While a capture is open the system bars hide and the back gesture opens those
  * same choices instead of leaving, so a pen stroke that starts at the edge loses nothing.
+ * The "Mover" button also holds "Cambiar tamaño": a double tap or a long press on it opens a
+ * small menu to choose which of the two it is.
  *
  * Main thread, except decoding and encoding the images, which run on [Dispatchers.Default].
  */
@@ -65,6 +72,7 @@ class AnnotateActivity : AppCompatActivity() {
     private lateinit var undoButton: ImageButton
     private lateinit var redoButton: ImageButton
     private lateinit var toolButtons: Map<InkTool, ImageButton>
+    private lateinit var moveButton: ImageButton
     private lateinit var colorButtons: List<View>
     private lateinit var thicknessButtons: List<ImageButton>
 
@@ -79,6 +87,12 @@ class AnnotateActivity : AppCompatActivity() {
 
     /** Whether the PC has the `/pen` route open, so a capture can be sent. */
     private var pcConnected = false
+
+    /** Tool of the "Mover" button: [InkTool.MOVE] or [InkTool.RESIZE]. */
+    private var moveSlot = InkTool.MOVE
+
+    /** When the "Mover" button was last tapped, to tell a double tap. */
+    private var lastMoveTap = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,9 +117,14 @@ class AnnotateActivity : AppCompatActivity() {
             InkTool.RECTANGLE to findViewById(R.id.toolRectangle),
             InkTool.ARROW to findViewById(R.id.toolArrow),
             InkTool.TEXT to findViewById(R.id.toolText),
-            InkTool.MOVE to findViewById(R.id.toolMove),
         )
         toolButtons.forEach { (tool, button) -> button.setOnClickListener { selectTool(tool) } }
+        moveButton = findViewById(R.id.toolMove)
+        moveButton.setOnClickListener { onMoveButtonTap() }
+        moveButton.setOnLongClickListener {
+            showMoveTools()
+            true
+        }
         colorButtons = buildColorButtons()
         thicknessButtons = listOf(findViewById(R.id.thinButton), findViewById(R.id.mediumButton), findViewById(R.id.thickButton))
         thicknessButtons.forEachIndexed { index, button -> button.setOnClickListener { selectThickness(index) } }
@@ -219,6 +238,9 @@ class AnnotateActivity : AppCompatActivity() {
         }
         dialog.setContentView(sheet)
         dialog.behavior.skipCollapsed = true
+        // Open in full: in landscape the peek height hides part of it, and dragging it up from
+        // the bottom edge is the system's home gesture.
+        dialog.behavior.state = BottomSheetBehavior.STATE_EXPANDED
         dialog.show()
     }
 
@@ -316,6 +338,42 @@ class AnnotateActivity : AppCompatActivity() {
     private fun selectTool(tool: InkTool) {
         canvas.tool = tool
         toolButtons.forEach { (each, button) -> button.isSelected = each == tool }
+        moveButton.isSelected = tool.holdsMarks
+    }
+
+    /** A tap picks the button's tool; a second tap soon after opens the menu of its tools. */
+    private fun onMoveButtonTap() {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastMoveTap < ViewConfiguration.getDoubleTapTimeout()) {
+            lastMoveTap = 0L
+            showMoveTools()
+        } else {
+            lastMoveTap = now
+            selectTool(moveSlot)
+        }
+    }
+
+    /** Opens, over the "Mover" button, the menu to choose between moving and resizing. */
+    private fun showMoveTools() {
+        PopupMenu(this, moveButton, Gravity.TOP).apply {
+            menuInflater.inflate(R.menu.menu_move_tools, menu)
+            setForceShowIcon(true)
+            menu.findItem(if (moveSlot == InkTool.RESIZE) R.id.moveToolResize else R.id.moveToolMove).isChecked = true
+            setOnMenuItemClickListener { item ->
+                setMoveSlot(if (item.itemId == R.id.moveToolResize) InkTool.RESIZE else InkTool.MOVE)
+                true
+            }
+            show()
+        }
+    }
+
+    /** Makes [tool] the tool of the "Mover" button, with its icon, and selects it. */
+    private fun setMoveSlot(tool: InkTool) {
+        moveSlot = tool
+        val resize = tool == InkTool.RESIZE
+        moveButton.setImageResource(if (resize) R.drawable.ic_resize else R.drawable.ic_move)
+        moveButton.contentDescription = getString(if (resize) R.string.annotate_tool_resize else R.string.annotate_tool_move)
+        selectTool(tool)
     }
 
     private fun selectColor(index: Int) {

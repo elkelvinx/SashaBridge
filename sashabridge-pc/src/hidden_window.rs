@@ -7,12 +7,16 @@
 //!
 //! For the S Pen annotation mode the window:
 //! - listens to the clipboard and reports every image copied by another program
-//!   ([`WindowEvent::ImageCopied`]);
+//!   ([`WindowEvent::ImageCopied`]). The snipping tool writes the clipboard more than once
+//!   per capture, so notifications are gathered for [`CLIPBOARD_SETTLE`] before the clipboard
+//!   is read, and an image identical to the last one reported is dropped for
+//!   [`REPEAT_WINDOW`];
 //! - registers Ctrl+Alt+A, which opens the Windows snipping overlay and marks the next
 //!   copied image as explicitly asked for, so it is sent even when the phone is not waiting.
 
 use std::cell::{Cell, OnceCell};
 use std::ffi::c_void;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io;
 use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
@@ -27,8 +31,8 @@ use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, MOD_CONTROL, MOD_NOREPEAT, RegisterHotKey};
 use windows_sys::Win32::UI::Shell::ShellExecuteW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, MSG, RegisterClassW, SW_SHOWNORMAL,
-    WM_CLIPBOARDUPDATE, WM_HOTKEY, WNDCLASSW, WS_OVERLAPPED,
+    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, KillTimer, MSG, RegisterClassW, SW_SHOWNORMAL,
+    SetTimer, WM_CLIPBOARDUPDATE, WM_HOTKEY, WM_TIMER, WNDCLASSW, WS_OVERLAPPED,
 };
 
 use crate::bitmap::Rgba;
@@ -48,6 +52,15 @@ const ANNOTATE_KEY: u32 = b'A' as u32;
 
 /// How long after Ctrl+Alt+A a copied image still counts as the one asked for.
 const SHORTCUT_WINDOW: Duration = Duration::from_secs(60);
+
+/// Identifier of the timer that gathers clipboard notifications.
+const CLIPBOARD_TIMER: usize = 1;
+
+/// Quiet time after the last clipboard notification before the clipboard is read.
+const CLIPBOARD_SETTLE: Duration = Duration::from_millis(300);
+
+/// How long an image identical to the last one reported is ignored.
+const REPEAT_WINDOW: Duration = Duration::from_secs(10);
 
 /// Something the hidden window noticed, for the annotation mode.
 #[derive(Debug)]
@@ -100,6 +113,8 @@ thread_local! {
     static EVENTS: OnceCell<UnboundedSender<WindowEvent>> = const { OnceCell::new() };
     /// Until when a copied image answers Ctrl+Alt+A.
     static SHORTCUT_UNTIL: Cell<Option<Instant>> = const { Cell::new(None) };
+    /// Fingerprint of the last image reported and when it was reported.
+    static LAST_IMAGE: Cell<Option<(u64, Instant)>> = const { Cell::new(None) };
 }
 
 /// Creates the hidden window on a new thread and returns its handle.
@@ -227,6 +242,10 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
             on_clipboard_update(hwnd);
             0
         }
+        WM_TIMER if wparam == CLIPBOARD_TIMER => {
+            on_clipboard_settled(hwnd);
+            0
+        }
         WM_HOTKEY if wparam == ANNOTATE_HOTKEY as usize => {
             on_annotate_shortcut();
             0
@@ -236,8 +255,27 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
     }
 }
 
-/// Reports an image copied by another program; the client's own annotations are skipped.
+/// (Re)starts the timer that reads the clipboard once it stops changing; the client's own
+/// annotations are skipped.
 fn on_clipboard_update(hwnd: HWND) {
+    // SAFETY: a plain query.
+    if unsafe { GetClipboardOwner() } == hwnd {
+        return;
+    }
+    // A u32 holds the 300 ms delay.
+    let delay = CLIPBOARD_SETTLE.as_millis() as u32;
+    // SAFETY: `hwnd` is this thread's window; setting an existing timer again restarts it,
+    // and without a callback it posts WM_TIMER to the window.
+    if unsafe { SetTimer(hwnd, CLIPBOARD_TIMER, delay, None) } == 0 {
+        warn!(error = %io::Error::last_os_error(), "cannot wait for the clipboard to settle; reading it now");
+        on_clipboard_settled(hwnd);
+    }
+}
+
+/// Reports the image another program copied, unless it repeats the last one reported.
+fn on_clipboard_settled(hwnd: HWND) {
+    // SAFETY: `hwnd` is this thread's window; killing a timer that is not set is harmless.
+    unsafe { KillTimer(hwnd, CLIPBOARD_TIMER) };
     // SAFETY: a plain query.
     if unsafe { GetClipboardOwner() } == hwnd || !clipboard::has_image() {
         return;
@@ -249,7 +287,14 @@ fn on_clipboard_update(hwnd: HWND) {
             return;
         }
     };
-    let forced = SHORTCUT_UNTIL.with(|until| until.take().is_some_and(|deadline| Instant::now() < deadline));
+    let now = Instant::now();
+    let fingerprint = fingerprint(&image);
+    let forced = SHORTCUT_UNTIL.with(|until| until.take().is_some_and(|deadline| now < deadline));
+    let last = LAST_IMAGE.with(|last| last.replace(Some((fingerprint, now))));
+    if !forced && is_repeat(last, fingerprint, now) {
+        debug!(width = image.width, height = image.height, "ignoring the same image copied again");
+        return;
+    }
     debug!(width = image.width, height = image.height, forced, "image copied");
     EVENTS.with(|cell| {
         if let Some(events) = cell.get() {
@@ -257,6 +302,21 @@ fn on_clipboard_update(hwnd: HWND) {
             let _ = events.send(WindowEvent::ImageCopied { image, forced });
         }
     });
+}
+
+/// Fingerprint of an image's size and pixels, to recognise the same capture copied twice.
+fn fingerprint(image: &Rgba) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    image.width.hash(&mut hasher);
+    image.height.hash(&mut hasher);
+    image.pixels.hash(&mut hasher);
+    hasher.finish()
+}
+
+/// Whether an image with `fingerprint`, copied at `now`, repeats `last`, the fingerprint and
+/// time of the image reported before it.
+fn is_repeat(last: Option<(u64, Instant)>, fingerprint: u64, now: Instant) -> bool {
+    last.is_some_and(|(previous, at)| previous == fingerprint && now.saturating_duration_since(at) < REPEAT_WINDOW)
 }
 
 /// Opens the Windows snipping overlay; the image it copies is then sent to the phone.
@@ -286,4 +346,36 @@ fn on_annotate_shortcut() {
 /// Encodes `text` as a NUL-terminated UTF-16 string for the wide Win32 APIs.
 fn to_wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn image(fill: u8) -> Rgba {
+        Rgba { width: 2, height: 1, pixels: vec![fill; 8] }
+    }
+
+    #[test]
+    fn same_pixels_give_the_same_fingerprint() {
+        assert_eq!(fingerprint(&image(7)), fingerprint(&image(7)));
+        assert_ne!(fingerprint(&image(7)), fingerprint(&image(8)));
+    }
+
+    #[test]
+    fn size_is_part_of_the_fingerprint() {
+        let wide = Rgba { width: 2, height: 1, pixels: vec![0; 8] };
+        let tall = Rgba { width: 1, height: 2, pixels: vec![0; 8] };
+        assert_ne!(fingerprint(&wide), fingerprint(&tall));
+    }
+
+    #[test]
+    fn the_same_image_soon_after_is_a_repeat() {
+        let start = Instant::now();
+        let last = Some((42, start));
+        assert!(is_repeat(last, 42, start + Duration::from_secs(1)));
+        assert!(!is_repeat(last, 43, start + Duration::from_secs(1)));
+        assert!(!is_repeat(last, 42, start + REPEAT_WINDOW));
+        assert!(!is_repeat(None, 42, start));
+    }
 }

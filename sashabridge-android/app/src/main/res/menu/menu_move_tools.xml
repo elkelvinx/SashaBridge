@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tools of the "Mover" button in "Anotar", opened by a double tap or a long press on it. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/moveToolMove"
+            android:icon="@drawable/ic_move"
+            android:iconTint="?android:attr/textColorPrimary"
+            android:title="@string/annotate_tool_move" />
+        <item
+            android:id="@+id/moveToolResize"
+            android:icon="@drawable/ic_resize"
+            android:iconTint="?android:attr/textColorPrimary"
+            android:title="@string/annotate_tool_resize" />
+    </group>
+</menu>

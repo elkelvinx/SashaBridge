@@ -78,6 +78,8 @@
     <string name="annotate_tool_arrow">Flecha</string>
     <string name="annotate_tool_text">Texto</string>
     <string name="annotate_tool_move">Mover</string>
+    <string name="annotate_tool_resize">Cambiar tamaño</string>
+    <string name="annotate_move_tools_hint">Toca dos veces o mantén pulsado para elegir entre mover y cambiar tamaño</string>
     <string name="annotate_color">Color %1$d</string>
     <string name="annotate_thin">Fino</string>
     <string name="annotate_medium">Medio</string>

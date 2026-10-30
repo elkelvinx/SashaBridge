@@ -1,5 +1,6 @@
 package io.github.elkelvinx.sashabridge.pen
 
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -96,9 +97,35 @@ const val TEXT_LINE_SPACING = 1.2f
 /** A box in capture pixels, such as the area a mark covers. */
 data class InkBounds(val left: Float, val top: Float, val right: Float, val bottom: Float) {
 
+    /** Width of the box. */
+    val width: Float get() = right - left
+
+    /** Height of the box. */
+    val height: Float get() = bottom - top
+
     /** Whether (x, y) is inside the box grown by [margin] on every side. */
     fun contains(x: Float, y: Float, margin: Float = 0f): Boolean =
         x in (left - margin)..(right + margin) && y in (top - margin)..(bottom + margin)
+
+    /** The corner closest to (x, y). */
+    fun nearestCorner(x: Float, y: Float): InkCorner {
+        val right = x > (left + right) / 2
+        val bottom = y > (top + bottom) / 2
+        return InkCorner.entries.first { it.right == right && it.bottom == bottom }
+    }
+}
+
+/**
+ * A corner of an [InkBounds], the one the pen drags to resize a mark.
+ *
+ * @property right Whether it is on the right side.
+ * @property bottom Whether it is on the bottom side.
+ */
+enum class InkCorner(val right: Boolean, val bottom: Boolean) {
+    TOP_LEFT(right = false, bottom = false),
+    TOP_RIGHT(right = true, bottom = false),
+    BOTTOM_LEFT(right = false, bottom = true),
+    BOTTOM_RIGHT(right = true, bottom = true),
 }
 
 /** Geometry of the marks. Pure and thread-safe. */
@@ -220,6 +247,67 @@ object InkGeometry {
         is InkArrow -> shape.copy(x1 = shape.x1 + dx, y1 = shape.y1 + dy, x2 = shape.x2 + dx, y2 = shape.y2 + dy)
         is InkText -> shape.copy(x = shape.x + dx, y = shape.y + dy)
     }
+
+    /**
+     * Whether resizing [shape] keeps its proportions: a stretched text or handwriting would
+     * look distorted, while rectangles, lines and arrows stretch freely.
+     */
+    fun keepsProportions(shape: InkShape): Boolean = shape is InkStroke || shape is InkText
+
+    /**
+     * Returns a copy of [shape] scaled by [fx] across and [fy] down, around (pivotX, pivotY).
+     * Strokes also scale their line width, and text its size, by [fx]: pass the same factor
+     * for both axes for those. Rectangles, lines and arrows keep their line width.
+     */
+    fun scale(shape: InkShape, fx: Float, fy: Float, pivotX: Float, pivotY: Float): InkShape {
+        fun x(value: Float) = pivotX + (value - pivotX) * fx
+        fun y(value: Float) = pivotY + (value - pivotY) * fy
+        return when (shape) {
+            is InkStroke -> InkStroke(
+                FloatArray(shape.points.size) { i ->
+                    when (i % 3) {
+                        0 -> x(shape.points[i])
+                        1 -> y(shape.points[i])
+                        else -> shape.points[i]
+                    }
+                },
+                shape.color,
+                shape.width * fx,
+                shape.highlighter,
+            )
+            is InkLine -> shape.copy(x1 = x(shape.x1), y1 = y(shape.y1), x2 = x(shape.x2), y2 = y(shape.y2))
+            is InkRect -> shape.copy(x1 = x(shape.x1), y1 = y(shape.y1), x2 = x(shape.x2), y2 = y(shape.y2))
+            is InkArrow -> shape.copy(x1 = x(shape.x1), y1 = y(shape.y1), x2 = x(shape.x2), y2 = y(shape.y2))
+            is InkText -> shape.copy(x = x(shape.x), y = y(shape.y), size = shape.size * fx)
+        }
+    }
+
+    /**
+     * Resizes [shape], whose box is [from], by dragging [corner] (dx, dy) capture pixels while
+     * the opposite corner stays put. Shapes that [keepsProportions] follow the axis the pen
+     * moved most along. Neither side shrinks below [minSize], nor below its size if it is
+     * already smaller, and the shape never flips.
+     */
+    fun resize(shape: InkShape, from: InkBounds, corner: InkCorner, dx: Float, dy: Float, minSize: Float): InkShape {
+        val lowX = lowestFactor(from.width, minSize)
+        val lowY = lowestFactor(from.height, minSize)
+        var fx = factor(from.width, if (corner.right) dx else -dx).coerceAtLeast(lowX)
+        var fy = factor(from.height, if (corner.bottom) dy else -dy).coerceAtLeast(lowY)
+        if (keepsProportions(shape)) {
+            val f = (if (abs(fx - 1) >= abs(fy - 1)) fx else fy).coerceAtLeast(max(lowX, lowY))
+            fx = f
+            fy = f
+        }
+        val pivotX = if (corner.right) from.left else from.right
+        val pivotY = if (corner.bottom) from.top else from.bottom
+        return scale(shape, fx, fy, pivotX, pivotY)
+    }
+
+    /** Scale that takes a side of [size] to `size + grow`; 1 for a side with no size. */
+    private fun factor(size: Float, grow: Float): Float = if (size <= 0f) 1f else (size + grow) / size
+
+    /** Smallest scale for a side of [size]: down to [minSize], or none if it is smaller already. */
+    private fun lowestFactor(size: Float, minSize: Float): Float = if (size <= 0f) 1f else min(minSize, size) / size
 
     /** Distance from (px, py) to the segment from (ax, ay) to (bx, by). */
     fun distanceToSegment(px: Float, py: Float, ax: Float, ay: Float, bx: Float, by: Float): Float {

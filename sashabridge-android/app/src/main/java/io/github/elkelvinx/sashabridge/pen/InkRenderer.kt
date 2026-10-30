@@ -34,6 +34,10 @@ class InkRenderer {
         style = Paint.Style.STROKE
         color = SELECTION_COLOR
     }
+    private val handleFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = SELECTION_COLOR
+    }
 
     /** Draws every shape, in order. */
     fun draw(canvas: Canvas, shapes: List<InkShape>) {
@@ -71,19 +75,32 @@ class InkRenderer {
     }
 
     /**
-     * Draws the dashed box around the mark the move tool holds: white dashes over a dark line,
-     * so it shows on any capture. Screen only; exported images never have it.
+     * Draws the dashed box around the mark the move or resize tool holds: white dashes over a
+     * dark line, so it shows on any capture. Screen only; exported images never have it.
      *
      * @param dp Capture pixels per screen dp at the current zoom, so the box looks the same
      *   at any zoom.
+     * @param handles Whether to draw a square handle on each corner, for resizing.
      */
-    fun drawSelection(canvas: Canvas, bounds: InkBounds, dp: Float) {
+    fun drawSelection(canvas: Canvas, bounds: InkBounds, dp: Float, handles: Boolean = false) {
         val pad = SELECTION_PADDING_DP * dp
+        val left = bounds.left - pad
+        val top = bounds.top - pad
+        val right = bounds.right + pad
+        val bottom = bounds.bottom + pad
         selectionShadow.strokeWidth = (SELECTION_WIDTH_DP + 1) * dp
         selection.strokeWidth = SELECTION_WIDTH_DP * dp
         selection.pathEffect = DashPathEffect(floatArrayOf(DASH_DP * dp, DASH_DP * dp), 0f)
         for (paint in listOf(selectionShadow, selection)) {
-            canvas.drawRect(bounds.left - pad, bounds.top - pad, bounds.right + pad, bounds.bottom + pad, paint)
+            canvas.drawRect(left, top, right, bottom, paint)
+        }
+        if (!handles) return
+        val half = HANDLE_DP * dp / 2
+        for (x in floatArrayOf(left, right)) {
+            for (y in floatArrayOf(top, bottom)) {
+                canvas.drawRect(x - half, y - half, x + half, y + half, handleFill)
+                canvas.drawRect(x - half, y - half, x + half, y + half, selectionShadow)
+            }
         }
     }
 
@@ -134,5 +151,8 @@ class InkRenderer {
         const val SELECTION_WIDTH_DP = 1.5f
         const val SELECTION_PADDING_DP = 6f
         const val DASH_DP = 6f
+
+        /** Side of a resize handle, in screen dp. */
+        const val HANDLE_DP = 10f
     }
 }

@@ -17,12 +17,16 @@ import kotlinx.coroutines.flow.getAndUpdate
  *
  * - The screen reports whether it waits for captures ([armed]), and the PC learns it through
  *   `annotate.status`.
- * - Captures from the PC wait in [pendingCapture] until the screen takes them.
+ * - Captures from the PC wait in [pendingCapture] until the screen takes them. A capture with
+ *   the same image as the one taken last, arriving within [REPEAT_WINDOW_MS], is turned down
+ *   with `annotate.cancelled`, so a capture the PC sends twice opens once.
  * - The screen's answers ([replies]) go back to the PC.
  *
  * One process-wide instance, [shared]; tests create their own. Every member is thread-safe.
+ *
+ * @param clock Milliseconds of a monotonic clock, replaceable in tests.
  */
-class AnnotationRepository {
+class AnnotationRepository(private val clock: () -> Long = { System.nanoTime() / NANOS_PER_MILLI }) {
 
     private val mutableArmed = MutableStateFlow(false)
     private val mutablePenConnected = MutableStateFlow(false)
@@ -31,6 +35,9 @@ class AnnotationRepository {
         extraBufferCapacity = REPLY_BUFFER,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
+
+    /** Image of the capture taken last and when, or `null`. Guarded by `this`. */
+    private var lastTaken: TakenImage? = null
 
     /** Whether the annotation screen is open and waiting, so the PC may send copied images. */
     val armed: StateFlow<Boolean> = mutableArmed.asStateFlow()
@@ -64,11 +71,18 @@ class AnnotationRepository {
 
     /**
      * Keeps a capture from the PC until the screen opens it. A newer capture replaces one that
-     * was never opened. Any thread.
+     * was never opened; a repeat of the capture taken last is turned down instead. Any thread.
      *
      * @param capture The capture.
      */
     fun offer(capture: PcMessage.AnnotateRequest) {
+        val repeated = synchronized(this) {
+            lastTaken?.let { it.matches(capture.data) && clock() - it.at < REPEAT_WINDOW_MS } == true
+        }
+        if (repeated) {
+            reply(PhoneMessage.AnnotateCancelled(capture.requestId))
+            return
+        }
         mutablePendingCapture.value = capture
     }
 
@@ -77,7 +91,11 @@ class AnnotationRepository {
      *
      * @return The capture, which is no longer pending, or `null`.
      */
-    fun take(): PcMessage.AnnotateRequest? = mutablePendingCapture.getAndUpdate { null }
+    fun take(): PcMessage.AnnotateRequest? {
+        val capture = mutablePendingCapture.getAndUpdate { null } ?: return null
+        synchronized(this) { lastTaken = TakenImage(capture.data.length, capture.data.hashCode(), clock()) }
+        return capture
+    }
 
     /**
      * Sends an answer to the PC. Any thread.
@@ -88,10 +106,26 @@ class AnnotationRepository {
         mutableReplies.tryEmit(reply)
     }
 
+    /**
+     * Fingerprint of a taken capture's base64 image: its length and hash.
+     *
+     * @property at When it was taken, in [clock] milliseconds.
+     */
+    private data class TakenImage(val length: Int, val hash: Int, val at: Long) {
+
+        /** Whether [data] is, in all likelihood, the same image. */
+        fun matches(data: String): Boolean = data.length == length && data.hashCode() == hash
+    }
+
     companion object {
 
         /** Answers buffered while the `/pen` session sends the previous ones. */
         private const val REPLY_BUFFER = 4
+
+        /** How long a repeat of the capture taken last is turned down. */
+        const val REPEAT_WINDOW_MS = 10_000L
+
+        private const val NANOS_PER_MILLI = 1_000_000L
 
         /** The process-wide instance. */
         val shared = AnnotationRepository()

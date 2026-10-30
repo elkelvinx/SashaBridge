@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Matrix
+import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -38,6 +39,13 @@ enum class InkTool {
 
     /** Picks up a mark and drags it somewhere else. */
     MOVE,
+
+    /** Picks up a mark and drags a corner of its box to make it bigger or smaller. */
+    RESIZE,
+    ;
+
+    /** Whether the tool holds a mark, rather than drawing one. */
+    val holdsMarks: Boolean get() = this == MOVE || this == RESIZE
 }
 
 /**
@@ -46,7 +54,10 @@ enum class InkTool {
  * - Only the pen draws, so a palm resting on the screen does nothing. Its eraser end, or the
  *   side button held down, erases whole marks.
  * - With [InkTool.MOVE], the pen picks up the mark it touches (or whose box it touches) and
- *   drags it; a dashed box shows which one it holds.
+ *   drags it; a dashed box shows which one it holds. [DragSession] keeps the drag whole when
+ *   the pen loses contact for a moment.
+ * - With [InkTool.RESIZE], the pen holds a mark the same way and drags the corner of its box
+ *   nearest to where it touched; the opposite corner stays put ([InkGeometry.resize]).
  * - Fingers move and zoom the capture; a double tap fits it to the screen again.
  * - With gesture navigation, a stroke that starts at a side edge draws instead of going back
  *   ([EdgeGuard]).
@@ -60,11 +71,14 @@ class InkCanvasView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
 ) : View(context, attrs) {
 
-    /** Tool the pen draws with. Leaving the move tool lets go of the mark it held. */
+    /**
+     * Tool the pen draws with. Switching between moving and resizing keeps the held mark;
+     * any other tool lets go of it.
+     */
     var tool: InkTool = InkTool.PEN
         set(value) {
             field = value
-            if (value != InkTool.MOVE) deselect()
+            if (value.holdsMarks) endDrag() else deselect()
         }
 
     /** Color of the next marks, as ARGB. */
@@ -107,11 +121,11 @@ class InkCanvasView @JvmOverloads constructor(
     /** Index in [shapes] of the mark the move tool holds, or -1. */
     private var selected = -1
 
-    /** The held mark where the drag started, the marks before it, and where the pen grabbed it. */
-    private var dragOrigin: InkShape? = null
-    private var beforeDrag: List<InkShape>? = null
-    private var grabX = 0f
-    private var grabY = 0f
+    /** The drag of the held mark. */
+    private val drag = DragSession()
+
+    /** Corner of the held mark's box that the resize tool drags. */
+    private var resizeCorner = InkCorner.BOTTOM_RIGHT
 
     /** Capture pixels to screen pixels, and back. */
     private val toScreen = Matrix()
@@ -254,7 +268,12 @@ class InkCanvasView @JvmOverloads constructor(
             renderer.draw(this, shapes)
             current?.let { renderer.draw(this, it) }
             shapes.getOrNull(selected)?.let { held ->
-                renderer.drawSelection(this, InkGeometry.bounds(held), resources.displayMetrics.density / currentScale())
+                renderer.drawSelection(
+                    this,
+                    InkGeometry.bounds(held),
+                    resources.displayMetrics.density / currentScale(),
+                    handles = tool == InkTool.RESIZE,
+                )
             }
         }
     }
@@ -295,7 +314,7 @@ class InkCanvasView @JvmOverloads constructor(
                         redoStack.clear()
                         erase(x, y)
                     }
-                    tool == InkTool.MOVE -> pickUp(x, y)
+                    tool.holdsMarks -> pickUp(x, y, event.eventTime)
                     else -> begin(x, y, event.pressure)
                 }
             }
@@ -306,7 +325,8 @@ class InkCanvasView @JvmOverloads constructor(
                 move(event.x, event.y, event.pressure)
             }
             MotionEvent.ACTION_UP -> {
-                move(event.x, event.y, event.pressure)
+                // The lift point of the move tool adds nothing and can land off the last one.
+                if (!tool.holdsMarks || erasing) move(event.x, event.y, event.pressure)
                 when {
                     erasing -> {
                         // An eraser pass that touched nothing leaves no step to undo.
@@ -314,14 +334,15 @@ class InkCanvasView @JvmOverloads constructor(
                         erasing = false
                         changed()
                     }
-                    tool == InkTool.MOVE -> drop()
+                    tool.holdsMarks -> drop(event.eventTime)
                     else -> end()
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
                 current = null
                 erasing = false
-                cancelDrag()
+                // The mark stays where the pen left it.
+                drop(event.eventTime)
             }
         }
     }
@@ -345,7 +366,7 @@ class InkCanvasView @JvmOverloads constructor(
             InkTool.LINE -> InkLine(x, y, x, y, color, lineWidth())
             InkTool.RECTANGLE -> InkRect(x, y, x, y, color, lineWidth())
             InkTool.ARROW -> InkArrow(x, y, x, y, color, lineWidth())
-            InkTool.TEXT, InkTool.MOVE -> null
+            InkTool.TEXT, InkTool.MOVE, InkTool.RESIZE -> null
         }
     }
 
@@ -356,7 +377,7 @@ class InkCanvasView @JvmOverloads constructor(
             erase(x, y)
             return
         }
-        if (tool == InkTool.MOVE) {
+        if (tool.holdsMarks) {
             drag(x, y)
             return
         }
@@ -418,8 +439,10 @@ class InkCanvasView @JvmOverloads constructor(
      * Holds the mark at capture coordinates (x, y) for dragging: the held one if the pen is in
      * its box, else the topmost mark the pen touches, else the topmost whose box it is in (so a
      * rectangle can be grabbed by its middle). Touching nothing lets go.
+     *
+     * @param now Event time, to resume a drag the pen lifted from a moment ago.
      */
-    private fun pickUp(x: Float, y: Float) {
+    private fun pickUp(x: Float, y: Float, now: Long) {
         val tolerance = ERASER_RADIUS_PX / currentScale()
         val held = shapes.getOrNull(selected)
         selected = when {
@@ -429,51 +452,52 @@ class InkCanvasView @JvmOverloads constructor(
                 ?: shapes.indexOfLast { InkGeometry.bounds(it).contains(x, y, tolerance) }
         }
         val shape = shapes.getOrNull(selected) ?: return
-        dragOrigin = shape
-        beforeDrag = shapes.toList()
-        grabX = x
-        grabY = y
-    }
-
-    /** Moves the held mark so the point the pen grabbed follows the pen to (x, y). */
-    private fun drag(x: Float, y: Float) {
-        val origin = dragOrigin ?: return
-        shapes[selected] = InkGeometry.translate(origin, x - grabX, y - grabY)
+        if (!drag.press(selected, shape, shapes.toList(), x, y, now)) {
+            resizeCorner = InkGeometry.bounds(shape).nearestCorner(x, y)
+        }
     }
 
     /**
-     * Ends a drag as one undoable step; a drag shorter than a tap leaves the mark where it was,
-     * so selecting a mark never nudges it.
+     * Moves the held mark so the point the pen grabbed follows the pen to (x, y), or, when
+     * resizing, so the corner it grabbed does.
      */
-    private fun drop() {
-        val origin = dragOrigin ?: return
-        val before = beforeDrag ?: return
-        val from = InkGeometry.bounds(origin)
-        val to = InkGeometry.bounds(shapes[selected])
-        if (hypot(to.left - from.left, to.top - from.top) >= tapSlop()) {
-            undoStack.addLast(before)
-            redoStack.clear()
-            changed()
+    private fun drag(x: Float, y: Float) {
+        val (dx, dy) = drag.moveTo(x, y, tapSlop()) ?: return
+        val origin = drag.origin ?: return
+        if (drag.index != selected) return
+        shapes[selected] = if (tool == InkTool.RESIZE) {
+            InkGeometry.resize(origin, InkGeometry.bounds(origin), resizeCorner, dx, dy, MIN_MARK_PX / currentScale())
         } else {
-            shapes[selected] = origin
+            InkGeometry.translate(origin, dx, dy)
         }
-        dragOrigin = null
-        beforeDrag = null
     }
 
-    /** Puts a mark being dragged back where it was. */
-    private fun cancelDrag() {
-        val origin = dragOrigin ?: return
-        shapes[selected] = origin
-        dragOrigin = null
-        beforeDrag = null
+    /**
+     * The pen lifted, or the system took the touch away: the mark stays where it is, and the
+     * first time a drag moved it, that is one step to undo.
+     */
+    private fun drop(now: Long) {
+        drag.release(now)?.let(::pushStep)
     }
 
-    /** Lets go of the mark the move tool holds. */
+    /** Lets go of the mark the move or resize tool holds. */
     private fun deselect() {
-        cancelDrag()
+        endDrag()
         selected = -1
         invalidate()
+    }
+
+    /** Ends the drag for good, keeping the mark held: a new touch starts a new drag. */
+    private fun endDrag() {
+        drag.finish(SystemClock.uptimeMillis())?.let(::pushStep)
+        invalidate()
+    }
+
+    /** Records [before], the marks before a drag, as the step to undo it. */
+    private fun pushStep(before: List<InkShape>) {
+        undoStack.addLast(before)
+        redoStack.clear()
+        changed()
     }
 
     /** The stroke being drawn, from [strokePoints]. */
@@ -552,5 +576,8 @@ class InkCanvasView @JvmOverloads constructor(
         /** Reach of the eraser and size of a tap, in screen pixels. */
         const val ERASER_RADIUS_PX = 24f
         const val TAP_SLOP_PX = 18f
+
+        /** Smallest side a resized mark can shrink to, in screen pixels. */
+        const val MIN_MARK_PX = 36f
     }
 }
