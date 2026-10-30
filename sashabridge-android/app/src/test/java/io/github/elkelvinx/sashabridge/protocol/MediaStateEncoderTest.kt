@@ -31,6 +31,8 @@ class MediaStateEncoderTest {
         playbackSpeed = 1.0f,
         shuffle = ShuffleMode.SMART,
         art = art,
+        canLike = true,
+        liked = true,
     )
 
     /** Types of the encoded messages, in order. */

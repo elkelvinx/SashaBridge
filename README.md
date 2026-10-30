@@ -50,7 +50,7 @@ Sin `-InstallApp` no hace falta el teléfono. El proceso completo, incluidos los
 
 ## Uso
 
-En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar los modos aleatorio y repetir, mover la posición y ver la cola de la app que suena. Tocar el icono de la app que suena (Spotify, YouTube Music...) la abre. En horizontal muestra el estado y el reproductor en dos columnas. Su botón principal, en vertical, enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
+En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar los modos aleatorio y repetir, dar "me gusta" (el corazón de Spotify o el pulgar de YouTube Music), mover la posición y ver la cola de la app que suena. Tocar el icono de la app que suena (Spotify, YouTube Music...) la abre. En horizontal muestra el estado y el reproductor en dos columnas. Su botón principal, en vertical, enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
 
 En la PC:
 
@@ -71,6 +71,10 @@ cargo run
 
 - **Carátulas:** se guardan en `%TEMP%\sashabridge\covers\`. Solo se conserva la actual y la carpeta se vacía en cada arranque.
 - **Notificaciones:** al arrancar, el cliente registra su nombre e icono para las notificaciones de Windows en `HKCU\Software\Classes\AppUserModelId\io.github.elkelvinx.SashaBridge`, con el icono en `%LOCALAPPDATA%\SashaBridge\`. Si Windows las rechaza, el aviso es un sonido.
+
+### Me gusta desde la PC
+
+Con `Ctrl+Alt+L` la canción que suena en el teléfono pasa a "Tus me gusta" de Spotify o a "Me gusta" de YouTube Music; si ya estaba, se quita. Una notificación silenciosa de Windows lo confirma con la carátula.
 
 ### Anotar
 

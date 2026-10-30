@@ -207,6 +207,9 @@ pub struct MediaState {
     pub shuffle: Option<ShuffleMode>,
     /// Album art of the track; `None` means that the track has none.
     pub art_id: Option<String>,
+    /// Whether the user likes the track; `None` when the player has no like button or does
+    /// not reveal it. Phones before version 2.3 leave it out.
+    pub liked: Option<bool>,
 }
 
 /// Values of [`MediaState::shuffle`].
@@ -339,6 +342,8 @@ pub enum Command {
     },
     /// Presses the player's own shuffle button, which moves to its next shuffle mode.
     ToggleShuffle,
+    /// Presses the player's own like button, which likes the track or takes the like back.
+    ToggleLike,
 }
 
 /// Wire form of [`Command`], before the action and the position are checked together.
@@ -369,6 +374,8 @@ enum CommandAction {
     Seek,
     /// See [`Command::ToggleShuffle`].
     ToggleShuffle,
+    /// See [`Command::ToggleLike`].
+    ToggleLike,
 }
 
 impl TryFrom<WireCommand> for Command {
@@ -387,6 +394,7 @@ impl TryFrom<WireCommand> for Command {
             (CommandAction::Next, None) => Self::Next,
             (CommandAction::Previous, None) => Self::Previous,
             (CommandAction::ToggleShuffle, None) => Self::ToggleShuffle,
+            (CommandAction::ToggleLike, None) => Self::ToggleLike,
         };
         Ok(command)
     }
@@ -403,6 +411,7 @@ impl From<Command> for WireCommand {
             Command::Previous => (CommandAction::Previous, None),
             Command::Seek { position_ms } => (CommandAction::Seek, Some(position_ms)),
             Command::ToggleShuffle => (CommandAction::ToggleShuffle, None),
+            Command::ToggleLike => (CommandAction::ToggleLike, None),
         };
         Self { action, position_ms }
     }

@@ -80,7 +80,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textAppearance="?attr/textAppearanceBodySmall"
             android:textColor="@color/on_surface_muted"
             tools:text="Las teclas multimedia de la PC controlan este teléfono." />
 
@@ -99,9 +99,11 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
+        <!-- As wide as the card allows, up to 180 dp (3 dp per sprite pixel); SashaView keeps
+             her proportions, so she shrinks whole in a narrow card. -->
         <io.github.elkelvinx.sashabridge.ui.SashaView
             android:id="@+id/sasha"
-            android:layout_width="180dp"
+            android:layout_width="match_parent"
             android:layout_height="60dp"
             android:layout_gravity="center_horizontal" />
 

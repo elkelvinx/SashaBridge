@@ -9,6 +9,7 @@
 //! sends its state and the PC its commands, all in protocol v2.
 
 use std::convert::Infallible;
+use std::time::Instant;
 
 use anyhow::{Context, bail};
 use futures_util::{SinkExt, StreamExt};
@@ -23,7 +24,9 @@ use tracing::{debug, info, warn};
 use crate::backoff::Backoff;
 use crate::config::{AUDIO_WATCHDOG_PERIOD, BACKOFF_INITIAL, BACKOFF_MAX, CONNECT_TIMEOUT, bridge_url};
 use crate::media_controls::MediaControls;
+use crate::hidden_window::Announcer;
 use crate::now_playing::{Display, NowPlaying};
+use crate::osd::Announcement;
 use crate::process::DeviceLink;
 use crate::protocol::v2::{PROTOCOL_VERSION, PhoneMessage};
 use crate::protocol::{PcCommand, decode_phone_frame, pc_hello};
@@ -39,6 +42,7 @@ pub async fn run(
     controls: &mut MediaControls,
     now_playing: &mut NowPlaying,
     commands: &mut mpsc::Receiver<PcCommand>,
+    announcer: Announcer,
 ) -> Infallible {
     let url = bridge_url();
     let mut backoff = Backoff::new(BACKOFF_INITIAL, BACKOFF_MAX);
@@ -47,7 +51,7 @@ pub async fn run(
             Ok(socket) => {
                 info!("connected to the phone");
                 backoff.reset();
-                run_session(socket, link, controls, now_playing, commands).await;
+                run_session(socket, link, controls, now_playing, commands, announcer).await;
                 controls.mark_disconnected();
             }
             Err(error) => {
@@ -90,6 +94,7 @@ async fn run_session(
     controls: &mut MediaControls,
     now_playing: &mut NowPlaying,
     commands: &mut mpsc::Receiver<PcCommand>,
+    announcer: Announcer,
 ) {
     // Buttons pressed while disconnected must not reach the phone later.
     while let Ok(command) = commands.try_recv() {
@@ -109,7 +114,7 @@ async fn run_session(
     loop {
         tokio::select! {
             frame = stream.next() => match frame {
-                Some(Ok(Message::Text(text))) => handle_frame(&text, controls, now_playing),
+                Some(Ok(Message::Text(text))) => handle_frame(&text, controls, now_playing, announcer),
                 Some(Ok(Message::Close(frame))) => {
                     info!(?frame, "the phone closed the connection");
                     return;
@@ -127,6 +132,9 @@ async fn run_session(
             },
             Some(command) = commands.recv() => {
                 debug!(?command, "sending command");
+                if command == PcCommand::ToggleLike && !now_playing.request_like(Instant::now()) {
+                    info!("the player on the phone has no like button the bridge can press");
+                }
                 if let Err(error) = sink.send(Message::text(command.encode())).await {
                     warn!(%error, "cannot send the command, connection lost");
                     return;
@@ -140,7 +148,7 @@ async fn run_session(
 /// Decodes a frame from the phone and shows its effect in the media overlay.
 ///
 /// Malformed frames and failures to show them are logged and skipped; the session goes on.
-fn handle_frame(text: &str, controls: &mut MediaControls, now_playing: &mut NowPlaying) {
+fn handle_frame(text: &str, controls: &mut MediaControls, now_playing: &mut NowPlaying, announcer: Announcer) {
     let display = match decode_phone_frame(text) {
         Ok(PhoneMessage::Hello(hello)) => {
             info!(device = %hello.device, protocol = hello.protocol.get(), "the phone greeted");
@@ -163,5 +171,13 @@ fn handle_frame(text: &str, controls: &mut MediaControls, now_playing: &mut NowP
         Ok(Some(Display::Clear)) => controls.clear(),
         Ok(None) => {}
         Err(error) => warn!("cannot apply the message: {error:#}"),
+    }
+    if let Some(notice) = now_playing.take_like_notice() {
+        info!(liked = notice.liked, track = %notice.track, "the phone confirmed the like");
+        announcer.announce(Announcement {
+            filled: notice.liked,
+            heading: if notice.liked { "Te gusta" } else { "Quitada de Me gusta" }.to_owned(),
+            detail: notice.track,
+        });
     }
 }

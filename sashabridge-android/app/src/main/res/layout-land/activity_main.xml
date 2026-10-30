@@ -4,7 +4,8 @@
      is hidden (the status card shows the battery and the time instead). The on/off button and
      the connection footer stay hidden here, so turning the phone into a "now playing" display
      cannot switch the bridge off by accident; both are in portrait. The scroll only matters
-     when the battery warning does not fit. -->
+     when the battery warning does not fit. The bridge column is the narrower one and the
+     content sits close to the left edge, so the player card gets the width for a large art. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -23,13 +24,14 @@
         android:layout_height="wrap_content"
         android:baselineAligned="false"
         android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
+        android:paddingStart="6dp"
+        android:paddingEnd="12dp"
         android:paddingVertical="10dp">
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="0.34"
+            android:layout_weight="0.28"
             android:orientation="vertical"
             tools:ignore="NestedWeights">
 
@@ -97,7 +99,7 @@
             layout="@layout/card_player"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="16dp"
-            android:layout_weight="0.66" />
+            android:layout_marginStart="12dp"
+            android:layout_weight="0.72" />
     </LinearLayout>
 </ScrollView>

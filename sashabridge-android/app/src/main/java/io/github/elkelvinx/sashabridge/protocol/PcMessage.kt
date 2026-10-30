@@ -151,4 +151,10 @@ enum class CommandAction {
      * (in Spotify, OFF, then ON, then SMART, then OFF again).
      */
     TOGGLE_SHUFFLE,
+
+    /**
+     * Presses the player's own like button: likes the track, or takes the like back if it
+     * already has it.
+     */
+    TOGGLE_LIKE,
 }

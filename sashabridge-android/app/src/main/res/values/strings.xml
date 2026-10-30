@@ -86,6 +86,11 @@
     <string name="annotate_shared_pending">Se enviará a la PC en cuanto se conecte.</string>
     <string name="share_label">Enviar a la PC</string>
     <string name="open_player">Abrir %1$s</string>
+    <string name="open_player_default">Abrir la app que suena</string>
+    <string name="control_like">Me gusta</string>
+    <!-- Tag of a title that shrinks to fit two lines; not shown. -->
+    <string name="tag_fit_title" translatable="false">fit-title</string>
+    <string name="control_liked">Te gusta; tocar para quitarlo</string>
     <string name="annotate_move_tools_hint">Toca dos veces o mantén pulsado para elegir entre mover y cambiar tamaño</string>
     <string name="annotate_color">Color %1$d</string>
     <string name="annotate_thin">Fino</string>

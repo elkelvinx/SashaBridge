@@ -40,4 +40,15 @@ class RepeatControlTest {
         assertNull(RepeatControl.findToggleAction(otherSpotifyActions))
         assertNull(RepeatControl.modeOf(emptyList()))
     }
+
+    /** YouTube Music's loop action says the mode in its name. */
+    @Test
+    fun readsYouTubeMusicFromTheName() {
+        val ids = listOf("thumbs_up_action", "shuffle_action", "loop_mode_action", "thumbs_down_action")
+
+        assertEquals("loop_mode_action", RepeatControl.findToggleAction(ids))
+        assertEquals(RepeatMode.OFF, RepeatControl.modeOf(ids, mapOf("loop_mode_action" to "Repetición desactivada")))
+        assertEquals(RepeatMode.ALL, RepeatControl.modeOf(ids, mapOf("loop_mode_action" to "Repetir todo")))
+        assertEquals(RepeatMode.ONE, RepeatControl.modeOf(ids, mapOf("loop_mode_action" to "Repetir una canción")))
+    }
 }

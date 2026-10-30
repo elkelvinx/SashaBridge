@@ -19,6 +19,7 @@ mod hidden_window;
 mod media_controls;
 mod notify;
 mod now_playing;
+mod osd;
 mod pen_route;
 mod process;
 mod protocol;
@@ -90,15 +91,16 @@ async fn run() -> anyhow::Result<()> {
     let covers = CoverCache::open_default().context("cannot prepare the cover directory")?;
     let mut now_playing = NowPlaying::new(covers);
     let (window_events, mut window_rx) = mpsc::unbounded_channel();
-    let window = hidden_window::spawn(window_events)?;
-    let clipboard_owner = window.clipboard_owner();
     let (command_tx, mut command_rx) = mpsc::channel(COMMAND_QUEUE);
+    let window = hidden_window::spawn(window_events, command_tx.clone())?;
+    let clipboard_owner = window.clipboard_owner();
+    let announcer = window.announcer();
     let mut controls = MediaControls::new(&window, command_tx)?;
     let mut link = DeviceLink::new(&paths, BRIDGE_PORT)?;
     let mut tablet = Tablet::spawn()?;
 
     let reason = tokio::select! {
-        never = connection::run(&mut link, &mut controls, &mut now_playing, &mut command_rx) => match never {},
+        never = connection::run(&mut link, &mut controls, &mut now_playing, &mut command_rx, announcer) => match never {},
         never = pen_route::run(&mut window_rx, clipboard_owner, &mut tablet) => match never {},
         reason = shutdown_signal() => reason,
     };

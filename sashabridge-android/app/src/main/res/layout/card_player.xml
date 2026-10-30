@@ -57,6 +57,7 @@
 
                 <ImageView
                     android:id="@+id/appIcon"
+                    android:contentDescription="@string/open_player_default"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
@@ -166,6 +167,15 @@
                     android:layout_marginStart="4dp"
                     android:contentDescription="@string/control_repeat"
                     android:src="@drawable/ic_repeat"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <ImageButton
+                    android:id="@+id/likeButton"
+                    style="@style/Widget.SashaBridge.ControlButton"
+                    android:layout_marginStart="4dp"
+                    android:contentDescription="@string/control_like"
+                    android:src="@drawable/ic_favorite_border"
                     android:visibility="gone"
                     tools:visibility="visible" />
 

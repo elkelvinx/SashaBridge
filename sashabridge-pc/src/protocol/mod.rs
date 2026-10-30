@@ -24,6 +24,8 @@ pub enum PcCommand {
     Seek(Duration),
     /// Presses the player's shuffle button.
     ToggleShuffle,
+    /// Presses the player's like button.
+    ToggleLike,
 }
 
 impl PcCommand {
@@ -44,6 +46,7 @@ impl PcCommand {
                 position_ms: u64::try_from(position.as_millis()).unwrap_or(u64::MAX),
             },
             Self::ToggleShuffle => v2::Command::ToggleShuffle,
+            Self::ToggleLike => v2::Command::ToggleLike,
         }
     }
 }
@@ -213,6 +216,7 @@ mod tests {
             (PcCommand::Previous, "cmd-previous.json"),
             (PcCommand::Seek(Duration::from_secs(60)), "cmd-seek.json"),
             (PcCommand::ToggleShuffle, "cmd-toggle-shuffle.json"),
+            (PcCommand::ToggleLike, "cmd-toggle-like.json"),
         ];
         for (command, file) in cases {
             let encoded = command.encode();

@@ -5,6 +5,9 @@ import android.graphics.BitmapFactory
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.SystemClock
+import android.text.StaticLayout
+import android.text.TextPaint
+import android.util.TypedValue
 import android.view.View
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
@@ -15,6 +18,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.annotation.ColorRes
 import androidx.core.content.ContextCompat
+import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.media.AlbumArt
@@ -75,6 +79,17 @@ class PlayerCard(
     private val playPauseButton: ImageButton = root.findViewById(R.id.playPauseButton)
     private val shuffleButton: ImageButton = root.findViewById(R.id.shuffleButton)
     private val repeatButton: ImageButton = root.findViewById(R.id.repeatButton)
+    private val likeButton: ImageButton = root.findViewById(R.id.likeButton)
+
+    /** Groups of the mode buttons and of the heart; only the landscape card has them. */
+    private val modeGroup: View? = root.findViewById(R.id.modeGroup)
+    private val likeGroup: View? = root.findViewById(R.id.likeGroup)
+
+    /** Whether the title shrinks to fit, as in the landscape card. */
+    private val fitTitle = trackTitle.tag == context.getString(R.string.tag_fit_title)
+
+    /** Size the shrinking title has now, in sp; the layout starts it at [TITLE_MAX_SP]. */
+    private var titleSp = TITLE_MAX_SP
     private val queueButton: View = root.findViewById(R.id.queueButton)
     private val seekBar: SeekBar = root.findViewById(R.id.seekBar)
     private val elapsedTime: TextView = root.findViewById(R.id.elapsedTime)
@@ -133,6 +148,10 @@ class PlayerCard(
             send(if (play) CommandAction.PLAY else CommandAction.PAUSE)
         }
         shuffleButton.setOnClickListener { send(CommandAction.TOGGLE_SHUFFLE) }
+        likeButton.setOnClickListener {
+            pop(it)
+            send(CommandAction.TOGGLE_LIKE)
+        }
         repeatButton.setOnClickListener {
             spin(it)
             onCommand(PlayerCommand.ToggleRepeat)
@@ -240,6 +259,9 @@ class PlayerCard(
         label.setText(if (snapshot != null && !playing) R.string.label_paused else R.string.label_now_playing)
         showShuffle(snapshot?.shuffle)
         showRepeat(snapshot)
+        showLike(snapshot)
+        modeGroup?.isVisible = shuffleButton.isVisible || repeatButton.isVisible
+        likeGroup?.isVisible = likeButton.isVisible
 
         val active = snapshot != null
         for (button in listOf(previousButton, nextButton, playPauseButton)) {
@@ -368,11 +390,39 @@ class PlayerCard(
             return
         }
         trackTitle.text = snapshot.title ?: context.getString(R.string.nothing_playing)
+        if (fitTitle) trackTitle.doOnLayout { shrinkTitle() }
         val artist = listOfNotNull(snapshot.artist, snapshot.playbackContext).joinToString(" • ")
         trackArtist.text = artist
         trackArtist.isVisible = artist.isNotEmpty()
         trackSource.text = context.getString(R.string.now_playing_source, appLabel(snapshot.source))
         trackSource.isVisible = true
+    }
+
+    /**
+     * Sizes the title so it stays whole: as large as [TITLE_MAX_SP] on one line, shrinking down
+     * to [TITLE_ONE_LINE_MIN_SP]; a longer title takes two lines from [TITLE_TWO_LINES_MAX_SP]
+     * down to [TITLE_MIN_SP], and only past that ends with "...". The size changes only when
+     * it must, so a track change does not reflow the card for nothing.
+     */
+    private fun shrinkTitle() {
+        val width = trackTitle.width - trackTitle.totalPaddingLeft - trackTitle.totalPaddingRight
+        val text = trackTitle.text
+        if (width <= 0 || text.isEmpty()) return
+        val paint = TextPaint(trackTitle.paint)
+        fun lines(sizeSp: Float): Int {
+            paint.textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sizeSp, context.resources.displayMetrics)
+            return StaticLayout.Builder.obtain(text, 0, text.length, paint, width).build().lineCount
+        }
+        val oneLine = generateSequence(TITLE_MAX_SP) { it - TITLE_STEP_SP }
+            .takeWhile { it >= TITLE_ONE_LINE_MIN_SP }
+            .firstOrNull { lines(it) == 1 }
+        val size = oneLine ?: generateSequence(TITLE_TWO_LINES_MAX_SP) { it - TITLE_STEP_SP }
+            .takeWhile { it > TITLE_MIN_SP }
+            .firstOrNull { lines(it) <= 2 } ?: TITLE_MIN_SP
+        if (size != titleSp) {
+            titleSp = size
+            trackTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, size)
+        }
     }
 
     /** Shows the icon of the player app, which opens it, or nothing when it is unknown. */
@@ -432,6 +482,29 @@ class PlayerCard(
         repeatButton.setImageResource(image)
         repeatButton.imageTintList = ColorStateList.valueOf(color(color))
         repeatButton.contentDescription = context.getString(description)
+    }
+
+    /**
+     * Shows the like button when the player has one: a filled wine heart when the track is
+     * liked, an outline otherwise, and a plain outline when the player does not say.
+     */
+    private fun showLike(snapshot: MediaSnapshot?) {
+        likeButton.isVisible = snapshot?.canLike == true
+        if (snapshot?.canLike != true) return
+        val liked = snapshot.liked == true
+        likeButton.setImageResource(if (liked) R.drawable.ic_favorite else R.drawable.ic_favorite_border)
+        likeButton.imageTintList = ColorStateList.valueOf(
+            color(if (liked) R.color.seek_thumb else if (snapshot.liked == null) R.color.on_surface else R.color.on_surface_muted),
+        )
+        likeButton.contentDescription = context.getString(if (liked) R.string.control_liked else R.string.control_like)
+    }
+
+    /** Makes a button pop, as a heart does when it is tapped. */
+    private fun pop(view: View) {
+        view.animate().cancel()
+        view.scaleX = POP_SCALE
+        view.scaleY = POP_SCALE
+        view.animate().scaleX(1f).scaleY(1f).setDuration(FADE_MS * 2).setInterpolator(OvershootInterpolator()).start()
     }
 
     /** Pushes a button briefly in the direction it skips. */
@@ -514,6 +587,13 @@ class PlayerCard(
 
         /** Scale the play/pause icon starts from when it changes. */
         const val POP_SCALE = 0.7f
+
+        /** Sizes of a title that shrinks to fit: on one line, then on two, and the step. */
+        const val TITLE_MAX_SP = 30f
+        const val TITLE_ONE_LINE_MIN_SP = 22f
+        const val TITLE_TWO_LINES_MAX_SP = 24f
+        const val TITLE_MIN_SP = 18f
+        const val TITLE_STEP_SP = 2f
 
         /** Distance a new track's text slides in from. */
         const val SLIDE_DP = 12f

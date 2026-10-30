@@ -348,8 +348,8 @@ mod tests {
     #[test]
     #[ignore = "publishes a real media session on this PC; run with `cargo test -- --ignored`"]
     fn windows_sees_cover_and_shuffle_changes() {
-        let window = crate::hidden_window::spawn(mpsc::unbounded_channel().0).unwrap();
         let (commands, _receiver) = mpsc::channel(4);
+        let window = crate::hidden_window::spawn(mpsc::unbounded_channel().0, commands.clone()).unwrap();
         let mut controls = MediaControls::new(&window, commands).unwrap();
         let view = MediaView {
             title: Some(PROBE_TITLE.to_owned()),
@@ -380,8 +380,8 @@ mod tests {
     #[test]
     #[ignore = "publishes a real media session on this PC; run with `cargo test -- --ignored`"]
     fn windows_shuffle_request_becomes_a_command() {
-        let window = crate::hidden_window::spawn(mpsc::unbounded_channel().0).unwrap();
         let (commands, mut receiver) = mpsc::channel(4);
+        let window = crate::hidden_window::spawn(mpsc::unbounded_channel().0, commands.clone()).unwrap();
         let mut controls = MediaControls::new(&window, commands).unwrap();
         controls
             .show(&MediaView {

@@ -66,6 +66,7 @@ class MediaCommandExecutor(
             CommandAction.PREVIOUS -> controls.skipToPrevious()
             CommandAction.SEEK -> command.positionMs?.let(controls::seekTo)
             CommandAction.TOGGLE_SHUFFLE -> sendCustomAction("shuffle", ShuffleControl::findToggleAction)
+            CommandAction.TOGGLE_LIKE -> sendCustomAction("like", LikeControl::findToggleAction)
         }
     }
 
@@ -100,7 +101,7 @@ class MediaCommandExecutor(
             CommandAction.TOGGLE -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
             CommandAction.NEXT -> KeyEvent.KEYCODE_MEDIA_NEXT
             CommandAction.PREVIOUS -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
-            CommandAction.SEEK, CommandAction.TOGGLE_SHUFFLE -> {
+            CommandAction.SEEK, CommandAction.TOGGLE_SHUFFLE, CommandAction.TOGGLE_LIKE -> {
                 Log.w(LOG_TAG, "No active player; $action has no media key and was ignored")
                 return
             }

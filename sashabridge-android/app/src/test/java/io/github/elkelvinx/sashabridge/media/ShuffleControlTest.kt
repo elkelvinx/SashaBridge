@@ -40,4 +40,17 @@ class ShuffleControlTest {
         assertNull(ShuffleControl.modeOf(listOf("SHUFFLE_SOMETHING_NEW")))
         assertEquals("SHUFFLE_SOMETHING_NEW", ShuffleControl.findToggleAction(listOf("SHUFFLE_SOMETHING_NEW")))
     }
+
+    /** YouTube Music keeps its identifier and says the mode in the name. */
+    @Test
+    fun readsYouTubeMusicFromTheName() {
+        val ids = listOf("thumbs_up_action", "shuffle_action", "loop_mode_action", "thumbs_down_action")
+        val off = mapOf("shuffle_action" to "Reproducción aleatoria desactivada")
+        val on = mapOf("shuffle_action" to "Reproducción aleatoria activada")
+
+        assertEquals("shuffle_action", ShuffleControl.findToggleAction(ids))
+        assertEquals(ShuffleMode.OFF, ShuffleControl.modeOf(ids, off))
+        assertEquals(ShuffleMode.ON, ShuffleControl.modeOf(ids, on))
+        assertNull(ShuffleControl.modeOf(ids))
+    }
 }

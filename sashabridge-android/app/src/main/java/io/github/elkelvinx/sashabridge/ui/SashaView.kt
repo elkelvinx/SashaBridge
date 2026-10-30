@@ -95,15 +95,30 @@ class SashaView @JvmOverloads constructor(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        val fittedWidth = fittedWidthSpec(widthMeasureSpec, heightMeasureSpec)
+        super.onMeasure(fittedWidth, heightMeasureSpec)
         // The hourglass is drawn on the sprite's grid, in its bottom-right corner.
         val side = minOf(measuredWidth * HOURGLASS_PX / SPRITE_WIDTH_PX, measuredHeight * HOURGLASS_PX / SPRITE_HEIGHT_PX)
         val params = hourglass.layoutParams
         if (params.width != side) {
             params.width = side
             params.height = side
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            super.onMeasure(fittedWidth, heightMeasureSpec)
         }
+    }
+
+    /**
+     * Width for the sprite at the height given: as wide as its proportions ask, but never wider
+     * than the room, so a narrow card shrinks Sasha whole instead of cutting off her ball.
+     */
+    private fun fittedWidthSpec(widthMeasureSpec: Int, heightMeasureSpec: Int): Int {
+        if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.UNSPECIFIED ||
+            MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED
+        ) {
+            return widthMeasureSpec
+        }
+        val byHeight = MeasureSpec.getSize(heightMeasureSpec) * SPRITE_WIDTH_PX / SPRITE_HEIGHT_PX
+        return MeasureSpec.makeMeasureSpec(minOf(MeasureSpec.getSize(widthMeasureSpec), byHeight), MeasureSpec.EXACTLY)
     }
 
     override fun onVisibilityAggregated(isVisible: Boolean) {

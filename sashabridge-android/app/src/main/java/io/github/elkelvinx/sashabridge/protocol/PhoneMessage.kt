@@ -65,6 +65,8 @@ sealed interface PhoneMessage {
      * @property playbackSpeed Playback speed: `1.0` is normal speed and `0.0` a pause.
      * @property shuffle Shuffle mode, or `null` if the bridge cannot control it for this player.
      * @property artId Album art of the track, or `null` if the track has none.
+     * @property liked Whether the user likes the track (Spotify's "Tus me gusta", YouTube
+     *   Music's "Me gusta"), or `null` if the player has no like button or does not reveal it.
      * @throws IllegalArgumentException if [durationMs] is not positive or [positionMs] is negative.
      */
     @Serializable
@@ -82,6 +84,7 @@ sealed interface PhoneMessage {
         val playbackSpeed: Float,
         val shuffle: ShuffleMode? = null,
         val artId: String? = null,
+        val liked: Boolean? = null,
     ) : PhoneMessage {
         init {
             require(durationMs == null || durationMs > 0) {

@@ -48,6 +48,8 @@ class AlbumArt(val artId: String, val jpeg: ByteArray) {
  * @property art Album art of the track, or `null` if it has none.
  * @property canRepeat Whether the player has a repeat button the bridge can press; see [RepeatControl].
  * @property repeat Repeat mode, or `null` if the player does not reveal it.
+ * @property canLike Whether the player has a like button the bridge can press; see [LikeControl].
+ * @property liked Whether the user likes the track, or `null` if the player does not reveal it.
  */
 data class MediaSnapshot(
     val trackId: String,
@@ -65,6 +67,8 @@ data class MediaSnapshot(
     val art: AlbumArt?,
     val canRepeat: Boolean = false,
     val repeat: RepeatMode? = null,
+    val canLike: Boolean = false,
+    val liked: Boolean? = null,
 ) {
 
     /**
@@ -89,14 +93,16 @@ data class MediaSnapshot(
          *
          * The player's media id is preferred because it stays the same while the player is
          * still filling in the other fields (Spotify, for example, sends the title in two
-         * steps). Without a media id, the descriptive fields are used.
+         * steps). Without a media id, the title and the artist are used, but not the album or
+         * the length: YouTube Music, which sets no media id, sends those a moment after the
+         * title, and the card would take each step for a new track and animate it again.
          *
          * @param source Android package of the player.
          * @param mediaId `METADATA_KEY_MEDIA_ID`, if the player sets it.
          * @param title Track title.
          * @param artist Track artist.
-         * @param album Album name.
-         * @param durationMs Track length.
+         * @param album Album name; not part of the identifier.
+         * @param durationMs Track length; not part of the identifier.
          * @return 16 lowercase hexadecimal digits.
          */
         fun trackIdOf(
@@ -110,7 +116,7 @@ data class MediaSnapshot(
             val key = if (!mediaId.isNullOrEmpty()) {
                 "$source|id|$mediaId"
             } else {
-                "$source|meta|$title|$artist|$album|$durationMs"
+                "$source|meta|$title|$artist"
             }
             return shortHash(key.toByteArray(Charsets.UTF_8))
         }

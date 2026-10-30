@@ -94,10 +94,12 @@
 
     <!-- The same, tighter, for the narrow left column of the landscape display. -->
     <style name="Widget.SashaBridge.AnnotateButton.Compact">
-        <item name="android:paddingStart">12dp</item>
-        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleSmall</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
         <item name="android:maxLines">1</item>
-        <item name="iconPadding">8dp</item>
+        <item name="iconSize">18dp</item>
+        <item name="iconPadding">6dp</item>
     </style>
 
     <!-- Square tool button of the annotation bars; selected tools get a wine pill. -->

@@ -49,13 +49,29 @@ class MediaMetadataHelpersTest {
         assertEquals(16, first.length)
     }
 
-    /** Without a media id, any descriptive field changes the track id, and so does the player. */
+    /** Without a media id, the title, the artist and the player make the track id. */
     @Test
     fun trackIdWithoutMediaIdUsesTheMetadata() {
         val base = MediaSnapshot.trackIdOf("app", null, "Title", "Artist", "Album", 1_000L)
         assertEquals(base, MediaSnapshot.trackIdOf("app", null, "Title", "Artist", "Album", 1_000L))
         assertNotEquals(base, MediaSnapshot.trackIdOf("app", null, "Other", "Artist", "Album", 1_000L))
+        assertNotEquals(base, MediaSnapshot.trackIdOf("app", null, "Title", "Other", "Album", 1_000L))
         assertNotEquals(base, MediaSnapshot.trackIdOf("other.app", null, "Title", "Artist", "Album", 1_000L))
+    }
+
+    /**
+     * YouTube Music sends the length and then the album a moment after the title (seen on the
+     * phone: three identifiers for one track); the track keeps one identifier throughout.
+     */
+    @Test
+    fun trackIdSurvivesTheAlbumAndLengthArrivingLater() {
+        val first = MediaSnapshot.trackIdOf("com.google.android.apps.youtube.music", null, "La Revacholiere", "Sea Power", "", null)
+        val withLength = MediaSnapshot.trackIdOf("com.google.android.apps.youtube.music", null, "La Revacholiere", "Sea Power", "", 250_821L)
+        val withAlbum = MediaSnapshot.trackIdOf(
+            "com.google.android.apps.youtube.music", null, "La Revacholiere", "Sea Power", "Disco Elysium", 250_821L,
+        )
+        assertEquals(first, withLength)
+        assertEquals(first, withAlbum)
     }
 
     /** Art is scaled down keeping its proportions; a 16:9 thumbnail is not squashed into a square. */

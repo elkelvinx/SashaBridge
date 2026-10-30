@@ -13,17 +13,22 @@
 //!   [`REPEAT_WINDOW`];
 //! - registers Ctrl+Alt+A, which opens the Windows snipping overlay and marks the next
 //!   copied image as explicitly asked for, so it is sent even when the phone is not waiting.
+//!
+//! It also registers Ctrl+Alt+L, which likes the track playing on the phone ([`PcCommand::ToggleLike`]),
+//! and shows the on-screen confirmations of [`crate::osd`] that other threads send through
+//! an [`Announcer`].
 
 use std::cell::{Cell, OnceCell};
 use std::ffi::c_void;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io;
+use std::sync::Mutex;
 use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use anyhow::Context;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::{Sender, UnboundedSender};
 use tracing::{debug, info, warn};
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::DataExchange::{AddClipboardFormatListener, GetClipboardOwner};
@@ -31,12 +36,14 @@ use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, MOD_CONTROL, MOD_NOREPEAT, RegisterHotKey};
 use windows_sys::Win32::UI::Shell::ShellExecuteW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, KillTimer, MSG, RegisterClassW, SW_SHOWNORMAL,
-    SetTimer, WM_CLIPBOARDUPDATE, WM_HOTKEY, WM_TIMER, WNDCLASSW, WS_OVERLAPPED,
+    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, KillTimer, MSG, PostMessageW, RegisterClassW,
+    SW_SHOWNORMAL, SetTimer, WM_APP, WM_CLIPBOARDUPDATE, WM_HOTKEY, WM_TIMER, WNDCLASSW, WS_OVERLAPPED,
 };
 
 use crate::bitmap::Rgba;
 use crate::clipboard;
+use crate::osd::{self, Announcement};
+use crate::protocol::PcCommand;
 
 /// Window class registered for the hidden window.
 const CLASS_NAME: &str = "SashaBridgeMsgWnd";
@@ -50,6 +57,12 @@ const ANNOTATE_HOTKEY: i32 = 1;
 /// Virtual-key code of the shortcut's letter.
 const ANNOTATE_KEY: u32 = b'A' as u32;
 
+/// Identifier of the Ctrl+Alt+L shortcut.
+const LIKE_HOTKEY: i32 = 2;
+
+/// Virtual-key code of the like shortcut's letter.
+const LIKE_KEY: u32 = b'L' as u32;
+
 /// How long after Ctrl+Alt+A a copied image still counts as the one asked for.
 const SHORTCUT_WINDOW: Duration = Duration::from_secs(60);
 
@@ -61,6 +74,12 @@ const CLIPBOARD_SETTLE: Duration = Duration::from_millis(300);
 
 /// How long an image identical to the last one reported is ignored.
 const REPEAT_WINDOW: Duration = Duration::from_secs(10);
+
+/// Message that tells the window to show [`PENDING_ANNOUNCEMENT`].
+const WM_ANNOUNCE: u32 = WM_APP + 1;
+
+/// Confirmation waiting for the window thread to show it; a newer one replaces it.
+static PENDING_ANNOUNCEMENT: Mutex<Option<Announcement>> = Mutex::new(None);
 
 /// Something the hidden window noticed, for the annotation mode.
 #[derive(Debug)]
@@ -92,6 +111,31 @@ impl WindowHandle {
     pub fn clipboard_owner(&self) -> ClipboardOwner {
         ClipboardOwner(self.0)
     }
+
+    /// Returns a handle to show on-screen confirmations from any thread.
+    pub fn announcer(&self) -> Announcer {
+        Announcer(self.0)
+    }
+}
+
+/// Shows on-screen confirmations ([`crate::osd`]) from any thread.
+#[derive(Debug, Clone, Copy)]
+pub struct Announcer(HWND);
+
+// SAFETY: as for `WindowHandle`; posting a message to a window works from any thread.
+unsafe impl Send for Announcer {}
+
+impl Announcer {
+    /// Shows `announcement` in the corner of the screen, replacing the one there.
+    pub fn announce(&self, announcement: Announcement) {
+        if let Ok(mut pending) = PENDING_ANNOUNCEMENT.lock() {
+            *pending = Some(announcement);
+        }
+        // SAFETY: the window lives until the process exits; the message carries no pointers.
+        if unsafe { PostMessageW(self.0, WM_ANNOUNCE, 0, 0) } == 0 {
+            warn!(error = %io::Error::last_os_error(), "cannot show the on-screen confirmation");
+        }
+    }
 }
 
 /// The hidden window, as the owner of clipboard data written from any thread.
@@ -111,6 +155,8 @@ impl ClipboardOwner {
 thread_local! {
     /// Where the window thread reports its events.
     static EVENTS: OnceCell<UnboundedSender<WindowEvent>> = const { OnceCell::new() };
+    /// Where Ctrl+Alt+L sends its command for the phone.
+    static COMMANDS: OnceCell<Sender<PcCommand>> = const { OnceCell::new() };
     /// Until when a copied image answers Ctrl+Alt+A.
     static SHORTCUT_UNTIL: Cell<Option<Instant>> = const { Cell::new(None) };
     /// Fingerprint of the last image reported and when it was reported.
@@ -119,25 +165,33 @@ thread_local! {
 
 /// Creates the hidden window on a new thread and returns its handle.
 ///
-/// The thread keeps pumping messages until the process exits, and reports clipboard images
-/// to `events`.
+/// The thread keeps pumping messages until the process exits, reports clipboard images to
+/// `events`, and sends the command of Ctrl+Alt+L to `commands`, the queue of the music
+/// connection.
 ///
 /// # Errors
 ///
 /// Fails when the thread cannot be started or the window cannot be created.
-pub fn spawn(events: UnboundedSender<WindowEvent>) -> anyhow::Result<WindowHandle> {
+pub fn spawn(events: UnboundedSender<WindowEvent>, commands: Sender<PcCommand>) -> anyhow::Result<WindowHandle> {
     let (ready_tx, ready_rx) = sync_channel(1);
     thread::Builder::new()
         .name("hidden-window".to_owned())
-        .spawn(move || run_window_thread(&ready_tx, events))
+        .spawn(move || run_window_thread(&ready_tx, events, commands))
         .context("cannot start the window thread")?;
     ready_rx.recv().context("the window thread stopped before creating the window")?
 }
 
 /// Body of the window thread: creates the window, reports the result and pumps messages.
-fn run_window_thread(ready: &SyncSender<anyhow::Result<WindowHandle>>, events: UnboundedSender<WindowEvent>) {
+fn run_window_thread(
+    ready: &SyncSender<anyhow::Result<WindowHandle>>,
+    events: UnboundedSender<WindowEvent>,
+    commands: Sender<PcCommand>,
+) {
     EVENTS.with(|cell| {
         let _ = cell.set(events);
+    });
+    COMMANDS.with(|cell| {
+        let _ = cell.set(commands);
     });
     let hwnd = match create_window() {
         Ok(hwnd) => hwnd,
@@ -163,8 +217,8 @@ fn run_window_thread(ready: &SyncSender<anyhow::Result<WindowHandle>>, events: U
     }
 }
 
-/// Subscribes the window to clipboard changes and registers Ctrl+Alt+A. Either failing only
-/// disables that part of the annotation mode.
+/// Subscribes the window to clipboard changes and registers Ctrl+Alt+A and Ctrl+Alt+L. Each
+/// failing only disables that feature.
 fn listen(hwnd: HWND) {
     // SAFETY: `hwnd` is the window just created on this thread.
     if unsafe { AddClipboardFormatListener(hwnd) } == 0 {
@@ -175,6 +229,11 @@ fn listen(hwnd: HWND) {
         unsafe { RegisterHotKey(hwnd, ANNOTATE_HOTKEY, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, ANNOTATE_KEY) };
     if registered == 0 {
         warn!(error = %io::Error::last_os_error(), "Ctrl+Alt+A is taken by another program");
+    }
+    // SAFETY: as above.
+    let registered = unsafe { RegisterHotKey(hwnd, LIKE_HOTKEY, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, LIKE_KEY) };
+    if registered == 0 {
+        warn!(error = %io::Error::last_os_error(), "Ctrl+Alt+L is taken by another program");
     }
 }
 
@@ -250,6 +309,16 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
             on_annotate_shortcut();
             0
         }
+        WM_HOTKEY if wparam == LIKE_HOTKEY as usize => {
+            on_like_shortcut();
+            0
+        }
+        WM_ANNOUNCE => {
+            if let Some(announcement) = PENDING_ANNOUNCEMENT.lock().ok().and_then(|mut pending| pending.take()) {
+                osd::show(announcement);
+            }
+            0
+        }
         // SAFETY: the arguments come unchanged from Windows.
         _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
     }
@@ -300,6 +369,18 @@ fn on_clipboard_settled(hwnd: HWND) {
         if let Some(events) = cell.get() {
             // The receiver only stops with the process.
             let _ = events.send(WindowEvent::ImageCopied { image, forced });
+        }
+    });
+}
+
+/// Asks the phone to like the track playing, or to take the like back.
+fn on_like_shortcut() {
+    info!("Ctrl+Alt+L: like the track playing on the phone");
+    COMMANDS.with(|cell| {
+        if let Some(commands) = cell.get()
+            && commands.try_send(PcCommand::ToggleLike).is_err()
+        {
+            warn!("the command queue is full; Ctrl+Alt+L was dropped");
         }
     });
 }

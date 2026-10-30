@@ -5,7 +5,7 @@
 //! or names art that was not received.
 
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::Context;
 use base64::Engine as _;
@@ -16,6 +16,9 @@ use crate::protocol::v2::{MediaState, PhoneMessage, ShuffleMode};
 
 /// Separator between the artist and the playback context, the same one Spotify uses.
 const CONTEXT_SEPARATOR: &str = " \u{2022} ";
+
+/// How long after Ctrl+Alt+L a change of the like counts as its answer.
+const LIKE_WAIT: Duration = Duration::from_secs(5);
 
 /// Everything the media overlay shows for one state of the phone's player.
 #[derive(Debug, Clone, PartialEq)]
@@ -38,6 +41,17 @@ pub struct MediaView {
     pub shuffle: Option<ShuffleMode>,
 }
 
+/// A like asked for from the PC that the phone's player confirmed, to announce.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LikeNotice {
+    /// Whether the track is liked now.
+    pub liked: bool,
+    /// Title and artist, as one line.
+    pub track: String,
+    /// File of the album art, if the track has one.
+    pub cover: Option<PathBuf>,
+}
+
 /// Change that a message from the phone causes in the media overlay.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Display {
@@ -54,17 +68,35 @@ pub struct NowPlaying {
     covers: CoverCache,
     /// Last state, shown again if its art arrives after it.
     last_state: Option<MediaState>,
+    /// When the PC last asked to like the track, until the phone answers.
+    like_requested: Option<Instant>,
+    /// The answer to that request, waiting to be announced.
+    like_notice: Option<LikeNotice>,
 }
 
 impl NowPlaying {
     /// Creates the state with `covers` as the art storage.
     pub fn new(covers: CoverCache) -> Self {
-        Self { covers, last_state: None }
+        Self { covers, last_state: None, like_requested: None, like_notice: None }
     }
 
     /// Forgets what the previous session sent. The phone sends the full state again on connect.
     pub fn reset_session(&mut self) {
         self.last_state = None;
+        self.like_requested = None;
+        self.like_notice = None;
+    }
+
+    /// Records that the PC asked to like the track at `now`, so that the change the phone
+    /// reports next is announced. Returns whether the player can like at all.
+    pub fn request_like(&mut self, now: Instant) -> bool {
+        self.like_requested = Some(now);
+        self.last_state.as_ref().is_some_and(|state| state.liked.is_some())
+    }
+
+    /// Takes the like change to announce, if the phone just confirmed one.
+    pub fn take_like_notice(&mut self) -> Option<LikeNotice> {
+        self.like_notice.take()
     }
 
     /// Applies a message other than `hello`, which the connection handles. Messages of the
@@ -96,6 +128,7 @@ impl NowPlaying {
             }
             PhoneMessage::MediaState(state) => {
                 let view = self.view_of(&state);
+                self.notice_like_change(&state, &view);
                 self.last_state = Some(state);
                 Ok(Some(Display::Show(view)))
             }
@@ -104,6 +137,26 @@ impl NowPlaying {
                 Ok(Some(Display::Clear))
             }
         }
+    }
+
+    /// Prepares the like notice when `state` answers a request from the PC: the same track,
+    /// now liked or no longer liked, within [`LIKE_WAIT`].
+    fn notice_like_change(&mut self, state: &MediaState, view: &MediaView) {
+        let Some(requested) = self.like_requested else { return };
+        if requested.elapsed() > LIKE_WAIT {
+            self.like_requested = None;
+            return;
+        }
+        let (Some(previous), Some(liked)) = (&self.last_state, state.liked) else { return };
+        if previous.track_id != state.track_id || previous.liked == Some(liked) {
+            return;
+        }
+        self.like_requested = None;
+        let track = match (&state.title, &state.artist) {
+            (Some(title), Some(artist)) => format!("{title} \u{b7} {artist}"),
+            (title, artist) => title.clone().or_else(|| artist.clone()).unwrap_or_default(),
+        };
+        self.like_notice = Some(LikeNotice { liked, track, cover: view.cover.clone() });
     }
 
     /// Deletes the album art files that are no longer shown. Call after Windows shows a view.
@@ -169,7 +222,38 @@ mod tests {
             playback_speed: 1.0,
             shuffle: Some(ShuffleMode::On),
             art_id: art_id.map(str::to_owned),
+            liked: Some(false),
         }
+    }
+
+    /// A like asked for from the PC is announced once the phone confirms it for that track.
+    #[test]
+    fn requested_like_is_announced_when_confirmed() {
+        let mut state = now_playing("like");
+        state.apply(PhoneMessage::MediaState(v2_state(None))).unwrap();
+        assert!(state.request_like(Instant::now()));
+
+        let liked = MediaState { liked: Some(true), ..v2_state(None) };
+        state.apply(PhoneMessage::MediaState(liked)).unwrap();
+
+        let notice = state.take_like_notice().expect("the like is announced");
+        assert!(notice.liked);
+        assert_eq!(notice.track, "Title \u{b7} Artist");
+        assert_eq!(state.take_like_notice(), None);
+    }
+
+    /// Likes changed on the phone itself, or on another track, are not announced.
+    #[test]
+    fn unrequested_or_other_track_likes_are_not_announced() {
+        let mut state = now_playing("like-unrequested");
+        state.apply(PhoneMessage::MediaState(v2_state(None))).unwrap();
+        state.apply(PhoneMessage::MediaState(MediaState { liked: Some(true), ..v2_state(None) })).unwrap();
+        assert_eq!(state.take_like_notice(), None);
+
+        state.request_like(Instant::now());
+        let next = MediaState { track_id: "other".to_owned(), liked: Some(false), ..v2_state(None) };
+        state.apply(PhoneMessage::MediaState(next)).unwrap();
+        assert_eq!(state.take_like_notice(), None);
     }
 
     /// An art message.

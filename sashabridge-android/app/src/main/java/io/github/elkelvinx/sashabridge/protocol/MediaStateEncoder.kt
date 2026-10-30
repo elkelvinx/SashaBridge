@@ -41,6 +41,7 @@ class MediaStateEncoder {
             playbackSpeed = snapshot.playbackSpeed,
             shuffle = snapshot.shuffle,
             artId = snapshot.art?.artId,
+            liked = snapshot.liked,
         )
         val art = snapshot.art?.takeIf { it.artId != lastSentArtId } ?: return listOf(state)
         lastSentArtId = art.artId
