@@ -41,12 +41,14 @@ object ThumbnailSources {
     /**
      * The addresses to try, in order, for the cover at [artUri].
      *
-     * @return One or more `content://` or `https://` addresses.
+     * @return `content://` or `https://` addresses; none for a key that is not an address,
+     *   such as the key of a cover the history keeps.
      */
     fun candidates(artUri: String): List<String> = when {
         artUri.startsWith(SPOTIFY_CONTENT) -> listOfNotNull(artUri, spotifyServer(artUri))
         "googleusercontent.com" in artUri -> listOf(googleSized(artUri))
-        else -> listOf(artUri)
+        artUri.startsWith("content://") || artUri.startsWith("https://") || artUri.startsWith("http://") -> listOf(artUri)
+        else -> emptyList()
     }
 
     /** The 300 px cover on Spotify's public server, or `null` if [contentUri] has no image id. */

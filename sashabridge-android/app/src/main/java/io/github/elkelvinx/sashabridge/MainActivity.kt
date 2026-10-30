@@ -40,6 +40,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
+import io.github.elkelvinx.sashabridge.history.HistoryActivity
 import io.github.elkelvinx.sashabridge.media.PlayerCommand
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
 import io.github.elkelvinx.sashabridge.pen.AnnotateActivity
@@ -163,6 +164,7 @@ class MainActivity : AppCompatActivity() {
             root = findViewById(R.id.main),
             onCommand = repository::sendCommand,
             onOpenQueue = ::openQueue,
+            onOpenHistory = { startActivity(Intent(this, HistoryActivity::class.java)) },
             onOpenPlayer = ::openPlayer,
             appLabel = ::appLabel,
             appIcon = ::appIcon,

@@ -106,18 +106,38 @@
                                 android:text="@string/label_now_playing"
                                 android:textAppearance="@style/TextAppearance.SashaBridge.Label" />
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/queueButton"
-                                style="@style/Widget.Material3.Button.TonalButton.Icon"
+                            <!-- The queue, when the player publishes one, and the history. -->
+                            <LinearLayout
                                 android:layout_width="wrap_content"
-                                android:layout_height="32dp"
+                                android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:minHeight="0dp"
-                                android:paddingVertical="0dp"
-                                android:text="@string/button_queue"
-                                android:visibility="gone"
-                                app:icon="@drawable/ic_queue_music"
-                                tools:visibility="visible" />
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/queueButton"
+                                    style="@style/Widget.Material3.Button.TonalButton.Icon"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="32dp"
+                                    android:layout_marginEnd="4dp"
+                                    android:minHeight="0dp"
+                                    android:paddingVertical="0dp"
+                                    android:text="@string/button_queue"
+                                    android:visibility="gone"
+                                    app:icon="@drawable/ic_queue_music"
+                                    tools:visibility="visible" />
+
+                                <ImageButton
+                                    android:id="@+id/historyButton"
+                                    style="@style/Widget.SashaBridge.ControlButton"
+                                    android:layout_width="36dp"
+                                    android:layout_height="36dp"
+                                    android:contentDescription="@string/button_history"
+                                    android:padding="6dp"
+                                    android:scaleType="fitCenter"
+                                    android:src="@drawable/ic_history"
+                                    android:tooltipText="@string/button_history" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <Space

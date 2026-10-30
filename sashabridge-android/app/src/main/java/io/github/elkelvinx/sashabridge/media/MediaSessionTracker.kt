@@ -249,13 +249,14 @@ class MediaSessionTracker(
         )
         val album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)
         val durationMs = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0 }
+        val mediaId = metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID)?.takeIf { it.isNotEmpty() }
         val actionIds = state?.customActions?.map { it.action }.orEmpty()
         val actionNames = state?.customActions?.associate { it.action to it.name.toString() }.orEmpty()
 
         return MediaSnapshot(
             trackId = MediaSnapshot.trackIdOf(
                 source,
-                metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID),
+                mediaId,
                 title,
                 artist,
                 album,
@@ -277,6 +278,7 @@ class MediaSessionTracker(
             repeat = RepeatControl.modeOf(actionIds, actionNames),
             canLike = LikeControl.findToggleAction(actionIds) != null,
             liked = LikeControl.likedOf(actionIds, ratedUp(metadata)),
+            mediaId = mediaId,
         )
     }
 

@@ -88,6 +88,16 @@
     <string name="open_player">Abrir %1$s</string>
     <string name="open_player_default">Abrir la app que suena</string>
     <string name="control_like">Me gusta</string>
+    <string name="button_history">Historial</string>
+    <string name="history_title">Historial</string>
+    <string name="history_back">Volver</string>
+    <string name="history_search_hint">Buscar por canción o artista</string>
+    <string name="history_today">Hoy</string>
+    <string name="history_yesterday">Ayer</string>
+    <string name="history_empty">Aún no hay canciones. Cada canción aparece aquí después de 30 segundos de escucharla.</string>
+    <string name="history_no_results">Ninguna canción coincide con la búsqueda.</string>
+    <string name="history_subtitle">%1$s · %2$s</string>
+    <string name="history_open_failed">No se pudo abrir %1$s.</string>
     <!-- Tag of a title that shrinks to fit two lines; not shown. -->
     <string name="tag_fit_title" translatable="false">fit-title</string>
     <string name="control_liked">Te gusta; tocar para quitarlo</string>

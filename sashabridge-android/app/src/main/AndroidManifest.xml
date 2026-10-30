@@ -34,6 +34,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".history.HistoryActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <!-- Rotating keeps the annotation canvas instead of recreating it. -->
         <!-- Exported only to receive images other apps share; it never sends them on its own. -->
         <activity

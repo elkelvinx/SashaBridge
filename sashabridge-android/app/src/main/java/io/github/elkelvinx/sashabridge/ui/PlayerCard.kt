@@ -53,6 +53,7 @@ import io.github.elkelvinx.sashabridge.protocol.ShuffleMode
  * @param root View that contains the card.
  * @param onCommand Sends a command to the active player.
  * @param onOpenQueue Opens the play queue of the active player.
+ * @param onOpenHistory Opens the history of the tracks listened to.
  * @param onOpenPlayer Opens a player app, given its package, when its icon is touched.
  * @param appLabel Returns the name of a player package, such as "Spotify".
  * @param appIcon Returns the launcher icon of a player package, or `null` if it is unknown.
@@ -62,6 +63,7 @@ class PlayerCard(
     root: View,
     private val onCommand: (PlayerCommand) -> Unit,
     private val onOpenQueue: () -> Unit,
+    private val onOpenHistory: () -> Unit,
     private val onOpenPlayer: (String) -> Unit,
     private val appLabel: (String) -> String,
     private val appIcon: (String) -> Drawable?,
@@ -168,6 +170,7 @@ class PlayerCard(
         }
         icon.setOnClickListener { shownSource?.let(onOpenPlayer) }
         queueButton.setOnClickListener { onOpenQueue() }
+        root.findViewById<View>(R.id.historyButton).setOnClickListener { onOpenHistory() }
         seekBar.progressDrawable = wave
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             // The wave moves a little, 20 times a second: the screen need not refresh at 120 Hz.

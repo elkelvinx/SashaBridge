@@ -50,6 +50,8 @@ class AlbumArt(val artId: String, val jpeg: ByteArray) {
  * @property repeat Repeat mode, or `null` if the player does not reveal it.
  * @property canLike Whether the player has a like button the bridge can press; see [LikeControl].
  * @property liked Whether the user likes the track, or `null` if the player does not reveal it.
+ * @property mediaId The player's own id of the track, such as Spotify's `spotify:track:...`,
+ *   or `null` (YouTube Music sets none); the history uses it to open that track again.
  */
 data class MediaSnapshot(
     val trackId: String,
@@ -69,6 +71,7 @@ data class MediaSnapshot(
     val repeat: RepeatMode? = null,
     val canLike: Boolean = false,
     val liked: Boolean? = null,
+    val mediaId: String? = null,
 ) {
 
     /**

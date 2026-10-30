@@ -26,11 +26,15 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 
 /**
  * Small square album covers for lists, such as the play queue: [ThumbnailSources.SIZE_PX]
  * pixels, kept in memory and as WebP files in the app's cache, so each cover is fetched once.
- * The history will keep its covers here too.
+ *
+ * The history keeps its covers here too, with [keep]: those go to the app's files instead of
+ * its cache, where the trimming of the cache and Android's own cleaning do not reach them,
+ * and stay until the history no longer names them ([pruneKept]).
  *
  * Covers come from the addresses of [ThumbnailSources]: a player's own content URI or an
  * HTTPS address. A cover that cannot be fetched is `null`; the list shows a placeholder.
@@ -43,6 +47,7 @@ class ThumbnailStore private constructor(context: Context) {
 
     private val resolver: ContentResolver = context.applicationContext.contentResolver
     private val dir = File(context.applicationContext.cacheDir, DIR_NAME)
+    private val keptDir = File(context.applicationContext.filesDir, KEPT_DIR_NAME)
     private val memory = object : LruCache<String, Bitmap>(MEMORY_BYTES) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
     }
@@ -81,9 +86,39 @@ class ThumbnailStore private constructor(context: Context) {
         return task.await()
     }
 
-    /** Reads the cover from the disk cache, or fetches it and keeps it. IO thread. */
+    /**
+     * Keeps [image], the cover of a track the history names, under [key] until [pruneKept]
+     * drops it; afterwards [load] of [key] returns it. Any coroutine; the work runs on
+     * [Dispatchers.IO].
+     *
+     * @param image The cover as an encoded image, such as the JPEG of [AlbumArt].
+     */
+    suspend fun keep(key: String, image: ByteArray) = withContext(Dispatchers.IO) {
+        val file = File(keptDir, fileName(key))
+        if (file.exists()) return@withContext
+        val cover = squareCover(image) ?: return@withContext
+        save(file, cover)
+        memory.put(key, cover)
+    }
+
+    /**
+     * Deletes the kept covers whose key is not in [keys]. IO thread.
+     *
+     * @param keys Keys of the covers still named by the history.
+     */
+    fun pruneKept(keys: Set<String>) {
+        val names = keys.mapTo(HashSet(), ::fileName)
+        keptDir.listFiles()?.filter { it.name !in names }?.forEach { it.delete() }
+    }
+
+    /** Reads the cover from the kept covers or the disk cache, or fetches it. IO thread. */
     private suspend fun fetch(artUri: String): Bitmap? {
-        val file = File(dir, fileName(artUri))
+        val name = fileName(artUri)
+        readFile(File(keptDir, name))?.let { kept ->
+            memory.put(artUri, kept)
+            return kept
+        }
+        val file = File(dir, name)
         val bitmap = readFile(file) ?: fetches.withPermit {
             ThumbnailSources.candidates(artUri).firstNotNullOfOrNull(::download)
         }?.also { save(file, it) } ?: return null
@@ -135,14 +170,18 @@ class ThumbnailStore private constructor(context: Context) {
         return square.scale(ThumbnailSources.SIZE_PX, ThumbnailSources.SIZE_PX)
     }
 
-    /** Keeps [bitmap] as a WebP file, and trims the oldest covers when there are too many. */
+    /**
+     * Writes [bitmap] as a WebP [file], and trims the oldest covers of the cache when there
+     * are too many; kept covers are never trimmed.
+     */
     private fun save(file: File, bitmap: Bitmap) {
         try {
-            dir.mkdirs()
-            val partial = File(dir, file.name + ".part")
+            val folder = file.parentFile ?: return
+            folder.mkdirs()
+            val partial = File(folder, file.name + ".part")
             partial.outputStream().use { bitmap.compress(webp(), WEBP_QUALITY, it) }
             if (!partial.renameTo(file)) partial.delete()
-            trim()
+            if (folder == dir) trim()
         } catch (e: IOException) {
             Log.w(LOG_TAG, "Cannot keep the cover ${file.name}", e)
         }
@@ -172,8 +211,11 @@ class ThumbnailStore private constructor(context: Context) {
 
     companion object {
 
-        /** Folder of the kept covers inside the app's cache. */
+        /** Folder of the fetched covers inside the app's cache. */
         private const val DIR_NAME = "thumbnails"
+
+        /** Folder of the history's covers inside the app's files. */
+        private const val KEPT_DIR_NAME = "history-covers"
 
         /** Memory for covers: about 50 of them. */
         private const val MEMORY_BYTES = 8 * 1024 * 1024

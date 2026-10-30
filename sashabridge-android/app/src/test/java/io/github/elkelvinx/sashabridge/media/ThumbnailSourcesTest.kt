@@ -38,4 +38,10 @@ class ThumbnailSourcesTest {
         assertEquals(listOf("https://example.com/a.jpg"), ThumbnailSources.candidates("https://example.com/a.jpg"))
         assertEquals(listOf("content://other/1"), ThumbnailSources.candidates("content://other/1"))
     }
+
+    /** A key of a cover the history keeps is not fetched from anywhere. */
+    @Test
+    fun keysAreNotAddresses() {
+        assertEquals(emptyList<String>(), ThumbnailSources.candidates("art:1a2b3c"))
+    }
 }

@@ -4,11 +4,14 @@ import android.content.ComponentName
 import android.media.AudioManager
 import android.media.session.MediaSessionManager
 import android.os.Build
+import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import android.util.Log
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
 import io.github.elkelvinx.sashabridge.bridge.BridgeStatus
+import io.github.elkelvinx.sashabridge.history.HistoryRecorder
+import io.github.elkelvinx.sashabridge.history.HistoryRepository
 import io.github.elkelvinx.sashabridge.media.MediaCommandExecutor
 import io.github.elkelvinx.sashabridge.media.MediaSessionTracker
 import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
@@ -20,6 +23,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -34,6 +39,7 @@ import kotlinx.coroutines.launch
  *   PC and runs the PC's commands through [MediaCommandExecutor].
  * - The commands pressed on the app's own screen ([BridgeRepository.commands]) run through
  *   the same executor, whether the bridge is on or off.
+ * - The tracks listened to go to the history ([HistoryRecorder], [HistoryRepository]).
  *
  * When Android disconnects the listener, for example after the app is updated, the service
  * asks to be bound again with [requestRebind].
@@ -107,6 +113,7 @@ class MusicListenerService : NotificationListenerService() {
             launch { tracker.queue.collect(repository::updateQueue) }
             launch { repository.commands.collect { commandExecutor.execute(it) } }
             launch { offerCaptures() }
+            launch { recordHistory() }
             repository.enabled.collectLatest { enabled ->
                 if (enabled) {
                     Log.i(LOG_TAG, "Bridge enabled, starting the server")
@@ -163,6 +170,33 @@ class MusicListenerService : NotificationListenerService() {
         }
     }
 
+    /**
+     * Adds the tracks listened to to the history, until the listener disconnects: each state
+     * of the player goes to [HistoryRecorder], and so does the time every [HISTORY_TICK_MS],
+     * since a track that simply plays on sends no new state. Old tracks are pruned first.
+     * Main thread; the writes run on the IO dispatcher.
+     */
+    private suspend fun recordHistory() = coroutineScope {
+        val history = HistoryRepository.get(this@MusicListenerService)
+        val recorder = HistoryRecorder()
+        history.prune()
+        launch {
+            tracker.media.collect { snapshot ->
+                recorder.update(snapshot, SystemClock.elapsedRealtime())?.let { history.record(it) }
+            }
+        }
+        while (true) {
+            delay(HISTORY_TICK_MS)
+            recorder.tick(SystemClock.elapsedRealtime())?.let { history.record(it) }
+        }
+    }
+
     /** Component name of this listener. */
     private fun listenerComponent() = ComponentName(this, MusicListenerService::class.java)
+
+    private companion object {
+
+        /** How often the playing time is added up for the history. */
+        const val HISTORY_TICK_MS = 10_000L
+    }
 }
