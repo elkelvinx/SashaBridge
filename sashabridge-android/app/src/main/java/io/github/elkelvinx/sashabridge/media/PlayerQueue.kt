@@ -16,7 +16,22 @@ data class PlayerQueue(
     val title: String?,
     val entries: List<QueueEntry>,
     val activeQueueId: Long?,
-)
+) {
+
+    /**
+     * Whether going from the track titled [from] to the one titled [to] moved forward or back
+     * in the queue, so a change made outside the app ("previous" on the PC or in the player)
+     * animates the right way.
+     *
+     * @return 1 forward, -1 back, or `null` if either track is not in the queue.
+     */
+    fun directionBetween(from: String?, to: String?): Int? {
+        if (from == null || to == null || from == to) return null
+        val fromIndex = entries.indexOfFirst { it.title == from }.takeIf { it >= 0 } ?: return null
+        val toIndex = entries.indexOfFirst { it.title == to }.takeIf { it >= 0 } ?: return null
+        return if (toIndex > fromIndex) 1 else -1
+    }
+}
 
 /**
  * One item of a [PlayerQueue].

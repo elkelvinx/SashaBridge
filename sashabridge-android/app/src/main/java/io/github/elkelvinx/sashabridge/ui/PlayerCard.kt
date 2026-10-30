@@ -1,5 +1,8 @@
 package io.github.elkelvinx.sashabridge.ui
 
+import android.animation.Animator
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Drawable
@@ -24,6 +27,7 @@ import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.media.AlbumArt
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
 import io.github.elkelvinx.sashabridge.media.PlayerCommand
+import io.github.elkelvinx.sashabridge.media.PlayerQueue
 import io.github.elkelvinx.sashabridge.media.RepeatMode
 import io.github.elkelvinx.sashabridge.protocol.CommandAction
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
@@ -95,6 +99,12 @@ class PlayerCard(
     private val elapsedTime: TextView = root.findViewById(R.id.elapsedTime)
     private val durationTime: TextView = root.findViewById(R.id.durationTime)
     private val wave = WavyProgressDrawable(context)
+
+    /** Play queue of the active player, or `null`. */
+    private var queue: PlayerQueue? = null
+
+    /** The art floating while the next track loads, until the change ends. */
+    private var waitFloat: Animator? = null
 
     /** Last snapshot received, or `null` when nothing is playing. */
     private var latest: MediaSnapshot? = null
@@ -201,14 +211,20 @@ class PlayerCard(
             snapshot.trackId == current.trackId -> {
                 val activeSwipe = swipe
                 if (activeSwipe != null && activeSwipe.byUser && restarted(snapshot, activeSwipe)) {
-                    // "Previous" late in a track restarts it instead of changing it.
-                    finishSwipe(snapshot)
+                    // "Previous" late in a track restarts it instead of changing it: the art
+                    // just comes back to its place.
+                    cover.removeCallbacks(cancelSwipe)
+                    returnSwipe()
+                    render(snapshot)
                 } else {
                     render(snapshot)
                 }
             }
             else -> {
-                if (swipe == null) beginSwipe(FORWARD, byUser = false)
+                if (swipe == null) {
+                    // A change made elsewhere (the PC, the player): the queue tells its way.
+                    beginSwipe(queue?.directionBetween(current.title, snapshot.title) ?: FORWARD, byUser = false)
+                }
                 cover.removeCallbacks(cancelSwipe)
                 if (snapshot.art != null) {
                     finishSwipe(snapshot)
@@ -221,12 +237,14 @@ class PlayerCard(
     }
 
     /**
-     * Shows or hides the queue button.
+     * Receives the play queue of the active player: it shows the queue button, and tells
+     * which way a track change made outside the app goes.
      *
-     * @param available Whether the active player publishes a queue.
+     * @param queue The queue, or `null` if the player publishes none.
      */
-    fun setQueueAvailable(available: Boolean) {
-        queueButton.isVisible = available
+    fun setQueue(queue: PlayerQueue?) {
+        this.queue = queue
+        queueButton.isVisible = queue != null
     }
 
     /** Moves the seek bar and the elapsed time to the current position. Call periodically. */
@@ -278,21 +296,51 @@ class PlayerCard(
         tick()
     }
 
-    /** Starts sliding the art away, slower and slower, while the next track loads. */
+    /**
+     * Starts a track change: the art dips and shrinks at once, so the tap gets an answer,
+     * then rises in a curve towards the side it leaves by ([Swipe.direction]) and floats there,
+     * as long as the next track takes to load.
+     */
     private fun beginSwipe(direction: Int, byUser: Boolean) {
         if (swipe != null) {
             if (byUser) restartCancelTimer()
             return
         }
         swipe = Swipe(direction, byUser, clock())
+        stopFloating()
         cover.animate().cancel()
         cover.animate()
-            .translationX(-direction * cover.width * HOLD_DISTANCE)
-            .alpha(HOLD_ALPHA).scaleX(HOLD_SCALE).scaleY(HOLD_SCALE)
-            .setDuration(HOLD_MS).setInterpolator(DecelerateInterpolator(2.5f)).start()
+            .translationY(cover.height * DIP_DROP).scaleX(DIP_SCALE).scaleY(DIP_SCALE)
+            .setDuration(DIP_MS).setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                cover.animate()
+                    .translationX(-direction * cover.width * ARC_SHIFT).translationY(-cover.height * ARC_RISE)
+                    .scaleX(ARC_SCALE).scaleY(ARC_SCALE).alpha(ARC_ALPHA)
+                    .setDuration(ARC_MS).setInterpolator(DecelerateInterpolator(1.5f))
+                    .withEndAction(::startFloating)
+                    .start()
+            }.start()
         trackInfo.animate().cancel()
-        trackInfo.animate().alpha(HOLD_ALPHA).setDuration(FADE_MS * 2).start()
+        trackInfo.animate().alpha(INFO_WAIT_ALPHA).setDuration(FADE_MS * 2).start()
         if (byUser) restartCancelTimer()
+    }
+
+    /** Floats the waiting art gently up and down until the change ends. */
+    private fun startFloating() {
+        if (swipe == null) return
+        val top = cover.translationY
+        waitFloat = ObjectAnimator.ofFloat(cover, View.TRANSLATION_Y, top, top - cover.height * FLOAT_RISE).apply {
+            duration = FLOAT_MS
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.REVERSE
+            start()
+        }
+    }
+
+    /** Stops the floating, leaving the art where it is. */
+    private fun stopFloating() {
+        waitFloat?.cancel()
+        waitFloat = null
     }
 
     /** (Re)starts the wait after which a skip that changed nothing is undone. */
@@ -301,22 +349,30 @@ class PlayerCard(
         cover.postDelayed(cancelSwipe, CANCEL_MS)
     }
 
-    /** Sends the old art away and slides [snapshot] in from the other side. */
+    /**
+     * Ends a track change: the old art carries on its curve and leaves the card, and [snapshot]
+     * comes in from the other side, rising a little into place.
+     */
     private fun finishSwipe(snapshot: MediaSnapshot) {
         val direction = swipe?.direction ?: FORWARD
         cover.removeCallbacks(showWithoutArt)
         cover.removeCallbacks(cancelSwipe)
+        stopFloating()
         cover.animate().cancel()
         cover.animate()
-            .translationX(-direction * cover.width * OUT_DISTANCE).alpha(0f)
+            .translationX(-direction * cover.width * OUT_SHIFT).translationY(-cover.height * OUT_RISE)
+            .scaleX(OUT_SCALE).scaleY(OUT_SCALE).alpha(0f)
             .setDuration(OUT_MS).setInterpolator(AccelerateInterpolator())
             .withEndAction {
                 // Rendered while the swipe is still on, so the art is swapped at once: a
                 // cross-fade here would be cancelled by the slide-in below.
                 render(latest?.takeIf { it.trackId == snapshot.trackId } ?: snapshot)
                 swipe = null
-                cover.translationX = direction * cover.width * IN_DISTANCE
-                cover.animate().translationX(0f).alpha(1f).scaleX(1f).scaleY(1f)
+                cover.translationX = direction * cover.width * IN_SHIFT
+                cover.translationY = cover.height * IN_DROP
+                cover.scaleX = IN_SCALE
+                cover.scaleY = IN_SCALE
+                cover.animate().translationX(0f).translationY(0f).alpha(1f).scaleX(1f).scaleY(1f)
                     .setDuration(IN_MS).setInterpolator(DecelerateInterpolator(2f)).start()
                 trackInfo.translationX = direction * density * SLIDE_DP
                 trackInfo.animate().alpha(1f).translationX(0f).setDuration(IN_MS).start()
@@ -326,8 +382,9 @@ class PlayerCard(
     /** Brings the old art back to its place: the skip changed nothing. */
     private fun returnSwipe() {
         swipe = null
+        stopFloating()
         cover.animate().cancel()
-        cover.animate().translationX(0f).alpha(1f).scaleX(1f).scaleY(1f)
+        cover.animate().translationX(0f).translationY(0f).alpha(1f).scaleX(1f).scaleY(1f)
             .setDuration(IN_MS).setInterpolator(DecelerateInterpolator(2f)).start()
         trackInfo.animate().alpha(1f).setDuration(IN_MS).start()
     }
@@ -564,23 +621,36 @@ class PlayerCard(
         /** Position below which the same track after "previous" counts as restarted. */
         const val RESTART_MS = 2_000L
 
-        /** Time over which the waiting art drifts away, slowing down. */
-        const val HOLD_MS = 1_500L
+        /** The dip that answers the tap: time, drop and scale, in art heights. */
+        const val DIP_MS = 140L
+        const val DIP_DROP = 0.06f
+        const val DIP_SCALE = 0.94f
 
-        /** How far, in art widths, the waiting art drifts at most. */
-        const val HOLD_DISTANCE = 0.45f
+        /** The curve up towards the exit while the track loads, in art sizes. */
+        const val ARC_MS = 520L
+        const val ARC_SHIFT = 0.3f
+        const val ARC_RISE = 0.07f
+        const val ARC_SCALE = 0.8f
+        const val ARC_ALPHA = 0.7f
 
-        /** Opacity and scale of the waiting art. */
-        const val HOLD_ALPHA = 0.55f
-        const val HOLD_SCALE = 0.92f
+        /** The floating while the track still loads: half a period and height, in art heights. */
+        const val FLOAT_MS = 700L
+        const val FLOAT_RISE = 0.025f
 
-        /** Time and distance, in art widths, of the old art leaving. */
-        const val OUT_MS = 110L
-        const val OUT_DISTANCE = 1.1f
+        /** Opacity of the title and artist while the change waits. */
+        const val INFO_WAIT_ALPHA = 0.55f
 
-        /** Time and starting distance, in art widths, of the new art arriving. */
-        const val IN_MS = 260L
-        const val IN_DISTANCE = 0.6f
+        /** The old art leaving along its curve: time, distance, rise and scale, in art sizes. */
+        const val OUT_MS = 170L
+        const val OUT_SHIFT = 1.05f
+        const val OUT_RISE = 0.14f
+        const val OUT_SCALE = 0.6f
+
+        /** The new art arriving from the other side, a little low: time, start and scale. */
+        const val IN_MS = 320L
+        const val IN_SHIFT = 0.35f
+        const val IN_DROP = 0.08f
+        const val IN_SCALE = 0.85f
 
         /** Base duration of the other animations. */
         const val FADE_MS = 120L

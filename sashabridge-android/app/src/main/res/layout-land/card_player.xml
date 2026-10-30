@@ -55,23 +55,36 @@
                 android:orientation="horizontal"
                 tools:ignore="NestedWeights">
 
-                <!-- As tall as the row, never so wide that the details lack room. -->
-                <io.github.elkelvinx.sashabridge.ui.SquareImageView
-                    android:id="@+id/cover"
+                <!-- The art's own area: a track change slides the art out of it and in, cut at
+                     its edges, so the art never passes over the title. The padding leaves room
+                     for the shadow. -->
+                <FrameLayout
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:elevation="6dp"
-                    android:importantForAccessibility="no"
-                    android:maxWidth="280dp"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/cover_placeholder"
-                    app:shapeAppearanceOverlay="@style/ShapeAppearance.SashaBridge.Cover" />
+                    android:clipToPadding="false"
+                    android:padding="4dp">
 
+                    <!-- As tall as the row, never so wide that the details lack room. -->
+                    <io.github.elkelvinx.sashabridge.ui.SquareImageView
+                        android:id="@+id/cover"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:elevation="6dp"
+                        android:importantForAccessibility="no"
+                        android:maxWidth="272dp"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/cover_placeholder"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.SashaBridge.Cover" />
+                </FrameLayout>
+
+                <!-- The track's text slides in a little from either side when the track
+                     changes; it may cross the column's edge for that moment. -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="12dp"
                     android:layout_weight="1"
+                    android:clipChildren="false"
                     android:orientation="vertical">
 
                     <!-- "Sonando" or "En pausa" over the queue; the player app at the end. -->

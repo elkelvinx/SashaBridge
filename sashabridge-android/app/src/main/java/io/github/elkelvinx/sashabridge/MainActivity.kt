@@ -184,7 +184,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 launch { repository.media.collect(player::show) }
-                launch { repository.queue.collect { player.setQueueAvailable(it != null) } }
+                launch { repository.queue.collect { player.setQueue(it) } }
                 launch {
                     while (true) {
                         player.tick()
