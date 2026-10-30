@@ -168,18 +168,21 @@ La PC envía capturas de pantalla al teléfono; el usuario las anota con el S Pe
 | `annotate.request` | PC → teléfono | `requestId` (texto no vacío), `mime` (hoy `image/png`), `width` y `height` (enteros mayores que 0) y `data` (la imagen en Base64). |
 | `annotate.result` | Teléfono → PC | Los mismos campos que `annotate.request`, con el `requestId` de la captura de origen y la imagen ya anotada. |
 | `annotate.cancelled` | Teléfono → PC | `requestId` de la captura que el usuario descartó. |
+| `annotate.shared` | Teléfono → PC | `mime`, `width`, `height` y `data`, como `annotate.result` pero sin `requestId`: una imagen que el teléfono envía por su cuenta, por ejemplo una compartida a SashaBridge desde otra app. |
 
 ```json
 {"type":"annotate.status","armed":true}
 {"type":"annotate.request","requestId":"c4f1a2","mime":"image/png","width":1280,"height":720,"data":"iVBORw0KGgo="}
 {"type":"annotate.result","requestId":"c4f1a2","mime":"image/png","width":1280,"height":720,"data":"iVBORw0KGgo="}
 {"type":"annotate.cancelled","requestId":"c4f1a2"}
+{"type":"annotate.shared","mime":"image/png","width":1080,"height":2316,"data":"iVBORw0KGgo="}
 ```
 
 **Reglas:**
 1. Tras su `hello`, el teléfono envía `annotate.status`, y lo vuelve a enviar cada vez que la pantalla "Anotar" se abre o se cierra.
 2. Las imágenes que el usuario copia en la PC (por ejemplo, con `Win+Shift+S`) solo se envían mientras `armed` es `true`. Una captura pedida expresamente con el atajo de SashaBridge se envía siempre; si la pantalla no está abierta, el teléfono la ofrece en una notificación, porque Android no deja abrir pantallas desde segundo plano.
 3. Cada `annotate.request` termina con un `annotate.result` o un `annotate.cancelled` con su mismo `requestId`, salvo que la sesión se cierre antes.
+4. La PC trata `annotate.result` y `annotate.shared` igual: pone la imagen en el portapapeles, la guarda en `Imágenes\SashaBridge` y lo avisa con una notificación.
 
 ### Tableta
 

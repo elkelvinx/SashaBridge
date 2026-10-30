@@ -1,9 +1,11 @@
 package io.github.elkelvinx.sashabridge.pen
 
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.core.graphics.ColorUtils
 import kotlin.math.max
@@ -17,6 +19,9 @@ import kotlin.math.min
  */
 class InkRenderer {
 
+    /** Pixels of the [InkImage] marks, by [InkImage.pictureId]. */
+    var pictures: Map<Int, Bitmap> = emptyMap()
+
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -26,6 +31,8 @@ class InkRenderer {
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
     private val path = Path()
+    private val pictureBox = RectF()
+    private val pictureFilter = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val selectionShadow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         color = SELECTION_SHADOW
@@ -63,6 +70,10 @@ class InkRenderer {
                 path.lineTo(shape.x2, shape.y2)
                 path.lineTo(head[2], head[3])
                 canvas.drawPath(path, stroke)
+            }
+            is InkImage -> pictures[shape.pictureId]?.let { picture ->
+                pictureBox.set(shape.left, shape.top, shape.right, shape.bottom)
+                canvas.drawBitmap(picture, null, pictureBox, pictureFilter)
             }
             is InkText -> {
                 text.color = shape.color

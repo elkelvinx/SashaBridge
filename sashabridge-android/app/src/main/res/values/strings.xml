@@ -79,6 +79,13 @@
     <string name="annotate_tool_text">Texto</string>
     <string name="annotate_tool_move">Mover</string>
     <string name="annotate_tool_resize">Cambiar tamaño</string>
+    <string name="annotate_tool_image">Insertar imagen</string>
+    <string name="annotate_image_error">No se pudo abrir la imagen.</string>
+    <string name="annotate_share_busy">Termina o descarta la captura abierta antes de abrir otra imagen.</string>
+    <string name="annotate_shared_offline">La PC no está conectada; al enviar, la imagen llegará en cuanto se conecte.</string>
+    <string name="annotate_shared_pending">Se enviará a la PC en cuanto se conecte.</string>
+    <string name="share_label">Enviar a la PC</string>
+    <string name="open_player">Abrir %1$s</string>
     <string name="annotate_move_tools_hint">Toca dos veces o mantén pulsado para elegir entre mover y cambiar tamaño</string>
     <string name="annotate_color">Color %1$d</string>
     <string name="annotate_thin">Fino</string>

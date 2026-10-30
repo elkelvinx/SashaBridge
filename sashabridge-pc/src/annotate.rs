@@ -3,8 +3,8 @@
 //! The `/pen` session ([`crate::pen_route`]) sends the images the user copies while the
 //! phone's annotation screen waits, and the one asked for with Ctrl+Alt+A always
 //! ([`crate::hidden_window::WindowEvent::ImageCopied`]), encoded here. Each annotation it
-//! receives goes to the clipboard and to `Pictures\SashaBridge`, announced by a Windows
-//! notification.
+//! receives, and each image shared from the phone, goes to the clipboard and to
+//! `Pictures\SashaBridge`, announced by a Windows notification.
 
 use std::fs;
 use std::io;
@@ -52,11 +52,14 @@ pub async fn capture_request(image: Rgba) -> anyhow::Result<String> {
     .context("the capture encoder stopped")?
 }
 
-/// Puts an annotation on the clipboard, saves it, and announces it with a Windows
-/// notification, or with a sound if Windows refuses the notification.
-pub async fn receive_annotation(result: AnnotateImage, owner: ClipboardOwner) {
+/// Puts an image from the phone (an annotation, or one shared to SashaBridge) on the
+/// clipboard, saves it, and announces it with a Windows notification, or with a sound if
+/// Windows refuses the notification.
+///
+/// `data` is the PNG in standard base64.
+pub async fn receive_image(data: String, owner: ClipboardOwner) {
     let outcome = task::spawn_blocking(move || -> anyhow::Result<PathBuf> {
-        let png = STANDARD.decode(&result.data).context("invalid base64 in annotate.result")?;
+        let png = STANDARD.decode(&data).context("invalid base64 in the image")?;
         let image = bitmap::decode_png(&png)?;
         clipboard::write_image(owner.hwnd(), &png, &image)?;
         let path = save(&png)?;
@@ -69,9 +72,9 @@ pub async fn receive_annotation(result: AnnotateImage, owner: ClipboardOwner) {
     })
     .await;
     match outcome {
-        Ok(Ok(path)) => info!(file = %path.display(), "annotation copied to the clipboard and saved"),
-        Ok(Err(error)) => warn!("cannot use the annotation: {error:#}"),
-        Err(error) => warn!(%error, "the annotation handler stopped"),
+        Ok(Ok(path)) => info!(file = %path.display(), "image copied to the clipboard and saved"),
+        Ok(Err(error)) => warn!("cannot use the image from the phone: {error:#}"),
+        Err(error) => warn!(%error, "the image handler stopped"),
     }
 }
 

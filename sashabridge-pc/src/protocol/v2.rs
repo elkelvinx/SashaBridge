@@ -39,6 +39,9 @@ pub enum PhoneMessage {
     /// The user discarded a capture on the phone.
     #[serde(rename = "annotate.cancelled")]
     AnnotateCancelled(AnnotateCancelled),
+    /// An image the phone sends on its own, such as one shared to SashaBridge.
+    #[serde(rename = "annotate.shared")]
+    AnnotateShared(SharedImage),
     /// Whether the phone's tablet screen is open.
     #[serde(rename = "tablet.status")]
     TabletStatus(TabletStatus),
@@ -88,6 +91,20 @@ pub struct AnnotateStatus {
 pub struct AnnotateImage {
     /// Identifier the PC gave the capture; the result carries the same one.
     pub request_id: RequestId,
+    /// Media type of the image, currently always `image/png`.
+    pub mime: String,
+    /// Width of the image in pixels.
+    pub width: NonZeroU32,
+    /// Height of the image in pixels.
+    pub height: NonZeroU32,
+    /// Image bytes in standard base64.
+    pub data: String,
+}
+
+/// An image from the phone that answers no capture, for the clipboard.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SharedImage {
     /// Media type of the image, currently always `image/png`.
     pub mime: String,
     /// Width of the image in pixels.

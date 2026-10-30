@@ -102,6 +102,9 @@ class InkCanvasView @JvmOverloads constructor(
 
     private var image: Bitmap? = null
     private val shapes = mutableListOf<InkShape>()
+
+    /** Pixels of the pictures placed on this capture, kept while it is open so undo can bring them back. */
+    private val pictures = mutableMapOf<Int, Bitmap>()
     private val undoStack = ArrayDeque<List<InkShape>>()
     private val redoStack = ArrayDeque<List<InkShape>>()
 
@@ -132,7 +135,7 @@ class InkCanvasView @JvmOverloads constructor(
     private val toCapture = Matrix()
     private var fitScale = 1f
     private val point = FloatArray(2)
-    private val renderer = InkRenderer()
+    private val renderer = InkRenderer().also { it.pictures = pictures }
 
     /** Keeps the back gesture away from the edges where the pen is. */
     private val edges = EdgeGuard(this)
@@ -176,12 +179,16 @@ class InkCanvasView @JvmOverloads constructor(
         if (capture == null) edges.release()
         deselect()
         shapes.clear()
+        pictures.clear()
         undoStack.clear()
         redoStack.clear()
         current = null
         fit()
         onChange?.invoke()
     }
+
+    /** Width and height of the open capture in pixels, or `null` without one. */
+    fun captureSize(): Pair<Int, Int>? = image?.let { it.width to it.height }
 
     /**
      * Text size of [step], from 0 (small) to 3 (huge), in capture pixels: relative to the
@@ -216,6 +223,24 @@ class InkCanvasView @JvmOverloads constructor(
         changed()
     }
 
+    /**
+     * Places [picture] on the capture as one step to undo, centered on what the screen shows
+     * and no bigger than [PICTURE_SHARE] of the capture, and holds it so the move and resize
+     * tools act on it right away.
+     */
+    fun insertPicture(picture: Bitmap) {
+        val source = image ?: return
+        val id = (pictures.keys.maxOrNull() ?: 0) + 1
+        pictures[id] = picture
+        val scale = min(1f, min(source.width * PICTURE_SHARE / picture.width, source.height * PICTURE_SHARE / picture.height))
+        val halfWidth = picture.width * scale / 2
+        val halfHeight = picture.height * scale / 2
+        val (x, y) = capturePoint(width / 2f, height / 2f)
+        commit(InkImage(x - halfWidth, y - halfHeight, x + halfWidth, y + halfHeight, id))
+        selected = shapes.lastIndex
+        invalidate()
+    }
+
     /** Takes back the last change. */
     fun undo() {
         val previous = undoStack.removeLastOrNull() ?: return
@@ -246,7 +271,7 @@ class InkCanvasView @JvmOverloads constructor(
         val out = createBitmap(source.width, source.height)
         val canvas = Canvas(out)
         canvas.drawBitmap(source, 0f, 0f, null)
-        InkRenderer().draw(canvas, shapes)
+        InkRenderer().also { it.pictures = pictures }.draw(canvas, shapes)
         return out
     }
 
@@ -576,6 +601,9 @@ class InkCanvasView @JvmOverloads constructor(
         /** Reach of the eraser and size of a tap, in screen pixels. */
         const val ERASER_RADIUS_PX = 24f
         const val TAP_SLOP_PX = 18f
+
+        /** Largest share of the capture's width or height a placed picture starts with. */
+        const val PICTURE_SHARE = 0.5f
 
         /** Smallest side a resized mark can shrink to, in screen pixels. */
         const val MIN_MARK_PX = 36f

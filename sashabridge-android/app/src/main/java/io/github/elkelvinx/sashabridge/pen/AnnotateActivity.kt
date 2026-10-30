@@ -1,13 +1,17 @@
 package io.github.elkelvinx.sashabridge.pen
 
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.net.Uri
 import android.graphics.drawable.AnimationDrawable
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Base64
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -23,8 +27,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -39,9 +46,13 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.github.elkelvinx.sashabridge.R
+import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import io.github.elkelvinx.sashabridge.protocol.PhoneMessage
 import java.io.ByteArrayOutputStream
+import java.io.IOException
+import kotlin.math.max
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,7 +67,12 @@ import kotlinx.coroutines.withContext
  * "Descartar". While a capture is open the system bars hide and the back gesture opens those
  * same choices instead of leaving, so a pen stroke that starts at the edge loses nothing.
  * The "Mover" button also holds "Cambiar tamaño": a double tap or a long press on it opens a
- * small menu to choose which of the two it is.
+ * small menu to choose which of the two it is. "Imagen" places a photo from the phone on the
+ * capture, to move, resize and draw over.
+ *
+ * Other apps can also share an image to SashaBridge ("Compartir"): it opens here as if the PC
+ * had sent it, and "Enviar" puts it on the PC's clipboard, at once or as soon as a PC connects.
+ * After sending or discarding it, the screen closes and the user is back in that app.
  *
  * Main thread, except decoding and encoding the images, which run on [Dispatchers.Default].
  */
@@ -76,8 +92,17 @@ class AnnotateActivity : AppCompatActivity() {
     private lateinit var colorButtons: List<View>
     private lateinit var thicknessButtons: List<ImageButton>
 
-    /** Capture being annotated, or `null` while waiting. */
+    /** Capture from the PC being annotated, or `null`. */
     private var capture: PcMessage.AnnotateRequest? = null
+
+    /** Whether the image being annotated was shared from another app instead. */
+    private var shared = false
+
+    /** Whether this screen was opened to annotate a shared image, so it closes after it. */
+    private var openedByShare = false
+
+    /** Whether an image is open, from the PC or shared. */
+    private val isOpen: Boolean get() = capture != null || shared
 
     /** Whether the screen is visible. */
     private var started = false
@@ -93,6 +118,11 @@ class AnnotateActivity : AppCompatActivity() {
 
     /** When the "Mover" button was last tapped, to tell a double tap. */
     private var lastMoveTap = 0L
+
+    /** The system photo picker; needs no permission to read the photos. */
+    private val pickPicture = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(::insertPicture)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,6 +155,9 @@ class AnnotateActivity : AppCompatActivity() {
             showMoveTools()
             true
         }
+        findViewById<View>(R.id.toolImage).setOnClickListener {
+            pickPicture.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
         colorButtons = buildColorButtons()
         thicknessButtons = listOf(findViewById(R.id.thinButton), findViewById(R.id.mediumButton), findViewById(R.id.thickButton))
         thicknessButtons.forEachIndexed { index, button -> button.setOnClickListener { selectThickness(index) } }
@@ -138,7 +171,7 @@ class AnnotateActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 // Edge strokes can still trip the gesture; it never throws the work away.
-                if (capture != null) showActions() else finish()
+                if (isOpen) showActions() else finish()
             }
         })
 
@@ -158,6 +191,12 @@ class AnnotateActivity : AppCompatActivity() {
                 }
             }
         }
+        openShared(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        openShared(intent)
     }
 
     override fun onStart() {
@@ -174,7 +213,7 @@ class AnnotateActivity : AppCompatActivity() {
 
     /** Opens the pending capture, unless one is already open. */
     private fun onCaptureArrived() {
-        if (capture != null || busy) {
+        if (isOpen || busy) {
             Toast.makeText(this, R.string.annotate_queued, Toast.LENGTH_SHORT).show()
             return
         }
@@ -197,9 +236,86 @@ class AnnotateActivity : AppCompatActivity() {
         }
     }
 
-    /** Exports the annotated capture and sends it to the PC. */
+    /**
+     * Opens an image another app shared (`ACTION_SEND`), unless another one is open. Photos
+     * shrink to [SHARED_MAX_SIDE] on their longer side; screenshots fit as they are.
+     */
+    private fun openShared(intent: Intent) {
+        if (intent.action != Intent.ACTION_SEND || intent.type?.startsWith("image/") != true) return
+        val uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) ?: return
+        // Handled once, even if the screen is recreated.
+        intent.action = null
+        if (isOpen || busy) {
+            Toast.makeText(this, R.string.annotate_share_busy, Toast.LENGTH_LONG).show()
+            return
+        }
+        openedByShare = true
+        busy = true
+        lifecycleScope.launch {
+            val bitmap = decode(uri, SHARED_MAX_SIDE)
+            busy = false
+            if (bitmap == null) {
+                Toast.makeText(this@AnnotateActivity, R.string.annotate_image_error, Toast.LENGTH_SHORT).show()
+                finish()
+                return@launch
+            }
+            shared = true
+            canvas.setCapture(bitmap)
+            showEditor(true)
+        }
+    }
+
+    /** Places a photo the user picked on the open capture, held by the move tool. */
+    private fun insertPicture(uri: Uri) {
+        val maxSide = canvas.captureSize()?.let { (w, h) -> max(w, h) } ?: return
+        lifecycleScope.launch {
+            val picture = decode(uri, maxSide)
+            if (picture == null) {
+                Toast.makeText(this@AnnotateActivity, R.string.annotate_image_error, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            if (!isOpen) return@launch
+            setMoveSlot(InkTool.MOVE)
+            canvas.insertPicture(picture)
+        }
+    }
+
+    /**
+     * Decodes the image at [uri] into software memory, so it can be drawn into the exported
+     * capture, no larger than [maxSide] on its longer side.
+     *
+     * @return The image, or `null` if it cannot be read.
+     */
+    private suspend fun decode(uri: Uri, maxSide: Int): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            ImageDecoder.decodeBitmap(ImageDecoder.createSource(contentResolver, uri)) { decoder, info, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                val longer = max(info.size.width, info.size.height)
+                if (longer > maxSide) {
+                    val scale = maxSide.toFloat() / longer
+                    decoder.setTargetSize(
+                        (info.size.width * scale).roundToInt().coerceAtLeast(1),
+                        (info.size.height * scale).roundToInt().coerceAtLeast(1),
+                    )
+                }
+            }
+        } catch (e: IOException) {
+            Log.w(LOG_TAG, "Cannot decode the image $uri", e)
+            null
+        } catch (e: SecurityException) {
+            // The app that shared it took the permission back.
+            Log.w(LOG_TAG, "No permission to read the image $uri", e)
+            null
+        }
+    }
+
+    /**
+     * Exports the annotated image and sends it: to the capture it answers, or, for a shared
+     * image, to the PC's clipboard now or as soon as a PC connects.
+     */
     private fun send() {
-        val current = capture ?: return
+        if (!isOpen) return
+        val current = capture
         val annotated = canvas.export() ?: return
         busy = true
         lifecycleScope.launch {
@@ -208,11 +324,15 @@ class AnnotateActivity : AppCompatActivity() {
                 annotated.compress(Bitmap.CompressFormat.PNG, PNG_QUALITY, png)
                 Base64.encodeToString(png.toByteArray(), Base64.NO_WRAP)
             }
-            annotations.reply(
-                PhoneMessage.AnnotateResult(current.requestId, PNG_MIME, annotated.width, annotated.height, data),
-            )
+            val message = if (current != null) {
+                annotations.reply(PhoneMessage.AnnotateResult(current.requestId, PNG_MIME, annotated.width, annotated.height, data))
+                R.string.annotate_sent
+            } else {
+                annotations.share(PhoneMessage.AnnotateShared(PNG_MIME, annotated.width, annotated.height, data))
+                if (pcConnected) R.string.annotate_sent else R.string.annotate_shared_pending
+            }
             busy = false
-            Toast.makeText(this@AnnotateActivity, R.string.annotate_sent, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@AnnotateActivity, message, Toast.LENGTH_SHORT).show()
             closeCapture()
         }
     }
@@ -221,17 +341,21 @@ class AnnotateActivity : AppCompatActivity() {
     // The sheet's content has no parent until setContentView, which sets its layout params.
     @SuppressLint("InflateParams")
     private fun showActions() {
-        if (capture == null || busy) return
+        if (!isOpen || busy) return
         val dialog = BottomSheetDialog(this)
         val sheet = LayoutInflater.from(this).inflate(R.layout.sheet_annotate_actions, null)
         sheet.findViewById<View>(R.id.sendAction).apply {
-            isEnabled = pcConnected
+            // A shared image waits for the PC; a capture's answer needs the PC that asked.
+            isEnabled = pcConnected || shared
             setOnClickListener {
                 dialog.dismiss()
                 send()
             }
         }
-        sheet.findViewById<View>(R.id.sendOffline).isVisible = !pcConnected
+        sheet.findViewById<TextView>(R.id.sendOffline).apply {
+            isVisible = !pcConnected
+            setText(if (shared) R.string.annotate_shared_offline else R.string.annotate_send_offline)
+        }
         sheet.findViewById<View>(R.id.discardAction).setOnClickListener {
             dialog.dismiss()
             confirmDiscard()
@@ -244,30 +368,38 @@ class AnnotateActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    /** Asks whether to discard the open capture; without one, leaves the screen. */
+    /** Asks whether to discard the open image; without one, leaves the screen. */
     private fun confirmDiscard() {
-        val current = capture ?: return finish()
+        if (!isOpen) return finish()
         if (!canvas.canUndo) {
-            discard(current)
+            discard()
             return
         }
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.annotate_discard_title)
-            .setPositiveButton(R.string.annotate_discard) { _, _ -> discard(current) }
+            .setPositiveButton(R.string.annotate_discard) { _, _ -> discard() }
             .setNegativeButton(R.string.annotate_cancel, null)
             .show()
     }
 
-    /** Tells the PC the capture was discarded and goes back to waiting. */
-    private fun discard(current: PcMessage.AnnotateRequest) {
-        annotations.reply(PhoneMessage.AnnotateCancelled(current.requestId))
+    /** Tells the PC its capture was discarded, if it was one, and closes the image. */
+    private fun discard() {
+        capture?.let { annotations.reply(PhoneMessage.AnnotateCancelled(it.requestId)) }
         closeCapture()
     }
 
-    /** Empties the canvas, waits again, and opens a capture that arrived meanwhile. */
+    /**
+     * Empties the canvas and waits again, opening a capture that arrived meanwhile; after a
+     * shared image, goes back to the app that shared it.
+     */
     private fun closeCapture() {
         capture = null
+        shared = false
         canvas.setCapture(null)
+        if (openedByShare) {
+            finish()
+            return
+        }
         showEditor(false)
         if (annotations.pendingCapture.value != null) onCaptureArrived()
     }
@@ -325,7 +457,7 @@ class AnnotateActivity : AppCompatActivity() {
 
     /** Armed while visible and waiting: the PC may send copied images then. */
     private fun updateArmed() {
-        annotations.setArmed(started && capture == null)
+        annotations.setArmed(started && !isOpen)
     }
 
     private fun updateHistoryButtons() {
@@ -427,6 +559,9 @@ class AnnotateActivity : AppCompatActivity() {
         val INK_COLORS = listOf(R.color.ink_red, R.color.ink_orange, R.color.ink_green, R.color.ink_blue, R.color.ink_purple)
         const val PNG_MIME = "image/png"
         const val PNG_QUALITY = 100
+
+        /** Longer side a shared photo shrinks to: sharp on any monitor, quick over USB. */
+        const val SHARED_MAX_SIDE = 3840
         const val DISABLED_ALPHA = 0.35f
         const val SWATCH_DP = 28f
         const val SWATCH_MARGIN_DP = 5f

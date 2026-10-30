@@ -1,6 +1,6 @@
 # Arquitectura de SashaBridge
 
-Este documento describe cómo está construido SashaBridge en la versión 2.1: las piezas de cada lado, los hilos en los que trabaja cada una, los flujos principales y las decisiones de diseño con su motivo. El contrato entre los dos lados está en `docs/protocolo-v2.md`, y la forma de comprobar todo lo que se describe aquí, en `docs/verificacion.md`.
+Este documento describe cómo está construido SashaBridge en la versión 2.2: las piezas de cada lado, los hilos en los que trabaja cada una, los flujos principales y las decisiones de diseño con su motivo. El contrato entre los dos lados está en `docs/protocolo-v2.md`, y la forma de comprobar todo lo que se describe aquí, en `docs/verificacion.md`.
 
 ## 1. Visión general
 
@@ -58,7 +58,8 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `ui/BridgePhase`, `ui/PlayerCard`, `MainActivity` | Pantalla: estado del puente, avisos de permisos y batería, Sasha, y la tarjeta del reproductor con sus controles y la barra de progreso. |
 | `server/PenSession` | Conversación con una PC en la ruta `/pen`: estado de las dos pantallas del S Pen, capturas, anotaciones, monitor de la tableta, latencia y las muestras del lápiz en frames binarios. |
 | `pen/AnnotationRepository`, `pen/TabletRepository` | Estado compartido entre `PenSession` y cada pantalla del S Pen. |
-| `pen/AnnotateActivity`, `pen/InkCanvasView` | Modo Anotar: la captura, las herramientas (lápiz con presión, resaltador, línea, rectángulo, flecha, texto con tamaño y Mover), deshacer y rehacer, y el menú "+" para enviar o descartar. |
+| `pen/AnnotateActivity`, `pen/InkCanvasView` | Modo Anotar: la captura (de la PC o compartida desde otra app), las herramientas (lápiz con presión, resaltador, línea, rectángulo, flecha, texto con tamaño, insertar imagen, Mover y Cambiar tamaño), deshacer y rehacer, y el menú "+" para enviar o descartar. |
+| `pen/DragSession`, `pen/InkShapes` | Lógica pura, con tests: el arrastre de Mover y Cambiar tamaño, y la geometría de las marcas (límites, toque, mover y escalar). |
 | `pen/InkShapes`, `pen/InkRenderer` | Marcas inmutables en píxeles de la captura, su geometría (borrar, mover, recuadro) y su dibujo, el mismo en pantalla y en la imagen exportada. |
 | `pen/TabletActivity`, `pen/TabletSurfaceView` | Modo Tableta: área con la proporción del monitor y conversión de cada evento del S Pen en muestras. |
 | `pen/EdgeGuard`, `pen/ImmediatePen` | Apartan el gesto "atrás" de los bordes donde está el lápiz, y piden a Android los eventos del lápiz sin agruparlos por fotograma. |
@@ -170,6 +171,10 @@ Crate `sashabridge_pc`, en `sashabridge-pc/src/`.
 3. El usuario anota y pulsa "+" → "Enviar a la PC". El PNG vuelve como `annotate.result`.
 4. La PC lo pone en el portapapeles (`CF_DIB` y `PNG`), lo guarda en `Imágenes\SashaBridge` y muestra una notificación con la imagen; al tocarla se abre el archivo.
 
+El recorte de Windows escribe el portapapeles más de una vez por captura. La PC espera 300 ms sin cambios antes de leerlo y no reenvía una imagen idéntica en 10 s; el teléfono, además, descarta una captura repetida de la que acaba de abrir.
+
+**Imagen compartida desde el teléfono.** Otra app comparte una imagen con SashaBridge (`ACTION_SEND`): se abre en Anotar como si fuera una captura, y al enviarla viaja como `annotate.shared`, sin `requestId`. Espera en una cola de `AnnotationRepository` hasta que una sesión `/pen` la toma, así que con la PC desconectada se envía al conectarse. La PC la trata igual que una anotación.
+
 **Tableta.**
 1. Tras el `hello`, la PC envía `tablet.target` con el monitor actual; el teléfono le da al área de dibujo su proporción.
 2. Cada evento del S Pen (con sus puntos históricos) se convierte en muestras y viaja en un frame binario.
@@ -199,6 +204,8 @@ Crate `sashabridge_pc`, en `sashabridge-pc/src/`.
 | Proceso con DPI por monitor (v2) | El lápiz trabaja en píxeles físicos; sin esto, Windows escalaría las coordenadas en monitores con escala. |
 | Solo el S Pen dibuja; los dedos hacen zoom o nada | La palma apoyada en la pantalla no debe dejar marcas. |
 | Franja de exclusión del gesto "atrás" que sigue al lápiz | Android solo permite reservar 200 dp de cada borde; una franja móvil protege justo donde está el lápiz. Si el gesto se cuela en Anotar, abre el menú "+" en lugar de salir. |
+| Mover y Cambiar tamaño toleran que el lápiz pierda el contacto | Con presión suave, el S Pen se levanta un instante varias veces durante un arrastre (cortes medidos de 60 a 200 ms). Si vuelve a tocar la misma marca en menos de 300 ms, el arrastre sigue, en un solo paso de deshacer; al soltar, la marca nunca vuelve atrás. |
+| El icono de la app abre la pantalla que publica su sesión | Cada reproductor indica en su `MediaSession` qué pantalla abrir; Android 14+ exige que quien la lanza lo autorice (`setPendingIntentBackgroundActivityStartMode`). Si no hay, se abre la app. |
 | Eventos del lápiz sin agrupar por fotograma (`requestUnbufferedDispatch`) | Android agrupa la entrada una vez por fotograma, y la pantalla baja su frecuencia cuando casi nada se mueve; sin esto, las muestras llegarían tarde y a ráfagas. |
 | Notificaciones con una identidad registrada en `HKCU\Software\Classes\AppUserModelId` | Un programa sin instalador no tiene acceso directo en el menú Inicio; el registro le da nombre e icono propios. Si Windows rechaza la notificación, suena un aviso. |
 

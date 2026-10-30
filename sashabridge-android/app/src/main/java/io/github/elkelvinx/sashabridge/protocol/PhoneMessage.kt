@@ -136,6 +136,29 @@ sealed interface PhoneMessage {
      * @property requestId Identifier of the discarded capture.
      * @throws IllegalArgumentException if [requestId] is empty.
      */
+    /**
+     * An image the phone sends on its own, answering no capture: one shared to SashaBridge
+     * from another app, annotated or not. The PC puts it on its clipboard.
+     *
+     * @property mime Media type of the image, currently always `image/png`.
+     * @property width Width of the image in pixels.
+     * @property height Height of the image in pixels.
+     * @property data Image bytes in standard Base64, without line breaks.
+     * @throws IllegalArgumentException if a dimension is not positive.
+     */
+    @Serializable
+    @SerialName("annotate.shared")
+    data class AnnotateShared(
+        val mime: String,
+        val width: Int,
+        val height: Int,
+        val data: String,
+    ) : PhoneMessage {
+        init {
+            require(width > 0 && height > 0) { "image size must be positive, was ${width}x$height" }
+        }
+    }
+
     @Serializable
     @SerialName("annotate.cancelled")
     data class AnnotateCancelled(val requestId: String) : PhoneMessage {

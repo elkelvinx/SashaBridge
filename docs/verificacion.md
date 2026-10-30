@@ -1,6 +1,6 @@
 # Verificación de SashaBridge
 
-Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, después las manuales contra Windows y por último los escenarios de aceptación con el teléfono, los de la música y los del S Pen. Al final están los resultados de la regresión de la versión 2.0 y de las pruebas de la 2.1.
+Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, después las manuales contra Windows y por último los escenarios de aceptación con el teléfono, los de la música y los del S Pen. Al final están los resultados de la regresión de la versión 2.0 y de las pruebas de la 2.1 y la 2.2.
 
 ## 1. Pruebas automáticas
 
@@ -74,6 +74,11 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | S6 | Tableta: flotar, dibujar en Paint, botón lateral | El cursor sigue al lápiz, el trazo tiene grosor variable, el botón da clic derecho |
 | S7 | Tableta con dos monitores; botón del monitor | El área cambia de proporción y el lápiz pasa al otro monitor |
 | S8 | Música sonando mientras se usa Anotar o Tableta | Audio, panel de Windows y teclas multimedia siguen igual (E1 a E4) |
+| S9 | Recortar con `Win+Shift+S` y con `Ctrl+Alt+A`; descartar | La captura se abre una sola vez; descartar una vez basta |
+| S10 | Mover un recuadro distancias cortas, despacio y con poca presión | Queda justo donde se levanta el lápiz; deshacer lo devuelve entero |
+| S11 | Mantener pulsado Mover → Cambiar tamaño; estirar un recuadro y un texto | El menú se abre hacia arriba; el recuadro se estira con la esquina opuesta fija; el texto crece de letra |
+| S12 | Insertar imagen; Compartir → SashaBridge desde la Galería, con y sin PC | La foto aparece encima, centrada y seleccionada; la compartida llega al portapapeles, al momento o al conectar la PC |
+| S13 | Tocar el icono de la app en la tarjeta del reproductor | Se abre esa app; "atrás" vuelve a SashaBridge |
 
 ## 4. Regresión de la versión 2.0
 
@@ -136,3 +141,17 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 |---|---|---|
 | 2.1 | 2441 | ~120: la app redibujaba en cada refresco de la pantalla |
 | Después de la optimización | 585 | ~29: los 20 pasos de la onda y los ~9 cuadros de Sasha |
+
+## 6. Pruebas de la versión 2.2 (Anotar)
+
+- **Fecha:** 2026-10-30.
+- **Pruebas automáticas:** 36 tests de Rust más 4 manuales; 92 tests de Android; clippy y lint sin avisos.
+- **Lápiz simulado:** `adb shell input stylus swipe` y `input stylus tap` envían toques de tipo lápiz, útiles para probar sin el S Pen.
+
+| ID | Resultado | Evidencia |
+|---|---|---|
+| S9 | **Correcto** | En la PC, dos copias de la misma imagen a 80 ms se leyeron una vez, y la misma imagen 2 s después se ignoró; una distinta pasó. Probado por el usuario con los dos atajos. |
+| S10 | **Correcto** | Un registro temporal mostró el corte de contacto: cuatro toques en 0,6 s con pausas de 60 a 200 ms durante un solo arrastre. Probado por el usuario después de la corrección. |
+| S11 | **Correcto** | Probado en el teléfono con el lápiz simulado: menú hacia arriba, recuadro estirado, nota "Hola" agrandada y deshecha. |
+| S12 | **Correcto** | Probado en el teléfono: inserción centrada y redimensionada; Compartir desde la Galería (SashaBridge aparece en **Más**). El usuario comprobó la llegada a la PC. |
+| S13 | **Correcto** | Spotify se abrió desde su sesión, en su inicio con la barra de "Sonando". |

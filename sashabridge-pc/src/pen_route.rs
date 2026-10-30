@@ -132,7 +132,12 @@ fn handle(message: PhoneMessage, armed: &mut bool, owner: ClipboardOwner, tablet
             None
         }
         PhoneMessage::AnnotateResult(result) => {
-            task::spawn(annotate::receive_annotation(result, owner));
+            task::spawn(annotate::receive_image(result.data, owner));
+            None
+        }
+        PhoneMessage::AnnotateShared(shared) => {
+            info!(width = shared.width, height = shared.height, "image shared from the phone");
+            task::spawn(annotate::receive_image(shared.data, owner));
             None
         }
         PhoneMessage::AnnotateCancelled(cancelled) => {

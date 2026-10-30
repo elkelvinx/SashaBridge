@@ -79,6 +79,7 @@ impl NowPlaying {
             | PhoneMessage::AnnotateStatus(_)
             | PhoneMessage::AnnotateResult(_)
             | PhoneMessage::AnnotateCancelled(_)
+            | PhoneMessage::AnnotateShared(_)
             | PhoneMessage::TabletStatus(_)
             | PhoneMessage::TabletSelect(_)
             | PhoneMessage::TabletPing(_) => Ok(None),

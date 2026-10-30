@@ -158,6 +158,13 @@
                     android:tooltipText="@string/annotate_tool_text" />
 
                 <ImageButton
+                    android:id="@+id/toolImage"
+                    style="@style/Widget.SashaBridge.AnnotateTool"
+                    android:contentDescription="@string/annotate_tool_image"
+                    android:src="@drawable/ic_add_photo"
+                    android:tooltipText="@string/annotate_tool_image" />
+
+                <ImageButton
                     android:id="@+id/toolMove"
                     style="@style/Widget.SashaBridge.AnnotateTool"
                     android:contentDescription="@string/annotate_tool_move"

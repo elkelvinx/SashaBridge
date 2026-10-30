@@ -45,6 +45,7 @@ import io.github.elkelvinx.sashabridge.protocol.ShuffleMode
  * @param root View that contains the card.
  * @param onCommand Sends a command to the active player.
  * @param onOpenQueue Opens the play queue of the active player.
+ * @param onOpenPlayer Opens a player app, given its package, when its icon is touched.
  * @param appLabel Returns the name of a player package, such as "Spotify".
  * @param appIcon Returns the launcher icon of a player package, or `null` if it is unknown.
  * @param clock Returns `SystemClock.elapsedRealtime()`, the clock of the snapshot positions.
@@ -53,6 +54,7 @@ class PlayerCard(
     root: View,
     private val onCommand: (PlayerCommand) -> Unit,
     private val onOpenQueue: () -> Unit,
+    private val onOpenPlayer: (String) -> Unit,
     private val appLabel: (String) -> String,
     private val appIcon: (String) -> Drawable?,
     private val clock: () -> Long = SystemClock::elapsedRealtime,
@@ -135,6 +137,7 @@ class PlayerCard(
             spin(it)
             onCommand(PlayerCommand.ToggleRepeat)
         }
+        icon.setOnClickListener { shownSource?.let(onOpenPlayer) }
         queueButton.setOnClickListener { onOpenQueue() }
         seekBar.progressDrawable = wave
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
@@ -372,13 +375,14 @@ class PlayerCard(
         trackSource.isVisible = true
     }
 
-    /** Shows the icon of the player app, or nothing when it is unknown. */
+    /** Shows the icon of the player app, which opens it, or nothing when it is unknown. */
     private fun showSource(source: String?) {
         if (source == shownSource) return
         shownSource = source
         val drawable = source?.let(appIcon)
         icon.setImageDrawable(drawable)
         icon.isVisible = drawable != null
+        icon.contentDescription = source?.let { context.getString(R.string.open_player, appLabel(it)) }
     }
 
     /** Shows the play or the pause icon; a change makes the icon pop. */

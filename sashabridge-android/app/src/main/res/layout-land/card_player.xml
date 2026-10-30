@@ -104,7 +104,7 @@
                             android:id="@+id/appIcon"
                             android:layout_width="28dp"
                             android:layout_height="28dp"
-                            android:importantForAccessibility="no"
+                            android:background="?attr/selectableItemBackgroundBorderless"
                             android:visibility="gone"
                             tools:src="@mipmap/ic_launcher"
                             tools:visibility="visible" />

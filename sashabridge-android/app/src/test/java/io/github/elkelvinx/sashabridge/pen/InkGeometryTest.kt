@@ -159,6 +159,18 @@ class InkGeometryTest {
         assertEquals(4f, scaled.width, 0.001f)
     }
 
+    /** A picture is grabbed anywhere inside it, moves whole and grows without stretching. */
+    @Test
+    fun pictureMovesAndGrowsInProportion() {
+        val picture = InkImage(0f, 0f, 100f, 50f, pictureId = 1)
+        val box = InkGeometry.bounds(picture)
+
+        assertTrue(InkGeometry.hits(picture, 50f, 25f, 0f))
+        assertEquals(InkImage(10f, 5f, 110f, 55f, 1), InkGeometry.translate(picture, 10f, 5f))
+        val resized = InkGeometry.resize(picture, box, InkCorner.BOTTOM_RIGHT, 100f, 0f, minSize = 10f)
+        assertEquals(InkImage(0f, 0f, 200f, 100f, 1), resized)
+    }
+
     /** Shrinking stops at the smallest size, and pulling past the fixed corner never flips. */
     @Test
     fun resizeStopsAtTheSmallestSize() {

@@ -88,6 +88,24 @@ data class InkText(
     override val width: Float get() = size * TEXT_STROKE_RATIO
 }
 
+/**
+ * A picture placed on the capture, such as a photo from the phone, filling the box from
+ * (left, top) to (right, bottom). The pixels live with the canvas, keyed by [pictureId], so
+ * the mark stays plain data.
+ *
+ * @property pictureId Key of the picture's pixels.
+ */
+data class InkImage(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+    val pictureId: Int,
+) : InkShape {
+    override val color: Int get() = 0
+    override val width: Float get() = 0f
+}
+
 /** Line width that matches a text size: a text is `width / TEXT_STROKE_RATIO` pixels tall. */
 const val TEXT_STROKE_RATIO = 0.16f
 
@@ -186,7 +204,7 @@ object InkGeometry {
                     distanceToSegment(x, y, r, b, l, b) <= reach ||
                     distanceToSegment(x, y, l, b, l, t) <= reach
             }
-            is InkText -> bounds(shape).contains(x, y, tolerance)
+            is InkText, is InkImage -> bounds(shape).contains(x, y, tolerance)
         }
     }
 
@@ -206,6 +224,7 @@ object InkGeometry {
             val head = arrowHead(shape)
             box(listOf(shape.x1, shape.x2, head[0], head[2]), listOf(shape.y1, shape.y2, head[1], head[3]), shape.width)
         }
+        is InkImage -> InkBounds(shape.left, shape.top, shape.right, shape.bottom)
         is InkText -> {
             val lines = shape.text.lines()
             InkBounds(
@@ -246,13 +265,14 @@ object InkGeometry {
         is InkRect -> shape.copy(x1 = shape.x1 + dx, y1 = shape.y1 + dy, x2 = shape.x2 + dx, y2 = shape.y2 + dy)
         is InkArrow -> shape.copy(x1 = shape.x1 + dx, y1 = shape.y1 + dy, x2 = shape.x2 + dx, y2 = shape.y2 + dy)
         is InkText -> shape.copy(x = shape.x + dx, y = shape.y + dy)
+        is InkImage -> shape.copy(left = shape.left + dx, top = shape.top + dy, right = shape.right + dx, bottom = shape.bottom + dy)
     }
 
     /**
-     * Whether resizing [shape] keeps its proportions: a stretched text or handwriting would
-     * look distorted, while rectangles, lines and arrows stretch freely.
+     * Whether resizing [shape] keeps its proportions: a stretched text, handwriting or
+     * picture would look distorted, while rectangles, lines and arrows stretch freely.
      */
-    fun keepsProportions(shape: InkShape): Boolean = shape is InkStroke || shape is InkText
+    fun keepsProportions(shape: InkShape): Boolean = shape is InkStroke || shape is InkText || shape is InkImage
 
     /**
      * Returns a copy of [shape] scaled by [fx] across and [fy] down, around (pivotX, pivotY).
@@ -279,6 +299,7 @@ object InkGeometry {
             is InkRect -> shape.copy(x1 = x(shape.x1), y1 = y(shape.y1), x2 = x(shape.x2), y2 = y(shape.y2))
             is InkArrow -> shape.copy(x1 = x(shape.x1), y1 = y(shape.y1), x2 = x(shape.x2), y2 = y(shape.y2))
             is InkText -> shape.copy(x = x(shape.x), y = y(shape.y), size = shape.size * fx)
+            is InkImage -> shape.copy(left = x(shape.left), top = y(shape.top), right = x(shape.right), bottom = y(shape.bottom))
         }
     }
 

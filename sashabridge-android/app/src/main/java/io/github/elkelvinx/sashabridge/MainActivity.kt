@@ -1,6 +1,8 @@
 package io.github.elkelvinx.sashabridge
 
 import android.Manifest
+import android.app.ActivityOptions
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -10,6 +12,7 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.drawable.Drawable
+import android.media.session.MediaSessionManager
 import android.os.BatteryManager
 import android.net.Uri
 import android.os.Build
@@ -159,6 +162,7 @@ class MainActivity : AppCompatActivity() {
             root = findViewById(R.id.main),
             onCommand = repository::sendCommand,
             onOpenQueue = ::openQueue,
+            onOpenPlayer = ::openPlayer,
             appLabel = ::appLabel,
             appIcon = ::appIcon,
         )
@@ -331,6 +335,48 @@ class MainActivity : AppCompatActivity() {
         } catch (_: PackageManager.NameNotFoundException) {
             null
         }
+    }
+
+    /**
+     * Opens a player app on the screen its media session names, usually the one of the track
+     * playing; failing that, on its launcher screen.
+     *
+     * @param packageName The player, such as Spotify's package.
+     */
+    private fun openPlayer(packageName: String) {
+        val playerScreen = try {
+            getSystemService(MediaSessionManager::class.java)
+                ?.getActiveSessions(ComponentName(this, MusicListenerService::class.java))
+                ?.firstOrNull { it.packageName == packageName }
+                ?.sessionActivity
+        } catch (_: SecurityException) {
+            // Notification access was taken away; the launcher screen still works.
+            null
+        }
+        if (playerScreen != null) {
+            try {
+                playerScreen.send(this, 0, null, null, null, null, playerScreenOptions())
+                return
+            } catch (_: PendingIntent.CanceledException) {
+                // The player dropped that screen; fall back to its launcher screen.
+            }
+        }
+        packageManager.getLaunchIntentForPackage(packageName)?.let(::startActivity)
+    }
+
+    /**
+     * Lets the player's own pending intent open its screen while this one is visible, which
+     * Android 14 and later require from the app that sends it.
+     */
+    private fun playerScreenOptions(): Bundle? {
+        val mode = when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA -> ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_IF_VISIBLE
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
+                @Suppress("DEPRECATION")
+                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+            else -> return null
+        }
+        return ActivityOptions.makeBasic().setPendingIntentBackgroundActivityStartMode(mode).toBundle()
     }
 
     /** Opens the S Pen annotation screen. */

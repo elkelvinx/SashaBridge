@@ -50,6 +50,7 @@ internal class PenSession(
                 send(PhoneMessage.Hello(ProtocolCodec.PROTOCOL_VERSION, deviceName))
                 launch { annotations.armed.collect { send(PhoneMessage.AnnotateStatus(it)) } }
                 launch { tablet.active.collect { send(PhoneMessage.TabletStatus(it)) } }
+                launch { annotations.shared.collect { send(it) } }
                 launch {
                     tablet.outgoing.collect { outgoing ->
                         when (outgoing) {

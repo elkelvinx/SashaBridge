@@ -50,7 +50,7 @@ Sin `-InstallApp` no hace falta el teléfono. El proceso completo, incluidos los
 
 ## Uso
 
-En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar los modos aleatorio y repetir, mover la posición y ver la cola de la app que suena. En horizontal muestra el estado y el reproductor en dos columnas. Su botón principal, en vertical, enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
+En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar los modos aleatorio y repetir, mover la posición y ver la cola de la app que suena. Tocar el icono de la app que suena (Spotify, YouTube Music...) la abre. En horizontal muestra el estado y el reproductor en dos columnas. Su botón principal, en vertical, enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
 
 En la PC:
 
@@ -79,10 +79,13 @@ cargo run
 3. Marca la captura con el S Pen:
    - lápiz con presión, resaltador, línea recta, rectángulo y flecha, en 5 colores y 3 grosores;
    - texto, en 4 tamaños; tocar una nota existente con la herramienta Texto la edita;
-   - **Mover** arrastra cualquier marca;
+   - **Mover** arrastra cualquier marca; tocar dos veces o mantener pulsado su botón abre un menú para cambiarlo por **Cambiar tamaño**, que agranda o achica una marca desde la esquina más cercana (el texto, los trazos y las imágenes, sin deformarse);
+   - **Insertar imagen** pone encima una foto del teléfono, que luego se mueve, se cambia de tamaño y se dibuja encima;
    - el botón lateral, o el extremo borrador, borra marcas enteras;
    - con dos dedos se hace zoom y desplazamiento; doble toque vuelve a ajustar la captura.
 4. Pulsa **"+" → Enviar a la PC**. La imagen anotada queda en el portapapeles (`Ctrl+V` en Paint, Teams, correo...), se guarda en `Imágenes\SashaBridge\` y aparece una notificación; al tocarla se abre la imagen.
+
+**Desde el teléfono:** en la Galería, Google Fotos o la vista previa de una captura de pantalla, **Compartir → SashaBridge (Enviar a la PC)**. En el menú de Samsung aparece dentro de **Más**, y ahí se puede fijar. La imagen se abre en Anotar como una captura; al enviarla llega al portapapeles de la PC igual que una anotación. Si la PC no está conectada, se envía sola en cuanto se conecte. Las fotos se reducen a 4K por su lado mayor.
 
 ### Tableta
 

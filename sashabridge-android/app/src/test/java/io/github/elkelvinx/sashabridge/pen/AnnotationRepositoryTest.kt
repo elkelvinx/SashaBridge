@@ -3,6 +3,7 @@ package io.github.elkelvinx.sashabridge.pen
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import io.github.elkelvinx.sashabridge.protocol.PhoneMessage
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
@@ -10,7 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** A capture the PC sends twice opens once. */
+/** Captures from the PC, opened once each, and images shared from other apps. */
 class AnnotationRepositoryTest {
 
     private var now = 0L
@@ -39,6 +40,15 @@ class AnnotationRepositoryTest {
 
         assertNull(repository.pendingCapture.value)
         assertEquals(listOf(PhoneMessage.AnnotateCancelled("c2")), replies)
+    }
+
+    /** A shared image waits until a session takes it. */
+    @Test
+    fun sharedImageWaitsForTheSession() = runBlocking {
+        val image = PhoneMessage.AnnotateShared("image/png", 4, 3, "AAAA")
+        repository.share(image)
+
+        assertEquals(image, repository.shared.first())
     }
 
     /** A different image, or the same one long after, opens as usual. */

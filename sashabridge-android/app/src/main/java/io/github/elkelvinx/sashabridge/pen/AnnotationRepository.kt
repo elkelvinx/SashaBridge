@@ -3,6 +3,8 @@ package io.github.elkelvinx.sashabridge.pen
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import io.github.elkelvinx.sashabridge.protocol.PhoneMessage
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -10,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
+import kotlinx.coroutines.flow.receiveAsFlow
 
 /**
  * Shared state of the "Anotar" mode, between the `/pen` route of the server and the
@@ -21,6 +24,8 @@ import kotlinx.coroutines.flow.getAndUpdate
  *   the same image as the one taken last, arriving within [REPEAT_WINDOW_MS], is turned down
  *   with `annotate.cancelled`, so a capture the PC sends twice opens once.
  * - The screen's answers ([replies]) go back to the PC.
+ * - Images shared from other apps wait in [shared] until a `/pen` session takes them, so one
+ *   sent while no PC is connected goes as soon as one connects.
  *
  * One process-wide instance, [shared]; tests create their own. Every member is thread-safe.
  *
@@ -36,6 +41,9 @@ class AnnotationRepository(private val clock: () -> Long = { System.nanoTime() /
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
+    /** Shared images not yet taken by a `/pen` session. */
+    private val sharedQueue = Channel<PhoneMessage.AnnotateShared>(SHARED_BUFFER, BufferOverflow.DROP_OLDEST)
+
     /** Image of the capture taken last and when, or `null`. Guarded by `this`. */
     private var lastTaken: TakenImage? = null
 
@@ -50,6 +58,9 @@ class AnnotationRepository(private val clock: () -> Long = { System.nanoTime() /
 
     /** Answers for the PC: `annotate.result` or `annotate.cancelled`. */
     val replies: SharedFlow<PhoneMessage> = mutableReplies.asSharedFlow()
+
+    /** Images shared from other apps, each taken by one `/pen` session. */
+    val shared: Flow<PhoneMessage.AnnotateShared> = sharedQueue.receiveAsFlow()
 
     /**
      * Records whether the annotation screen waits for captures. Any thread.
@@ -107,6 +118,16 @@ class AnnotationRepository(private val clock: () -> Long = { System.nanoTime() /
     }
 
     /**
+     * Sends an image shared from another app to the PC now, or as soon as a PC connects. If
+     * several wait, the oldest are dropped past a few. Any thread.
+     *
+     * @param image The image.
+     */
+    fun share(image: PhoneMessage.AnnotateShared) {
+        sharedQueue.trySend(image)
+    }
+
+    /**
      * Fingerprint of a taken capture's base64 image: its length and hash.
      *
      * @property at When it was taken, in [clock] milliseconds.
@@ -121,6 +142,9 @@ class AnnotationRepository(private val clock: () -> Long = { System.nanoTime() /
 
         /** Answers buffered while the `/pen` session sends the previous ones. */
         private const val REPLY_BUFFER = 4
+
+        /** Shared images kept while no PC is connected. */
+        private const val SHARED_BUFFER = 4
 
         /** How long a repeat of the capture taken last is turned down. */
         const val REPEAT_WINDOW_MS = 10_000L
