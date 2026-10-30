@@ -41,6 +41,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
 import io.github.elkelvinx.sashabridge.media.PlayerCommand
+import io.github.elkelvinx.sashabridge.media.ThumbnailStore
 import io.github.elkelvinx.sashabridge.pen.AnnotateActivity
 import io.github.elkelvinx.sashabridge.pen.TabletActivity
 import io.github.elkelvinx.sashabridge.protocol.ProtocolCodec
@@ -387,7 +388,7 @@ class MainActivity : AppCompatActivity() {
     /** Opens the play queue of the active player; touching a track jumps to it. */
     private fun openQueue() {
         val queue = repository.queue.value ?: return
-        QueueSheet.show(this, queue, appLabel(queue.source)) { queueId ->
+        QueueSheet.show(this, queue, appLabel(queue.source), ThumbnailStore.get(this), lifecycleScope) { queueId ->
             repository.sendCommand(PlayerCommand.SkipToQueueItem(queueId))
         }
     }

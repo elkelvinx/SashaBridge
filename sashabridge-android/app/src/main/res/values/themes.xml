@@ -37,6 +37,12 @@
         <item name="cornerSize">12dp</item>
     </style>
 
+    <!-- Small covers of the lists, such as the play queue. -->
+    <style name="ShapeAppearance.SashaBridge.Thumb" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">8dp</item>
+    </style>
+
     <!-- Borderless icon button of the player controls. -->
     <style name="Widget.SashaBridge.ControlButton" parent="">
         <item name="android:layout_width">48dp</item>

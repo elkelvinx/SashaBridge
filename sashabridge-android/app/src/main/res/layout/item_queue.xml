@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One track of the play queue. The background is only the touch ripple, not a second fill. -->
+<!-- One track of the play queue: its cover, or its number when the player gives no cover,
+     then title and artist. The track playing has a play sign over the cover. The background
+     is only the touch ripple, not a second fill. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -9,27 +11,46 @@
     android:baselineAligned="false"
     tools:ignore="Overdraw"
     android:gravity="center_vertical"
-    android:minHeight="56dp"
+    android:minHeight="64dp"
     android:orientation="horizontal"
-    android:paddingVertical="8dp">
+    android:paddingVertical="6dp">
 
     <FrameLayout
-        android:layout_width="36dp"
-        android:layout_height="wrap_content">
+        android:layout_width="48dp"
+        android:layout_height="48dp">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/queueArt"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop"
+            android:src="@drawable/cover_placeholder"
+            android:visibility="gone"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.SashaBridge.Thumb"
+            tools:visibility="visible" />
 
         <TextView
             android:id="@+id/queueNumber"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_gravity="center"
             android:gravity="center"
             android:textAppearance="?attr/textAppearanceLabelLarge"
             android:textColor="@color/on_surface_muted"
             tools:text="3" />
 
+        <View
+            android:id="@+id/queuePlayingScrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/queue_art_scrim"
+            android:visibility="gone" />
+
         <ImageView
             android:id="@+id/queuePlaying"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
             android:layout_gravity="center"
             android:importantForAccessibility="no"
             android:src="@drawable/ic_play"
@@ -40,7 +61,7 @@
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="12dp"
         android:layout_weight="1"
         android:orientation="vertical">
 

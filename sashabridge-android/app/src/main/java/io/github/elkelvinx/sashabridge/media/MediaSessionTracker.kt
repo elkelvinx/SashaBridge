@@ -155,6 +155,7 @@ class MediaSessionTracker(
                     queueId = item.queueId,
                     title = item.description.title?.toString(),
                     subtitle = item.description.subtitle?.toString(),
+                    artUri = item.description.iconUri?.toString(),
                 )
             },
             activeQueueId = controller.playbackState?.activeQueueItemId

@@ -39,9 +39,12 @@ data class PlayerQueue(
  * @property queueId Identifier the player gave the item, used to jump to it.
  * @property title Track title, or `null`.
  * @property subtitle Usually the artist, or `null`.
+ * @property artUri Address of the item's cover, as the player publishes it, or `null`; see
+ *   [ThumbnailSources].
  */
 data class QueueEntry(
     val queueId: Long,
     val title: String?,
     val subtitle: String?,
+    val artUri: String? = null,
 )
