@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings, portrait only: a bar with the way back, then one card per subject. The two
+     appearance cards end in a "Vista previa" that unfolds an example; Sasha and the version
+     close the list. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/settingsRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".settings.SettingsActivity">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/settingsToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        app:navigationContentDescription="@string/settings_back"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@color/on_surface"
+        app:title="@string/settings_title" />
+
+    <ScrollView
+        android:id="@+id/settingsScroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:id="@+id/settingsContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:animateLayoutChanges="false"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="24dp">
+
+            <!-- Appearance: theme, primary color and the look of the seek bar. -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SashaBridge.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsHeading"
+                        android:text="@string/settings_appearance_title" />
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsLabel"
+                        android:text="@string/settings_theme" />
+
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/themeGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/themeSystem"
+                            style="@style/Widget.SashaBridge.SettingsSegment"
+                            android:text="@string/settings_theme_system" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/themeLight"
+                            style="@style/Widget.SashaBridge.SettingsSegment"
+                            android:text="@string/settings_theme_light" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/themeDark"
+                            style="@style/Widget.SashaBridge.SettingsSegment"
+                            android:text="@string/settings_theme_dark" />
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsLabel"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/settings_accent" />
+
+                    <!-- One circle per primary color, made by the code. -->
+                    <LinearLayout
+                        android:id="@+id/accentSwatches"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal" />
+
+                    <TextView
+                        android:id="@+id/accentName"
+                        style="@style/Widget.SashaBridge.SettingsDetail"
+                        android:layout_marginStart="0dp"
+                        android:layout_marginTop="6dp"
+                        tools:text="Vino" />
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsLabel"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/settings_progress" />
+
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/progressGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/progressWaves"
+                            style="@style/Widget.SashaBridge.SettingsSegment"
+                            android:text="@string/settings_progress_waves" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/progressLine"
+                            style="@style/Widget.SashaBridge.SettingsSegment"
+                            android:text="@string/settings_progress_line" />
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                    <!-- Unfolds the player's controls in the chosen color. -->
+                    <LinearLayout
+                        android:id="@+id/accentPreviewHeader"
+                        style="@style/Widget.SashaBridge.PreviewHeader">
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.PreviewTitle"
+                            android:text="@string/settings_preview" />
+
+                        <ImageView
+                            android:id="@+id/accentPreviewChevron"
+                            style="@style/Widget.SashaBridge.PreviewChevron"
+                            android:importantForAccessibility="no" />
+                    </LinearLayout>
+
+                    <include
+                        android:id="@+id/accentPreview"
+                        layout="@layout/preview_accent"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- The blurred art behind the player card. -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SashaBridge.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsHeading"
+                        android:text="@string/settings_backdrop_title" />
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsDetail"
+                        android:layout_marginStart="0dp"
+                        android:text="@string/settings_backdrop_detail" />
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsLabel"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/settings_backdrop_blur" />
+
+                    <com.google.android.material.slider.Slider
+                        android:id="@+id/backdropBlurSlider"
+                        style="@style/Widget.SashaBridge.SettingsSlider"
+                        android:contentDescription="@string/settings_backdrop_blur" />
+
+                    <LinearLayout style="@style/Widget.SashaBridge.SliderEnds">
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.SliderEnd"
+                            android:text="@string/settings_backdrop_blur_low" />
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.SliderEnd"
+                            android:gravity="end"
+                            android:text="@string/settings_backdrop_blur_high" />
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsLabel"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/settings_backdrop_strength" />
+
+                    <com.google.android.material.slider.Slider
+                        android:id="@+id/backdropStrengthSlider"
+                        style="@style/Widget.SashaBridge.SettingsSlider"
+                        android:contentDescription="@string/settings_backdrop_strength" />
+
+                    <LinearLayout style="@style/Widget.SashaBridge.SliderEnds">
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.SliderEnd"
+                            android:text="@string/settings_backdrop_strength_low" />
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.SliderEnd"
+                            android:gravity="end"
+                            android:text="@string/settings_backdrop_strength_high" />
+                    </LinearLayout>
+
+                    <!-- Unfolds a small player card with these settings. -->
+                    <LinearLayout
+                        android:id="@+id/backdropPreviewHeader"
+                        style="@style/Widget.SashaBridge.PreviewHeader">
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.PreviewTitle"
+                            android:text="@string/settings_preview" />
+
+                        <ImageView
+                            android:id="@+id/backdropPreviewChevron"
+                            style="@style/Widget.SashaBridge.PreviewChevron"
+                            android:importantForAccessibility="no" />
+                    </LinearLayout>
+
+                    <include
+                        android:id="@+id/backdropPreview"
+                        layout="@layout/preview_backdrop"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Hiding a video with the PC's Ctrl+Alt+O. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/hideCard"
+                style="@style/Widget.SashaBridge.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsHeading"
+                        android:text="@string/settings_hide_title" />
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsDetail"
+                        android:layout_marginStart="0dp"
+                        android:text="@string/settings_hide_detail" />
+
+                    <RadioGroup
+                        android:id="@+id/hideStyleGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp">
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/hideStyleMusic"
+                            style="@style/Widget.SashaBridge.SettingsChoice"
+                            android:text="@string/settings_hide_music" />
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.SettingsDetail"
+                            android:text="@string/settings_hide_music_detail" />
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/hideStyleBlack"
+                            style="@style/Widget.SashaBridge.SettingsChoice"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/settings_hide_black" />
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.SettingsDetail"
+                            android:text="@string/settings_hide_black_detail" />
+                    </RadioGroup>
+
+                    <!-- Unfolds while the black screen is chosen. -->
+                    <LinearLayout
+                        android:id="@+id/blackoutPortraitGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="36dp"
+                        android:layout_marginTop="4dp"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/blackoutPortraitSwitch"
+                            style="@style/Widget.SashaBridge.SettingsSwitch"
+                            android:text="@string/settings_blackout_portrait" />
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.SettingsDetail"
+                            android:layout_marginStart="0dp"
+                            android:text="@string/settings_blackout_portrait_detail" />
+                    </LinearLayout>
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="12dp"
+                        app:dividerColor="@color/outline" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/returnToVideoSwitch"
+                        style="@style/Widget.SashaBridge.SettingsSwitch"
+                        android:text="@string/settings_return" />
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsDetail"
+                        android:layout_marginStart="0dp"
+                        android:text="@string/settings_return_detail" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- The landscape display next to the PC. -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SashaBridge.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsHeading"
+                        android:text="@string/settings_display_title" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/keepScreenOnSwitch"
+                        style="@style/Widget.SashaBridge.SettingsSwitch"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/settings_keep_on" />
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsDetail"
+                        android:layout_marginStart="0dp"
+                        android:text="@string/settings_keep_on_detail" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- The history of tracks listened to. -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SashaBridge.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsHeading"
+                        android:text="@string/settings_history_title" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/recordHistorySwitch"
+                        style="@style/Widget.SashaBridge.SettingsSwitch"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/settings_record" />
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsDetail"
+                        android:layout_marginStart="0dp"
+                        android:text="@string/settings_record_detail" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/clearHistoryButton"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/settings_clear"
+                        app:icon="@drawable/ic_history" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Sasha keeps watch at the end of the list. -->
+            <ImageView
+                android:layout_width="120dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="28dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/sasha_awake" />
+
+            <TextView
+                android:id="@+id/settingsVersion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="@color/on_surface_muted"
+                tools:text="SashaBridge 2.3" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

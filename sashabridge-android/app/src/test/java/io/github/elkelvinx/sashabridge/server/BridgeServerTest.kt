@@ -48,6 +48,9 @@ class BridgeServerTest {
     /** State of the active player that the server sends. */
     private val media = MutableStateFlow<MediaSnapshot?>(null)
 
+    /** Whether a video is hidden, as the server reports it. */
+    private val hidden = MutableStateFlow(false)
+
     /** Commands the server received, in order. */
     private val commands = Channel<PcMessage.Command>(Channel.UNLIMITED)
 
@@ -75,6 +78,7 @@ class BridgeServerTest {
             clock = { 1_000L },
             annotations = annotations,
             tablet = tablet,
+            hidden = hidden,
         ).also { servers += it }
 
     @After
@@ -150,6 +154,29 @@ class BridgeServerTest {
         connect {
             assertTrue(next() is PhoneMessage.Hello)
             assertEquals(PhoneMessage.MediaCleared, next())
+        }
+    }
+
+    /**
+     * The PC hears of a hidden video: at once if it connects while one is hidden, and then of
+     * every change. With nothing hidden, a new session gets no `hide.status`.
+     */
+    @Test
+    fun hideStatusFollowsTheHiding() = runBlocking {
+        server().start()
+
+        connect {
+            assertTrue(next() is PhoneMessage.Hello)
+            assertEquals(PhoneMessage.MediaCleared, next())
+            hidden.value = true
+            assertEquals(PhoneMessage.HideStatus(hidden = true), next())
+        }
+        connect {
+            assertTrue(next() is PhoneMessage.Hello)
+            // The state and the hide status are reported concurrently, so either comes first.
+            assertEquals(setOf(PhoneMessage.MediaCleared, PhoneMessage.HideStatus(hidden = true)), setOf(next(), next()))
+            hidden.value = false
+            assertEquals(PhoneMessage.HideStatus(hidden = false), next())
         }
     }
 

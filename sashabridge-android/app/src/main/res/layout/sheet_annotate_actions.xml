@@ -28,7 +28,7 @@
         android:text="@string/annotate_send"
         android:textAppearance="?attr/textAppearanceTitleMedium"
         android:textColor="@color/on_primary"
-        app:backgroundTint="@color/primary"
+        app:backgroundTint="?attr/colorPrimary"
         app:cornerRadius="18dp"
         app:icon="@drawable/ic_send"
         app:iconGravity="textStart"

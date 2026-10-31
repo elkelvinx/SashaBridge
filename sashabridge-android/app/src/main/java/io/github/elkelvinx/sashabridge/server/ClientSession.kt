@@ -13,7 +13,10 @@ import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.readText
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.withIndex
 import kotlinx.coroutines.launch
 
 /**
@@ -31,6 +34,8 @@ import kotlinx.coroutines.launch
  * @param deviceName Phone model announced in `hello`.
  * @param clock Returns `SystemClock.elapsedRealtime()`, used to extrapolate the position.
  * @param onCommand Runs a command from the PC. Called on Ktor's dispatcher.
+ * @param hidden Whether a video is hidden that the phone can go back to; see
+ *   [PhoneMessage.HideStatus].
  */
 internal class ClientSession(
     private val socket: WebSocketSession,
@@ -38,6 +43,7 @@ internal class ClientSession(
     private val deviceName: String,
     private val clock: () -> Long,
     private val onCommand: (PcMessage.Command) -> Unit,
+    private val hidden: Flow<Boolean>,
 ) {
 
     /** Serves the session until the PC disconnects or the socket is closed. */
@@ -45,6 +51,7 @@ internal class ClientSession(
         val sender = launch {
             try {
                 send(PhoneMessage.Hello(ProtocolCodec.PROTOCOL_VERSION, deviceName))
+                launch { sendHideStatus() }
                 val encoder = MediaStateEncoder()
                 media.collect { snapshot ->
                     encoder.encode(snapshot, clock()).forEach { send(it) }
@@ -59,6 +66,20 @@ internal class ClientSession(
             }
         } finally {
             sender.cancel()
+        }
+    }
+
+    /**
+     * Reports every change of [hidden]. A PC starts each session with nothing hidden, so the
+     * first value only goes out if a video is hidden.
+     */
+    private suspend fun sendHideStatus() {
+        try {
+            hidden.withIndex()
+                .filter { (index, value) -> index > 0 || value }
+                .collect { send(PhoneMessage.HideStatus(it.value)) }
+        } catch (_: ClosedSendChannelException) {
+            // The PC went away; the receive loop ends the session.
         }
     }
 

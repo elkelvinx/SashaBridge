@@ -93,9 +93,18 @@ class MediaSessionTracker(
     @Volatile
     private var activeController: MediaController? = null
 
-    /** The hiding in progress ([hide]), or `null`. Written on the main thread. */
+    /** The hiding in progress ([hide]), or `null`. Written on the main thread, by [setHiding]. */
     @Volatile
     private var hiding: Hiding? = null
+
+    /** Backing state of [hiddenSince]. */
+    private val mutableHiddenSince = MutableStateFlow<Long?>(null)
+
+    /**
+     * When the hiding in progress started (`SystemClock.elapsedRealtime()`), or `null` while
+     * nothing is hidden. Each hiding has its own value, also one that follows another.
+     */
+    val hiddenSince: StateFlow<Long?> = mutableHiddenSince.asStateFlow()
 
     /**
      * Whether a video is hidden and the music player shown instead has no session, so the
@@ -182,21 +191,37 @@ class MediaSessionTracker(
 
     /**
      * Hides the video: pauses every player that plays and follows only [musicSource], paused,
-     * until a player starts playing again ([endHiding]). If [musicSource] has no session,
-     * [fallback] is published instead. The video is never published meanwhile. Main thread.
+     * until a player starts playing again ([endHiding]) or [unhide]. If [musicSource] has no
+     * session, [fallback] is published instead. The video is never published meanwhile.
+     * Hiding again keeps the players paused the first time, to go back to them. Main thread.
      *
      * @param musicSource Package of the music player to show, or `null` to show none.
      * @param fallback The track to show if that player has no session, or `null` for none.
      */
     fun hide(musicSource: String?, fallback: MediaSnapshot?) {
-        sessions.values
+        val paused = sessions.values
             .filter { it.controller.playbackState?.state.isActiveState() }
-            .forEach { tracked ->
+            .map { tracked ->
                 Log.i(LOG_TAG, "Hiding: pausing ${tracked.controller.packageName}")
                 tracked.controller.transportControls.pause()
+                tracked.controller.packageName
             }
-        hiding = Hiding(musicSource, fallback, SystemClock.elapsedRealtime())
+        val earlier = hiding?.paused.orEmpty()
+        setHiding(Hiding(musicSource, fallback, SystemClock.elapsedRealtime(), earlier + paused))
         signalChange()
+    }
+
+    /**
+     * Ends the hiding to go back to what it hid. Main thread.
+     *
+     * @return The sessions of the players [hide] paused, for the caller to open and resume;
+     *   empty if nothing is hidden or those players closed.
+     */
+    fun unhide(): List<MediaController> {
+        val current = hiding ?: return emptyList()
+        setHiding(null)
+        signalChange()
+        return sessions.values.map { it.controller }.filter { it.packageName in current.paused }
     }
 
     /**
@@ -208,8 +233,14 @@ class MediaSessionTracker(
     private fun endHiding(nowMs: Long) {
         val current = hiding ?: return
         if (nowMs - current.sinceMs <= HIDE_GRACE_MS) return
-        hiding = null
+        setHiding(null)
         Log.i(LOG_TAG, "A player started playing; nothing is hidden any more")
+    }
+
+    /** Records the hiding in progress and publishes its start. Main thread. */
+    private fun setHiding(value: Hiding?) {
+        hiding = value
+        mutableHiddenSince.value = value?.sinceMs
     }
 
     /** Stops observing and forgets every session. Safe to call when not started. Main thread only. */
@@ -219,7 +250,7 @@ class MediaSessionTracker(
         sessionManager.removeOnActiveSessionsChangedListener(sessionsListener)
         sessions.values.forEach { it.controller.unregisterCallback(it) }
         sessions.clear()
-        hiding = null
+        setHiding(null)
         activeController = null
         mutableMedia.value = null
         mutableQueue.value = null
@@ -461,8 +492,14 @@ class MediaSessionTracker(
      * @property musicSource Package of the only player that may be followed, or `null` for none.
      * @property fallback What to publish while that player has no session, or `null`.
      * @property sinceMs `SystemClock.elapsedRealtime()` of the start of the hiding.
+     * @property paused Packages of the players the hiding paused, to resume when going back.
      */
-    private class Hiding(val musicSource: String?, val fallback: MediaSnapshot?, val sinceMs: Long)
+    private class Hiding(
+        val musicSource: String?,
+        val fallback: MediaSnapshot?,
+        val sinceMs: Long,
+        val paused: Set<String>,
+    )
 
     companion object {
 

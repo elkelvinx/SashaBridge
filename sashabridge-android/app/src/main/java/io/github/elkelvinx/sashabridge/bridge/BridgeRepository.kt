@@ -40,6 +40,9 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
     /** Backing state of [queue]. */
     private val mutableQueue = MutableStateFlow<PlayerQueue?>(null)
 
+    /** Backing state of [hiddenSince]. */
+    private val mutableHiddenSince = MutableStateFlow<Long?>(null)
+
     /** Backing state of [listenerConnected]. */
     private val mutableListenerConnected = MutableStateFlow(false)
 
@@ -63,6 +66,12 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
 
     /** Play queue of the active player, or `null` when it publishes none. Written by the service. */
     val queue: StateFlow<PlayerQueue?> = mutableQueue.asStateFlow()
+
+    /**
+     * When the hiding of a video in progress started, or `null` while nothing is hidden; see
+     * [io.github.elkelvinx.sashabridge.media.MediaSessionTracker.hiddenSince]. Written by the service.
+     */
+    val hiddenSince: StateFlow<Long?> = mutableHiddenSince.asStateFlow()
 
     /**
      * Whether Android has bound the notification listener, which is what lets the bridge read
@@ -114,6 +123,15 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
     }
 
     /**
+     * Records the start of the hiding in progress. Any thread.
+     *
+     * @param since Its start, or `null` when nothing is hidden.
+     */
+    fun updateHiddenSince(since: Long?) {
+        mutableHiddenSince.value = since
+    }
+
+    /**
      * Records whether the notification listener is bound. Any thread.
      *
      * @param connected `true` between `onListenerConnected` and `onListenerDisconnected`.
@@ -135,7 +153,6 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
 
         /** Commands buffered for the service; see [mutableCommands]. */
         private const val COMMAND_BUFFER = 8
-
 
         /** Name of the preferences file. */
         private const val PREFERENCES = "bridge"

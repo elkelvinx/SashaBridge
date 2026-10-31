@@ -105,6 +105,11 @@ internal class HistoryDatabase(context: Context) : SQLiteOpenHelper(context, NAM
         }
     }
 
+    /** Deletes every track. */
+    fun deleteAll() {
+        writableDatabase.delete(TABLE, null, null)
+    }
+
     /** Deletes the tracks listened to before [cutoffMs]; returns how many. */
     fun deleteBefore(cutoffMs: Long): Int = writableDatabase.delete(TABLE, "$PLAYED_AT < ?", arrayOf(cutoffMs.toString()))
 

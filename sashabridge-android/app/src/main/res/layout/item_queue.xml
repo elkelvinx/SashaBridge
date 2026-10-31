@@ -55,7 +55,7 @@
             android:importantForAccessibility="no"
             android:src="@drawable/ic_play"
             android:visibility="gone"
-            app:tint="@color/seek_thumb" />
+            app:tint="?attr/sashaAccent" />
     </FrameLayout>
 
     <LinearLayout

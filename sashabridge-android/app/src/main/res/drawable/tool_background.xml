@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Background of a toolbar button: a soft wine pill when selected, a ripple when touched. -->
+<!-- Background of a toolbar button: a soft pill of the accent when selected, a ripple when touched. -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
     android:color="#33FFFFFF">
     <item>
@@ -7,7 +7,7 @@
             <item android:state_selected="true">
                 <shape android:shape="rectangle">
                     <corners android:radius="12dp" />
-                    <solid android:color="#809B2C4B" />
+                    <solid android:color="?attr/sashaAccentSoft" />
                 </shape>
             </item>
             <item>

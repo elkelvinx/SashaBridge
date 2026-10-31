@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The accent color the user chooses in Ajustes > Apariencia. colorPrimary carries the
+         main shade (play button, switches); these carry the others. Each accent sets them in
+         its ThemeOverlay.SashaBridge.Accent style. -->
+
+    <!-- Strong shade: the seek bar's ball, active mode icons, the liked heart, the queue's track. -->
+    <attr name="sashaAccent" format="color" />
+
+    <!-- The played part of the seek bar. -->
+    <attr name="sashaAccentPlayed" format="color" />
+
+    <!-- Translucent pill behind a selected tool of the annotation bars. -->
+    <attr name="sashaAccentSoft" format="color" />
+</resources>

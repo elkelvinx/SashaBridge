@@ -115,6 +115,14 @@ class HistoryRepository private constructor(context: Context) {
         thumbnails.pruneKept(database.coverKeys())
     }
 
+    /** Deletes every track, with its covers. */
+    suspend fun clear() = withContext(Dispatchers.IO) {
+        database.deleteAll()
+        thumbnails.pruneKept(emptySet())
+        latestCoverFile.delete()
+        mutableChanges.update { it + 1 }
+    }
+
     /** Start of the kept period. */
     private fun cutoff(nowMs: Long): Long = nowMs - TimeUnit.DAYS.toMillis(KEEP_DAYS)
 

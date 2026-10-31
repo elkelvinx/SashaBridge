@@ -20,6 +20,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.textfield.TextInputEditText
 import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
+import io.github.elkelvinx.sashabridge.settings.Appearance
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -57,6 +58,7 @@ class HistoryActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Appearance.applyAccent(this)
         enableEdgeToEdge()
         setContentView(R.layout.activity_history)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.historyRoot)) { view, insets ->

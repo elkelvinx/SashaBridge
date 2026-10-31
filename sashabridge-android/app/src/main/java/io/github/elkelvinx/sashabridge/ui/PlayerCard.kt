@@ -4,6 +4,7 @@ import android.animation.Animator
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.content.res.ColorStateList
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -23,6 +24,7 @@ import androidx.annotation.ColorRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
+import com.google.android.material.color.MaterialColors
 import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.media.AlbumArt
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
@@ -32,10 +34,12 @@ import io.github.elkelvinx.sashabridge.media.RepeatMode
 import io.github.elkelvinx.sashabridge.protocol.CommandAction
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import io.github.elkelvinx.sashabridge.protocol.ShuffleMode
+import kotlin.math.roundToInt
 
 /**
  * The "Sonando" card of the main screen: album art, track, controls and seek bar, over a
- * heavily blurred copy of the art that tints the card with the colors of the track.
+ * blurred copy of the art that tints the card with the colors of the track. How blurred, and
+ * how strongly it shows, the user sets ([setBackdrop]).
  *
  * It shows the [MediaSnapshot]s it receives and turns the user's touches into commands for
  * the active player. The seek bar advances on its own between snapshots ([tick]), because the
@@ -73,6 +77,15 @@ class PlayerCard(
     private val context = root.context
     private val density = context.resources.displayMetrics.density
     private val backdrop: ImageView = root.findViewById(R.id.coverBackdrop)
+
+    /** Veil over [backdrop]; its own copy of the drawable, so its opacity can change. */
+    private val veil: Drawable = root.findViewById<View>(R.id.coverScrim).background.mutate()
+
+    /** The art on screen, kept to blur it again when the user changes the blur. */
+    private var shownBitmap: Bitmap? = null
+
+    /** How blurred the backdrop is, from 0 to [Backdrop.MAX_LEVEL]. */
+    private var backdropBlur = Backdrop.DEFAULT_LEVEL
     private val label: TextView = root.findViewById(R.id.playerLabel)
     private val icon: ImageView = root.findViewById(R.id.appIcon)
     private val cover: ImageView = root.findViewById(R.id.cover)
@@ -101,6 +114,9 @@ class PlayerCard(
     private val elapsedTime: TextView = root.findViewById(R.id.elapsedTime)
     private val durationTime: TextView = root.findViewById(R.id.durationTime)
     private val wave = WavyProgressDrawable(context)
+
+    /** Strong shade of the accent the user chose: active modes and the liked heart. */
+    private val accent = MaterialColors.getColor(root, R.attr.sashaAccent)
 
     /** Play queue of the active player, or `null`. */
     private var queue: PlayerQueue? = null
@@ -299,6 +315,28 @@ class PlayerCard(
         val current = queue ?: return
         val title = current.activeTitle() ?: return
         if (title == displayed?.title) queueOfShownTrack = current
+    }
+
+    /**
+     * Sets how the blurred art behind the card looks, as chosen in the settings.
+     *
+     * @param blur How blurred it is, from 0 to [Backdrop.MAX_LEVEL].
+     * @param strength How strongly it shows through the veil, from 0 to [Backdrop.MAX_LEVEL].
+     */
+    fun setBackdrop(blur: Int, strength: Int) {
+        veil.alpha = (Backdrop.veilAlpha(strength) * OPAQUE).roundToInt()
+        if (blur == backdropBlur) return
+        backdropBlur = blur
+        shownBitmap?.let { backdrop.setImageBitmap(Backdrop.of(it, blur)) }
+    }
+
+    /**
+     * Draws the played part of the seek bar as a wave, or as a straight line.
+     *
+     * @param waves Whether to draw the wave, as chosen in the settings.
+     */
+    fun setWaves(waves: Boolean) {
+        wave.setWaves(waves)
     }
 
     /**
@@ -505,7 +543,8 @@ class PlayerCard(
         if (artId == shownArtId) return
         shownArtId = artId
         val bitmap = art?.let { BitmapFactory.decodeByteArray(it.jpeg, 0, it.jpeg.size) }
-        val blurred = bitmap?.let(Backdrop::of)
+        shownBitmap = bitmap
+        val blurred = bitmap?.let { Backdrop.of(it, backdropBlur) }
         val backdropAlpha = if (blurred != null) BACKDROP_ALPHA else 0f
         val apply = {
             if (bitmap == null) cover.setImageResource(R.drawable.cover_placeholder) else cover.setImageBitmap(bitmap)
@@ -601,36 +640,36 @@ class PlayerCard(
         shuffleButton.isVisible = mode != null
         if (mode == null) return
         val (image, color, description) = when (mode) {
-            ShuffleMode.OFF -> Triple(R.drawable.ic_shuffle, R.color.on_surface_muted, R.string.control_shuffle_off)
-            ShuffleMode.ON -> Triple(R.drawable.ic_shuffle, R.color.seek_thumb, R.string.control_shuffle_on)
-            ShuffleMode.SMART -> Triple(R.drawable.ic_shuffle_smart, R.color.accent_text, R.string.control_shuffle_smart)
+            ShuffleMode.OFF -> Triple(R.drawable.ic_shuffle, color(R.color.on_surface_muted), R.string.control_shuffle_off)
+            ShuffleMode.ON -> Triple(R.drawable.ic_shuffle, accent, R.string.control_shuffle_on)
+            ShuffleMode.SMART -> Triple(R.drawable.ic_shuffle_smart, color(R.color.accent_text), R.string.control_shuffle_smart)
         }
         shuffleButton.setImageResource(image)
-        shuffleButton.imageTintList = ColorStateList.valueOf(color(color))
+        shuffleButton.imageTintList = ColorStateList.valueOf(color)
         shuffleButton.contentDescription = context.getString(description)
     }
 
     /**
-     * Shows the repeat button when the player has one, in its mode: muted when off, wine when
-     * everything repeats, and with a "1" when one track repeats. A player that does not reveal
+     * Shows the repeat button when the player has one, in its mode: muted when off, in the
+     * accent when everything repeats, and with a "1" when one track repeats. A player that does not reveal
      * its mode gets the plain icon.
      */
     private fun showRepeat(snapshot: MediaSnapshot?) {
         repeatButton.isVisible = snapshot?.canRepeat == true
         if (snapshot?.canRepeat != true) return
         val (image, color, description) = when (snapshot.repeat) {
-            RepeatMode.OFF -> Triple(R.drawable.ic_repeat, R.color.on_surface_muted, R.string.control_repeat_off)
-            RepeatMode.ALL -> Triple(R.drawable.ic_repeat, R.color.seek_thumb, R.string.control_repeat_all)
-            RepeatMode.ONE -> Triple(R.drawable.ic_repeat_one, R.color.seek_thumb, R.string.control_repeat_one)
-            null -> Triple(R.drawable.ic_repeat, R.color.on_surface, R.string.control_repeat)
+            RepeatMode.OFF -> Triple(R.drawable.ic_repeat, color(R.color.on_surface_muted), R.string.control_repeat_off)
+            RepeatMode.ALL -> Triple(R.drawable.ic_repeat, accent, R.string.control_repeat_all)
+            RepeatMode.ONE -> Triple(R.drawable.ic_repeat_one, accent, R.string.control_repeat_one)
+            null -> Triple(R.drawable.ic_repeat, color(R.color.on_surface), R.string.control_repeat)
         }
         repeatButton.setImageResource(image)
-        repeatButton.imageTintList = ColorStateList.valueOf(color(color))
+        repeatButton.imageTintList = ColorStateList.valueOf(color)
         repeatButton.contentDescription = context.getString(description)
     }
 
     /**
-     * Shows the like button when the player has one: a filled wine heart when the track is
+     * Shows the like button when the player has one: a filled heart in the accent when the track is
      * liked, an outline otherwise, and a plain outline when the player does not say.
      */
     private fun showLike(snapshot: MediaSnapshot?) {
@@ -639,7 +678,7 @@ class PlayerCard(
         val liked = snapshot.liked == true
         likeButton.setImageResource(if (liked) R.drawable.ic_favorite else R.drawable.ic_favorite_border)
         likeButton.imageTintList = ColorStateList.valueOf(
-            color(if (liked) R.color.seek_thumb else if (snapshot.liked == null) R.color.on_surface else R.color.on_surface_muted),
+            if (liked) accent else color(if (snapshot.liked == null) R.color.on_surface else R.color.on_surface_muted),
         )
         likeButton.contentDescription = context.getString(if (liked) R.string.control_liked else R.string.control_like)
     }
@@ -775,5 +814,8 @@ class PlayerCard(
 
         /** Opacity of the blurred art; the scrim on top keeps the text readable. */
         const val BACKDROP_ALPHA = 0.9f
+
+        /** Drawable alpha of a fully opaque veil. */
+        const val OPAQUE = 255
     }
 }

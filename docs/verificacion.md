@@ -9,7 +9,7 @@ Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, desp
 | PC | `cargo clippy --all-targets -- -D warnings` | Análisis estático sin avisos |
 | PC | `cargo test` | Fixtures del protocolo y de las muestras del lápiz, regla de la carátula (R6), caché de carátulas, espera exponencial, botones de Windows, conversión de imágenes (DIB y PNG), mapeo de la Tableta a un monitor, eventos del lápiz sintético, y el texto de las notificaciones |
 | PC | `cargo doc --no-deps` | Documentación del código |
-| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; elección del reproductor, también con un vídeo oculto; posición; modos aleatorio y repetir, incluidos los nombres de YouTube Music en español e inglés; me gusta; carátulas de la cola; historial; dirección de un cambio de canción según la cola; canción mostrada al ocultar un vídeo; mensajes de una sesión; estado de la pantalla; formato de los tiempos; geometría de las marcas de Anotar (flechas, borrar, mover, recuadro); y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos, y la ruta `/pen` con capturas, monitor, latencia y muestras binarias) |
+| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; aviso de vídeo oculto a la PC; desenfoque y colores del fondo de la tarjeta; elección del reproductor, también con un vídeo oculto; posición; modos aleatorio y repetir, incluidos los nombres de YouTube Music en español e inglés; me gusta; carátulas de la cola; historial; dirección de un cambio de canción según la cola; canción mostrada al ocultar un vídeo; mensajes de una sesión; estado de la pantalla; formato de los tiempos; geometría de las marcas de Anotar (flechas, borrar, mover, recuadro); y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos, y la ruta `/pen` con capturas, monitor, latencia y muestras binarias) |
 | Android | `.\gradlew.bat :app:lintDebug` | Análisis estático de la app |
 
 Gradle necesita `JAVA_HOME` apuntando al JDK de Android Studio, por ejemplo `C:\Program Files\Android\Android Studio\jbr`.
@@ -94,6 +94,28 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | M8 | Spotify con "repetir una"; dejar que la canción termine sola | La misma canción vuelve a empezar |
 | M9 | Un vídeo de YouTube sonando; `Ctrl+Alt+O` en la PC | El vídeo se pausa; SashaBridge pasa al frente con la última canción de música en pausa, también en el panel de Windows; Spotify no arranca |
 | M10 | Después de M9, reproducir en SashaBridge; después volver a YouTube y reproducir | Suena la música; con el vídeo, la tarjeta y Windows vuelven a seguirlo |
+
+### Ocultar y ajustes (2.4)
+
+| ID | Escenario | Resultado esperado |
+|---|---|---|
+| H1 | Un vídeo de YouTube sonando; `Ctrl+Alt+O` dos veces, con unos segundos entre ellas | La primera oculta como en M9; la segunda abre YouTube en el mismo vídeo y lo reanuda |
+| H2 | Ocultar; reproducir la música en SashaBridge; `Ctrl+Alt+O` | Suena la música y el atajo vuelve a ocultar (pausa la música), no reanuda el vídeo |
+| H3 | Ocultar; dejar que la pantalla se apague; `Ctrl+Alt+O`; desbloquear; `Ctrl+Alt+O` | Con la pantalla apagada no suena nada; desbloqueado, vuelve al vídeo |
+| H4 | Ajustes → "Pantalla negra"; ocultar un vídeo | Negro total sin barras; dos toques muestran SashaBridge; `Ctrl+Alt+O` vuelve al vídeo |
+| H5 | Ajustes → desactivar "Volver al vídeo"; `Ctrl+Alt+O` dos veces | Las dos pulsaciones ocultan; el vídeo sigue en pausa |
+| H6 | Ajustes → desactivar "Mantener encendida"; horizontal y cargando | La pantalla se apaga sola como siempre |
+| H7 | Ajustes → desactivar "Guardar las canciones"; escuchar 30 s; después "Borrar el historial" | La canción no entra; tras confirmar, el historial queda vacío |
+| H8 | Abrir los ajustes desde el engranaje y girar el teléfono | Los ajustes siguen en vertical; en horizontal la pantalla principal no muestra el engranaje |
+| H9 | "Pantalla negra" con "También en vertical" apagado; ocultar en vertical y en horizontal | Al elegir la pantalla negra se despliega la opción; en vertical se ve la música en pausa y en horizontal, negro |
+| H10 | Tema claro, oscuro y como el teléfono | Toda la app cambia al momento, también la pantalla principal al volver |
+| H11 | Cada color de acento, en los dos temas | Botón de reproducir, barra, modos activos, corazón, cola e interruptores en ese color, legibles |
+| H12 | Barra de progreso lisa, con una canción sonando | La parte reproducida es una línea recta que no se mueve; con ondas vuelve la onda |
+| H13 | Canciones con carátulas de colores suaves y oscuras | El fondo desenfocado se nota más que en la 2.3 y el texto sigue legible |
+| H14 | Elegir "Pantalla negra" y "Mostrar la música en pausa" varias veces | La opción queda elegida y "También en vertical" se despliega y se pliega; la app nunca se cierra |
+| H15 | Cambiar el color primario con la vista previa abierta | La marca y los colores cambian al instante, en el mismo punto de la lista; la vista previa ya muestra el color nuevo |
+| H16 | Mover los dos deslizadores del fondo con su vista previa abierta y una canción sonando | La tarjeta de ejemplo, con la carátula de esa canción, cambia mientras se arrastra; al volver, la tarjeta del reproductor se ve igual |
+| H17 | Plegar las dos vistas previas, salir y volver | Siguen plegadas, sin dibujarse |
 
 ## 4. Regresión de la versión 2.0
 
@@ -188,3 +210,17 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 | M8 | **Pendiente** | Spotify cambia de modo con cada pulsación (comprobado en el registro). Falta ver que la canción se repite al terminar sola. |
 | M9 | **Correcto** | Con el cliente 2.3.0, `Ctrl+Alt+O` pausó `com.google.android.youtube` y SashaBridge pasó al frente con la última canción de YouTube Music en pausa. Probado por el usuario. |
 | M10 | **Correcto** | `PLAY` llegó a YouTube Music y el modo oculto terminó 80 ms después. Al volver al vídeo, todo siguió al vídeo. Probado por el usuario. |
+
+## 8. Pruebas de los ajustes (2.4)
+
+- **Fecha:** 2026-10-31.
+- **Pruebas automáticas:** 41 tests de Rust más 5 manuales; 127 tests de Android; clippy y lint sin avisos.
+
+| ID | Resultado | Evidencia |
+|---|---|---|
+| H1-H3 | **Pendiente** | La PC sigue con el cliente 2.3.0, que aún no conoce `hide.status`: la segunda pulsación vuelve a ocultar (registro de las 11:31). Hay que reiniciarlo con `cargo run` |
+| H4-H13 | **Correcto** | Probado por el usuario: "todos los cambios funcionaron bien en cuanto a configuración" |
+| H14 | **Correcto** | La primera versión se cerraba al elegir "Pantalla negra": buscaba la tarjeta dentro del grupo de opciones (4 cierres en el registro). Corregido; en el teléfono, la opción se guarda (`hide_style=BLACKOUT`) y "También en vertical" se despliega |
+| H15 | **Correcto** | En el teléfono: 0,35 s después de tocar el azul, la marca, los interruptores, los deslizadores y la vista previa ya eran azules |
+| H16 | **Correcto** | En el teléfono: con la intensidad al máximo, la tarjeta de ejemplo (la carátula de "Radio", que sonaba) se vio más viva al momento |
+| H17 | **Correcto** | En el teléfono, las vistas previas plegadas siguen plegadas al volver |

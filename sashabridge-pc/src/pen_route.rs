@@ -153,7 +153,11 @@ fn handle(message: PhoneMessage, armed: &mut bool, owner: ClipboardOwner, tablet
         }
         PhoneMessage::TabletSelect(select) => tablet.select(select.monitor).and_then(|target| encode(&PcMessage::TabletTarget(target))),
         PhoneMessage::TabletPing(time) => encode(&PcMessage::TabletPong(time)),
-        PhoneMessage::Hello(_) | PhoneMessage::MediaArt(_) | PhoneMessage::MediaState(_) | PhoneMessage::MediaCleared => None,
+        PhoneMessage::Hello(_)
+        | PhoneMessage::MediaArt(_)
+        | PhoneMessage::MediaState(_)
+        | PhoneMessage::MediaCleared
+        | PhoneMessage::HideStatus(_) => None,
     }
 }
 

@@ -9,6 +9,7 @@ import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
 import androidx.core.content.ContextCompat
+import com.google.android.material.color.MaterialColors
 import io.github.elkelvinx.sashabridge.R
 import kotlin.math.PI
 import kotlin.math.min
@@ -16,7 +17,8 @@ import kotlin.math.sin
 
 /**
  * Track of the seek bar: what is left is a straight light coffee line, and what was played is
- * a red sound wave that travels while the track plays and flattens when it pauses.
+ * a sound wave in the accent color that travels while the track plays and flattens when it
+ * pauses. Without [waves] the played part stays a straight line, as the user may choose.
  *
  * The seek bar sets the progress through the drawable's level (0 to 10000). The wave travels
  * one step on each [step] of the screen's [FrameTicker], together with Sasha, not at the
@@ -44,7 +46,7 @@ class WavyProgressDrawable(context: Context) : Drawable() {
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
         strokeWidth = WAVE_WIDTH_DP * density
-        color = ContextCompat.getColor(context, R.color.seek_played)
+        color = MaterialColors.getColor(context, R.attr.sashaAccentPlayed, ContextCompat.getColor(context, R.color.seek_played))
     }
 
     private val path = Path()
@@ -58,6 +60,9 @@ class WavyProgressDrawable(context: Context) : Drawable() {
     /** Whether the track plays, which makes the wave rise and travel. */
     private var playing = false
 
+    /** Whether the played part is a wave at all; otherwise it stays a straight line. */
+    private var waves = true
+
     private var rise: ValueAnimator? = null
 
     /**
@@ -68,8 +73,24 @@ class WavyProgressDrawable(context: Context) : Drawable() {
     fun setPlaying(playing: Boolean) {
         if (playing == this.playing) return
         this.playing = playing
+        animateHeight()
+    }
+
+    /**
+     * Draws the played part as a wave, or as a straight line that never moves.
+     *
+     * @param waves Whether to draw the wave.
+     */
+    fun setWaves(waves: Boolean) {
+        if (waves == this.waves) return
+        this.waves = waves
+        animateHeight()
+    }
+
+    /** Raises the wave while the track plays with [waves], and flattens it otherwise. */
+    private fun animateHeight() {
         rise?.cancel()
-        rise = ValueAnimator.ofFloat(amplitude, if (playing) AMPLITUDE_DP * density else 0f).apply {
+        rise = ValueAnimator.ofFloat(amplitude, if (playing && waves) AMPLITUDE_DP * density else 0f).apply {
             duration = RISE_MS
             addUpdateListener {
                 amplitude = it.animatedValue as Float
@@ -81,7 +102,7 @@ class WavyProgressDrawable(context: Context) : Drawable() {
 
     /** Moves the wave one step, if the track plays and the bar can be seen. Call on each [FrameTicker] step. */
     fun step() {
-        if (!playing || !isVisible) return
+        if (!playing || !waves || !isVisible) return
         phase = (phase + PHASE_STEP) % FULL_TURN
         invalidateSelf()
     }

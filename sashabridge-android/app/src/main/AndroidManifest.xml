@@ -16,6 +16,7 @@
     </queries>
 
     <application
+        android:name=".SashaBridgeApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -38,6 +39,12 @@
             android:name=".history.HistoryActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <!-- The settings are a short list made for portrait, where the main screen opens them. -->
+        <activity
+            android:name=".settings.SettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity" />
         <!-- Rotating keeps the annotation canvas instead of recreating it. -->
         <!-- Exported only to receive images other apps share; it never sends them on its own. -->
         <activity

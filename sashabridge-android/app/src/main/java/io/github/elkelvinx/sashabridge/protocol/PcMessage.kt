@@ -163,4 +163,10 @@ enum class CommandAction {
      * of the video that was playing. The PC then brings SashaBridge to the front itself.
      */
     HIDE,
+
+    /**
+     * Goes back to what [HIDE] hid: opens the video's app where it was and resumes it. The
+     * PC sends it instead of [HIDE] while the phone reports [PhoneMessage.HideStatus.hidden].
+     */
+    UNHIDE,
 }

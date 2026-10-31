@@ -14,13 +14,30 @@
     <color name="button_active">#7D4E2C</color>
     <color name="button_idle">#3A2A2C</color>
 
-    <!-- 5 points thinner than before (60/70/88 %), so the blurred art shows a little more. -->
-    <color name="scrim_top">#8C1C1214</color>
-    <color name="scrim_middle">#A62A1B1F</color>
-    <color name="scrim_bottom">#D42A1B1F</color>
+    <!-- The strongest veil (61/75/100 %); by default the card shows 75 % of it (46/56/75 %). -->
+    <color name="scrim_top">#9C1C1214</color>
+    <color name="scrim_middle">#BF2A1B1F</color>
+    <color name="scrim_bottom">#FF2A1B1F</color>
 
     <!-- On the dark card the played part needs a lighter red to stand out from the track. -->
     <color name="seek_played">#C2405F</color>
+
+    <!-- Accent colors on the dark theme: lighter, so they stand out from the dark card. -->
+    <color name="accent_blue">#3A6FB8</color>
+    <color name="accent_blue_strong">#5B9BEA</color>
+    <color name="accent_blue_played">#6FA8F0</color>
+    <color name="accent_green">#3F8A62</color>
+    <color name="accent_green_strong">#5BBF86</color>
+    <color name="accent_green_played">#6CC795</color>
+    <color name="accent_purple">#7A45AE</color>
+    <color name="accent_purple_strong">#A57BE0</color>
+    <color name="accent_purple_played">#B08CE6</color>
+    <color name="accent_amber">#B8662A</color>
+    <color name="accent_amber_strong">#F0954A</color>
+    <color name="accent_amber_played">#F2A660</color>
+    <color name="accent_pink">#C24A78</color>
+    <color name="accent_pink_strong">#F07AA6</color>
+    <color name="accent_pink_played">#F28DB2</color>
 
     <color name="status_connected">#7CC489</color>
     <color name="status_waiting">#E0B04A</color>

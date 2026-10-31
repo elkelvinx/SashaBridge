@@ -131,6 +131,12 @@ async fn run_session(
                 }
             },
             Some(command) = commands.recv() => {
+                // The hide shortcut goes back to the video while the phone hides one.
+                let command = if command == PcCommand::Hide && now_playing.phone_hides() {
+                    PcCommand::Unhide
+                } else {
+                    command
+                };
                 debug!(?command, "sending command");
                 if command == PcCommand::ToggleLike && !now_playing.request_like(Instant::now()) {
                     info!("the player on the phone has no like button the bridge can press");
@@ -140,7 +146,8 @@ async fn run_session(
                     return;
                 }
                 // The phone pauses the video itself, but only adb can bring SashaBridge to
-                // the front: Android keeps an app in the background from opening itself.
+                // the front: Android keeps an app in the background from opening itself. To go
+                // back, SashaBridge is already in front and opens the video on its own.
                 if command == PcCommand::Hide {
                     link.show_app();
                 }

@@ -14,6 +14,7 @@ import androidx.core.view.isVisible
 import androidx.core.widget.NestedScrollView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.color.MaterialColors
 import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.media.PlayerQueue
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
@@ -67,7 +68,7 @@ object QueueSheet {
         val coverJob = SupervisorJob(scope.coroutineContext[Job])
         val covers = CoroutineScope(scope.coroutineContext + coverJob)
         val list = sheet.findViewById<LinearLayout>(R.id.queueList)
-        val highlight = ContextCompat.getColor(context, R.color.seek_thumb)
+        val highlight = MaterialColors.getColor(context, R.attr.sashaAccent, ContextCompat.getColor(context, R.color.seek_thumb))
         var activeRow: View? = null
         queue.entries.forEachIndexed { index, entry ->
             val row = inflater.inflate(R.layout.item_queue, list, false)

@@ -72,19 +72,29 @@ pub struct NowPlaying {
     like_requested: Option<Instant>,
     /// The answer to that request, waiting to be announced.
     like_notice: Option<LikeNotice>,
+    /// Whether the phone hides a video it can go back to, as its last `hide.status` said.
+    hidden: bool,
 }
 
 impl NowPlaying {
     /// Creates the state with `covers` as the art storage.
     pub fn new(covers: CoverCache) -> Self {
-        Self { covers, last_state: None, like_requested: None, like_notice: None }
+        Self { covers, last_state: None, like_requested: None, like_notice: None, hidden: false }
     }
 
-    /// Forgets what the previous session sent. The phone sends the full state again on connect.
+    /// Forgets what the previous session sent. The phone sends the full state again on connect,
+    /// and `hide.status` only while it hides a video.
     pub fn reset_session(&mut self) {
         self.last_state = None;
         self.like_requested = None;
         self.like_notice = None;
+        self.hidden = false;
+    }
+
+    /// Whether the phone hides a video it can go back to, so that the hide shortcut should
+    /// bring it back instead of hiding again.
+    pub fn phone_hides(&self) -> bool {
+        self.hidden
     }
 
     /// Records that the PC asked to like the track at `now`, so that the change the phone
@@ -115,6 +125,10 @@ impl NowPlaying {
             | PhoneMessage::TabletStatus(_)
             | PhoneMessage::TabletSelect(_)
             | PhoneMessage::TabletPing(_) => Ok(None),
+            PhoneMessage::HideStatus(status) => {
+                self.hidden = status.hidden;
+                Ok(None)
+            }
             PhoneMessage::MediaArt(art) => {
                 let image = STANDARD.decode(&art.data).context("invalid base64 in media.art")?;
                 self.covers.store(&art.art_id, &image).context("cannot write the album art")?;
@@ -197,7 +211,7 @@ mod tests {
     use std::num::NonZeroU64;
 
     use super::*;
-    use crate::protocol::v2::MediaArt;
+    use crate::protocol::v2::{HideStatus, MediaArt};
 
     /// Creates a state whose cover directory is unique to `test`. The name is fixed, so each
     /// run reuses and empties the directory of the previous one instead of adding another.
@@ -224,6 +238,22 @@ mod tests {
             art_id: art_id.map(str::to_owned),
             liked: Some(false),
         }
+    }
+
+    /// The phone's hide status decides what the hide shortcut does, until a new session.
+    #[test]
+    fn hide_status_is_kept_for_the_session() {
+        let mut state = now_playing("hide");
+        assert!(!state.phone_hides());
+
+        assert_eq!(state.apply(PhoneMessage::HideStatus(HideStatus { hidden: true })).unwrap(), None);
+        assert!(state.phone_hides());
+        state.apply(PhoneMessage::HideStatus(HideStatus { hidden: false })).unwrap();
+        assert!(!state.phone_hides());
+
+        state.apply(PhoneMessage::HideStatus(HideStatus { hidden: true })).unwrap();
+        state.reset_session();
+        assert!(!state.phone_hides());
     }
 
     /// A like asked for from the PC is announced once the phone confirms it for that track.

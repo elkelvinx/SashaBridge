@@ -51,6 +51,17 @@ pub enum PhoneMessage {
     /// The phone measures the round trip; answered with [`PcMessage::TabletPong`].
     #[serde(rename = "tablet.ping")]
     TabletPing(TabletTime),
+    /// Whether a video is hidden on the phone that [`Command::Unhide`] can bring back.
+    #[serde(rename = "hide.status")]
+    HideStatus(HideStatus),
+}
+
+/// Whether the phone hides a video ([`Command::Hide`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HideStatus {
+    /// Whether a video is hidden and the phone can go back to it with [`Command::Unhide`].
+    pub hidden: bool,
 }
 
 /// State of the phone's tablet screen.
@@ -347,6 +358,8 @@ pub enum Command {
     /// Pauses every player but the music one and shows the last music track, paused, instead
     /// of the video that was playing.
     Hide,
+    /// Goes back to what [`Command::Hide`] hid: opens the video's app and resumes it.
+    Unhide,
 }
 
 /// Wire form of [`Command`], before the action and the position are checked together.
@@ -381,6 +394,8 @@ enum CommandAction {
     ToggleLike,
     /// See [`Command::Hide`].
     Hide,
+    /// See [`Command::Unhide`].
+    Unhide,
 }
 
 impl TryFrom<WireCommand> for Command {
@@ -401,6 +416,7 @@ impl TryFrom<WireCommand> for Command {
             (CommandAction::ToggleShuffle, None) => Self::ToggleShuffle,
             (CommandAction::ToggleLike, None) => Self::ToggleLike,
             (CommandAction::Hide, None) => Self::Hide,
+            (CommandAction::Unhide, None) => Self::Unhide,
         };
         Ok(command)
     }
@@ -419,6 +435,7 @@ impl From<Command> for WireCommand {
             Command::ToggleShuffle => (CommandAction::ToggleShuffle, None),
             Command::ToggleLike => (CommandAction::ToggleLike, None),
             Command::Hide => (CommandAction::Hide, None),
+            Command::Unhide => (CommandAction::Unhide, None),
         };
         Self { action, position_ms }
     }

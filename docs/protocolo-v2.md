@@ -83,6 +83,22 @@ No hay ningún reproductor activo. La PC debe vaciar el panel multimedia.
 {"type":"media.cleared"}
 ```
 
+### `hide.status`
+
+Si hay un vídeo oculto (`HIDE`) al que el teléfono puede volver con `UNHIDE`. Desde la versión 2.4.
+
+| Campo | Tipo | Anulable | Restricciones |
+|---|---|---|---|
+| `hidden` | booleano | No | `true` mientras la siguiente pulsación del atajo debe enviar `UNHIDE` en lugar de `HIDE`. |
+
+- El teléfono lo envía cada vez que cambia.
+- Al abrir una sesión solo lo envía si vale `true`. La PC empieza cada sesión con `hidden` en `false`.
+- Vale `false` si el usuario desactivó "Volver al vídeo con otra pulsación" en los ajustes del teléfono; entonces el atajo siempre oculta.
+
+```json
+{"type":"hide.status","hidden":true}
+```
+
 ## 4. Mensajes de la PC al teléfono
 
 ### `hello`
@@ -100,7 +116,7 @@ Orden para el reproductor activo.
 
 | Campo | Tipo | Anulable | Restricciones |
 |---|---|---|---|
-| `action` | texto | No | `PLAY`, `PAUSE`, `TOGGLE`, `NEXT`, `PREVIOUS`, `SEEK`, `TOGGLE_SHUFFLE`, `TOGGLE_LIKE` o `HIDE`. |
+| `action` | texto | No | `PLAY`, `PAUSE`, `TOGGLE`, `NEXT`, `PREVIOUS`, `SEEK`, `TOGGLE_SHUFFLE`, `TOGGLE_LIKE`, `HIDE` o `UNHIDE`. |
 | `positionMs` | entero | Sí | Obligatorio y mayor o igual que 0 con `SEEK`. Con las demás acciones debe valer `null`. |
 
 `PLAY` y `PAUSE` son órdenes explícitas: repetir `PAUSE` sobre un reproductor ya pausado no lo reanuda. `TOGGLE` existe para las teclas de reproducir/pausar que no indican el estado deseado.
@@ -115,6 +131,12 @@ Orden para el reproductor activo.
 - Termina en cuanto un reproductor vuelve a sonar, pasado un segundo.
 - La PC trae SashaBridge al frente por su cuenta con `adb shell am start`, porque Android no deja que una app se abra sola desde segundo plano.
 - Un teléfono anterior a la 2.3 rechaza `HIDE` como acción desconocida y la ignora.
+
+`UNHIDE` vuelve a lo que `HIDE` ocultó (desde la versión 2.4). La PC lo envía en lugar de `HIDE` mientras el último `hide.status` dice `hidden: true`:
+- El teléfono termina la ocultación y abre la app del vídeo en la pantalla que publica su sesión, donde estaba.
+- Reanuda los reproductores que `HIDE` pausó. Si alguno todavía no suena, lo pide otra vez a los 0,6 y a los 1,5 s, porque una app de vídeo puede ignorar la orden hasta que su pantalla está delante.
+- Con la pantalla apagada o bloqueada no hace nada, para que no suene nada en un teléfono que nadie mira, y la ocultación sigue.
+- La PC no ejecuta `adb shell am start`: SashaBridge ya está delante y abre el vídeo por su cuenta.
 
 ```json
 {"type":"cmd","action":"PAUSE","positionMs":null}

@@ -44,11 +44,57 @@ class BackdropTest {
         assertTrue((blurred[1] shr 16 and 0xFF) in 1..254)
     }
 
+    /** The blur level of the settings spreads over the radii, and stays in range. */
+    @Test
+    fun blurLevelsMapToRadii() {
+        assertEquals(0, Backdrop.blurRadius(0))
+        assertEquals(5, Backdrop.blurRadius(Backdrop.DEFAULT_LEVEL))
+        assertEquals(9, Backdrop.blurRadius(Backdrop.MAX_LEVEL))
+        assertEquals(9, Backdrop.blurRadius(500))
+        assertEquals(0, Backdrop.blurRadius(-3))
+    }
+
+    /** A stronger backdrop means a thinner veil: full at 0, three quarters by default, half at most. */
+    @Test
+    fun strengthThinsTheVeil() {
+        assertEquals(1f, Backdrop.veilAlpha(0), 0.001f)
+        assertEquals(0.75f, Backdrop.veilAlpha(Backdrop.DEFAULT_LEVEL), 0.001f)
+        assertEquals(0.5f, Backdrop.veilAlpha(Backdrop.MAX_LEVEL), 0.001f)
+        assertEquals(0.5f, Backdrop.veilAlpha(200), 0.001f)
+    }
+
+    /** Grays stay gray, soft colors get stronger, and opacity does not change. */
+    @Test
+    fun saturateStrengthensColorsOnly() {
+        val gray = 0xFF808080.toInt()
+        val softRed = 0x80A07070.toInt()
+
+        val (grayAfter, redAfter) = Backdrop.saturate(intArrayOf(gray, softRed), factor = 2f).toList()
+
+        assertEquals(gray, grayAfter)
+        assertEquals("opacity stays", 0x80, redAfter ushr 24)
+        val red = redAfter shr 16 and 0xFF
+        val green = redAfter shr 8 and 0xFF
+        assertTrue("red moves up from 0xA0", red > 0xA0)
+        assertTrue("green moves down from 0x70", green < 0x70)
+    }
+
+    /** Strong colors are clamped to the channel's range instead of wrapping around. */
+    @Test
+    fun saturateClamps() {
+        val strong = 0xFFFF2000.toInt()
+
+        val after = Backdrop.saturate(intArrayOf(strong), factor = 3f).single()
+
+        assertEquals(0xFF, after shr 16 and 0xFF)
+        assertEquals(0, after and 0xFF)
+    }
+
     /** Opacity is blurred like the colors and stays opaque when everything is. */
     @Test
     fun opaqueStaysOpaque() {
         val pixels = intArrayOf(black, white, black, white)
 
-        assertTrue(Backdrop.blur(pixels, 2, 2).all { it ushr 24 == 0xFF })
+        assertTrue(Backdrop.blur(pixels, 2, 2, radius = 1).all { it ushr 24 == 0xFF })
     }
 }

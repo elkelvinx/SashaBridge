@@ -1,8 +1,6 @@
 package io.github.elkelvinx.sashabridge
 
 import android.Manifest
-import android.app.ActivityOptions
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -11,6 +9,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.media.session.MediaSessionManager
 import android.os.BatteryManager
@@ -20,7 +19,10 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
@@ -42,10 +44,16 @@ import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
 import io.github.elkelvinx.sashabridge.history.HistoryActivity
 import io.github.elkelvinx.sashabridge.media.PlayerCommand
+import io.github.elkelvinx.sashabridge.media.PlayerScreen
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
 import io.github.elkelvinx.sashabridge.pen.AnnotateActivity
 import io.github.elkelvinx.sashabridge.pen.TabletActivity
 import io.github.elkelvinx.sashabridge.protocol.ProtocolCodec
+import io.github.elkelvinx.sashabridge.settings.Accent
+import io.github.elkelvinx.sashabridge.settings.Appearance
+import io.github.elkelvinx.sashabridge.settings.HideStyle
+import io.github.elkelvinx.sashabridge.settings.SettingsActivity
+import io.github.elkelvinx.sashabridge.settings.SettingsRepository
 import io.github.elkelvinx.sashabridge.ui.BridgePhase
 import io.github.elkelvinx.sashabridge.ui.FrameTicker
 import io.github.elkelvinx.sashabridge.ui.PlayerCard
@@ -55,6 +63,7 @@ import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
@@ -69,8 +78,13 @@ import kotlinx.coroutines.launch
  *
  * In landscape the screen is meant to stay on as a display next to the PC, so it saves space
  * and power: no status bar (the status card shows the battery and the time instead), the
- * screen stays on only while the phone charges, and every minute the content moves a few
- * pixels so no part of the OLED panel shows the same thing for hours.
+ * screen stays on only while the phone charges (if the settings allow it), and every minute
+ * the content moves a few pixels so no part of the OLED panel shows the same thing for hours.
+ *
+ * In portrait the header opens the settings ([SettingsActivity]). The screen takes the accent
+ * chosen there, and is made again when it changes. While a video is hidden in the
+ * [HideStyle.BLACKOUT] way, black covers the screen until a double tap (in portrait, only if
+ * the settings say so).
  *
  * Every member runs on the main thread.
  */
@@ -78,6 +92,12 @@ class MainActivity : AppCompatActivity() {
 
     /** Shared state of the bridge. */
     private lateinit var repository: BridgeRepository
+
+    /** The user's choices. */
+    private lateinit var settings: SettingsRepository
+
+    /** The accent this screen was made with. */
+    private lateinit var accent: Accent
 
     /** Whether notification access is granted; checked again whenever the screen resumes. */
     private val hasAccess = MutableStateFlow(false)
@@ -110,6 +130,21 @@ class MainActivity : AppCompatActivity() {
     /** One clock for Sasha, the wave and the seek bar, so they redraw together. */
     private val ticker = FrameTicker()
 
+    /** Whether the screen is between [onStart] and [onStop]. */
+    private var started = false
+
+    /** Whether the phone charges, from the latest battery broadcast. */
+    private var charging = false
+
+    /** Black cover of the [HideStyle.BLACKOUT] way of hiding a video; made on first use. */
+    private var blackout: View? = null
+
+    /** Whether [blackout] covers the screen. */
+    private var blackedOut = false
+
+    /** The hiding ([BridgeRepository.hiddenSince]) the user uncovered with a double tap. */
+    private val uncovered = MutableStateFlow<Long?>(null)
+
     private lateinit var statusDot: View
     private lateinit var statusTitle: TextView
     private lateinit var statusDetail: TextView
@@ -121,6 +156,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        accent = Appearance.applyAccent(this)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         preferDisplayRate()
@@ -137,6 +173,7 @@ class MainActivity : AppCompatActivity() {
             insets
         }
         repository = BridgeRepository.get(this)
+        settings = SettingsRepository.get(this)
 
         statusDot = findViewById(R.id.statusDot)
         statusTitle = findViewById(R.id.statusTitle)
@@ -159,6 +196,10 @@ class MainActivity : AppCompatActivity() {
             } else {
                 openAnnotate()
             }
+        }
+        // Only the portrait header has it.
+        findViewById<View?>(R.id.settingsButton)?.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
         findViewById<Button>(R.id.tabletButton).setOnClickListener {
             startActivity(Intent(this, TabletActivity::class.java))
@@ -199,6 +240,26 @@ class MainActivity : AppCompatActivity() {
                 }
                 launch { repository.media.collect(player::show) }
                 launch { repository.queue.collect { player.setQueue(it) } }
+                launch {
+                    combine(
+                        repository.hiddenSince,
+                        settings.hideStyle,
+                        settings.blackoutInPortrait,
+                        uncovered,
+                    ) { since, style, inPortrait, open ->
+                        since != null && style == HideStyle.BLACKOUT && (landscape || inPortrait) && since != open
+                    }.distinctUntilChanged().collect(::showBlackout)
+                }
+                launch { settings.keepScreenOn.collect { updateKeepScreenOn() } }
+                launch { settings.waves.collect(player::setWaves) }
+                launch {
+                    combine(settings.backdropBlur, settings.backdropStrength, ::Pair)
+                        .collect { (blur, strength) -> player.setBackdrop(blur, strength) }
+                }
+                launch {
+                    // A new accent, chosen in the settings, needs the screen made again.
+                    settings.accent.collect { if (it != accent) recreate() }
+                }
                 if (landscape) launch { shiftNowAndThen() }
             }
         }
@@ -206,7 +267,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        ticker.start()
+        started = true
+        updateTicker()
         // The battery broadcast is sticky: registering returns the current state at once.
         ContextCompat.registerReceiver(
             this,
@@ -217,7 +279,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        ticker.stop()
+        started = false
+        updateTicker()
         unregisterReceiver(batteryReceiver)
         super.onStop()
     }
@@ -285,7 +348,7 @@ class MainActivity : AppCompatActivity() {
     private fun showBattery(battery: Intent) {
         val level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = battery.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-        val charging = battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
+        charging = battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
         batteryLabel?.let { label ->
             label.isVisible = level >= 0 && scale > 0
             if (label.isVisible) label.text = getString(R.string.battery_level, level * PERCENT / scale)
@@ -293,10 +356,76 @@ class MainActivity : AppCompatActivity() {
                 if (charging) R.drawable.ic_bolt else 0, 0, 0, 0,
             )
         }
-        if (landscape && charging) {
+        updateKeepScreenOn()
+    }
+
+    /**
+     * Keeps the screen on in landscape while the phone charges, if the settings allow it; never
+     * under the black cover, which should let the screen turn off as usual.
+     */
+    private fun updateKeepScreenOn() {
+        if (landscape && charging && settings.keepScreenOn.value && !blackedOut) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    /** Runs the animations while the screen is started and not covered in black. */
+    private fun updateTicker() {
+        if (started && !blackedOut) ticker.start() else ticker.stop()
+    }
+
+    /**
+     * Covers the screen in black, or uncovers it, for the [HideStyle.BLACKOUT] way of hiding a
+     * video: black over everything, no system bars and the lowest brightness, as if the phone
+     * were off. The screen still turns off on its own, and the animations stop meanwhile.
+     */
+    private fun showBlackout(on: Boolean) {
+        if (on == blackedOut) return
+        blackedOut = on
+        val cover = blackout ?: createBlackout().also { blackout = it }
+        cover.isVisible = on
+        window.attributes = window.attributes.apply {
+            screenBrightness = if (on) {
+                WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF
+            } else {
+                WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            }
+        }
+        WindowCompat.getInsetsController(window, window.decorView).run {
+            if (on) {
+                hide(WindowInsetsCompat.Type.systemBars())
+            } else {
+                show(WindowInsetsCompat.Type.navigationBars())
+                if (landscape) hide(WindowInsetsCompat.Type.statusBars()) else show(WindowInsetsCompat.Type.statusBars())
+            }
+        }
+        updateKeepScreenOn()
+        updateTicker()
+    }
+
+    /** Makes the black cover, over the whole window; a double tap uncovers SashaBridge. */
+    private fun createBlackout(): View {
+        val doubleTap = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                uncovered.value = repository.hiddenSince.value
+                return true
+            }
+        })
+        return View(this).apply {
+            setBackgroundColor(Color.BLACK)
+            contentDescription = getString(R.string.blackout_description)
+            isVisible = false
+            // Every touch stays on the cover, so nothing underneath reacts.
+            setOnTouchListener { view, event ->
+                doubleTap.onTouchEvent(event)
+                if (event.action == MotionEvent.ACTION_UP) view.performClick()
+                true
+            }
+            addContentView(this, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         }
     }
 
@@ -381,30 +510,7 @@ class MainActivity : AppCompatActivity() {
             // Notification access was taken away; the launcher screen still works.
             null
         }
-        if (playerScreen != null) {
-            try {
-                playerScreen.send(this, 0, null, null, null, null, playerScreenOptions())
-                return
-            } catch (_: PendingIntent.CanceledException) {
-                // The player dropped that screen; fall back to its launcher screen.
-            }
-        }
-        packageManager.getLaunchIntentForPackage(packageName)?.let(::startActivity)
-    }
-
-    /**
-     * Lets the player's own pending intent open its screen while this one is visible, which
-     * Android 14 and later require from the app that sends it.
-     */
-    private fun playerScreenOptions(): Bundle? {
-        val mode = when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA -> ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_IF_VISIBLE
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
-                @Suppress("DEPRECATION")
-                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
-            else -> return null
-        }
-        return ActivityOptions.makeBasic().setPendingIntentBackgroundActivityStartMode(mode).toBundle()
+        PlayerScreen.open(this, packageName, playerScreen)
     }
 
     /** Opens the S Pen annotation screen. */

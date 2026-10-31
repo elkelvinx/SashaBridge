@@ -16,8 +16,9 @@
 //!
 //! It also registers Ctrl+Alt+L, which likes the track playing on the phone ([`PcCommand::ToggleLike`]),
 //! and Ctrl+Alt+O, which hides the video playing on the phone behind the last music track
-//! ([`PcCommand::Hide`]), and shows the on-screen confirmations of [`crate::osd`] that other
-//! threads send through an [`Announcer`].
+//! ([`PcCommand::Hide`]; pressed again, the connection turns it into [`PcCommand::Unhide`]),
+//! and shows the on-screen confirmations of [`crate::osd`] that other threads send through an
+//! [`Announcer`].
 
 use std::cell::{Cell, OnceCell};
 use std::ffi::c_void;
@@ -327,7 +328,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
             0
         }
         WM_HOTKEY if wparam == HIDE_HOTKEY as usize => {
-            info!("Ctrl+Alt+O: hide the video playing on the phone");
+            info!("Ctrl+Alt+O: hide the video playing on the phone, or go back to it");
             send_command(PcCommand::Hide, "Ctrl+Alt+O");
             0
         }

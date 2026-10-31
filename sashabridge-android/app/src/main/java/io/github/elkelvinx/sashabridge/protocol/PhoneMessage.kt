@@ -206,6 +206,17 @@ sealed interface PhoneMessage {
             requireUptime(timeMs)
         }
     }
+
+    /**
+     * Whether a video is hidden ([CommandAction.HIDE]) that the phone can go back to, sent on
+     * the music route whenever it changes. A PC that connects gets it only while it is `true`.
+     *
+     * @property hidden Whether the next press of the hide shortcut should send
+     *   [CommandAction.UNHIDE] instead of hiding again.
+     */
+    @Serializable
+    @SerialName("hide.status")
+    data class HideStatus(val hidden: Boolean) : PhoneMessage
 }
 
 /**

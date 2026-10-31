@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- An accent color of the settings: a circle of its color, with a check mark when chosen. The
+     code names it after its color. -->
+<ImageButton xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.SashaBridge.AccentSwatch"
+    tools:ignore="ContentDescription" />

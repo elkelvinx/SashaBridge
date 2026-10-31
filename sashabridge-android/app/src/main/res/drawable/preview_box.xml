@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Frame of an example in the settings: the page's own background, set apart by a hairline. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/background" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/outline" />
+    <corners android:radius="16dp" />
+</shape>

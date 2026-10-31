@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Example of the primary color: the player's controls and a switch, as they look with it.
+     Only for looking: a cover over it keeps every touch. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="4dp"
+    tools:ignore="ContentDescription">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/preview_box"
+        android:importantForAccessibility="noHideDescendants"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                style="@style/Widget.SashaBridge.PreviewIcon"
+                android:src="@drawable/ic_shuffle" />
+
+            <ImageView
+                style="@style/Widget.SashaBridge.PreviewIcon"
+                android:src="@drawable/ic_repeat_one" />
+
+            <ImageView
+                style="@style/Widget.SashaBridge.PreviewIcon"
+                android:src="@drawable/ic_favorite" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <ImageView
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/play_button_background"
+                android:padding="14dp"
+                android:src="@drawable/ic_pause"
+                app:tint="@color/on_primary" />
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/previewSeek"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@null"
+            android:max="100"
+            android:splitTrack="false"
+            android:thumb="@drawable/seek_thumb" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            style="@style/Widget.SashaBridge.SettingsSwitch"
+            android:layout_marginTop="8dp"
+            android:checked="true"
+            android:text="@string/settings_preview_switch" />
+    </LinearLayout>
+
+    <!-- Keeps the touches, so the example cannot be changed. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true"
+        android:focusable="false"
+        android:importantForAccessibility="no" />
+</FrameLayout>

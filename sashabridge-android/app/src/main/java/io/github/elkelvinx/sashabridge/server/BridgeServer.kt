@@ -34,7 +34,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -67,6 +69,7 @@ import kotlinx.coroutines.withContext
  * @param clock Returns `SystemClock.elapsedRealtime()`.
  * @param annotations Shared state of the "Anotar" mode, served on the `/pen` route.
  * @param tablet Shared state of the "Tableta" mode, served on the `/pen` route.
+ * @param hidden Whether a video is hidden that the phone can go back to, reported to every PC.
  */
 class BridgeServer(
     private val media: StateFlow<MediaSnapshot?>,
@@ -78,6 +81,7 @@ class BridgeServer(
     private val clock: () -> Long = SystemClock::elapsedRealtime,
     private val annotations: AnnotationRepository = AnnotationRepository(),
     private val tablet: TabletRepository = TabletRepository(),
+    private val hidden: Flow<Boolean> = flowOf(false),
 ) {
 
     /** Running engine, or `null` while stopped. Guarded by [portLock]. */
@@ -201,7 +205,7 @@ class BridgeServer(
                 Log.i(LOG_TAG, "PC connected")
                 reportSessions()
                 try {
-                    ClientSession(this, media, deviceName, clock, onCommand).run()
+                    ClientSession(this, media, deviceName, clock, onCommand, hidden).run()
                 } finally {
                     synchronized(sessions) { sessions -= this }
                     Log.i(LOG_TAG, "PC disconnected")

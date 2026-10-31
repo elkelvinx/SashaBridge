@@ -18,6 +18,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.protocol.PenSampleCodec
 import io.github.elkelvinx.sashabridge.protocol.PhoneMessage
+import io.github.elkelvinx.sashabridge.settings.Appearance
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -45,6 +46,7 @@ class TabletActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Appearance.applyAccent(this)
         enableEdgeToEdge()
         setContentView(R.layout.activity_tablet)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

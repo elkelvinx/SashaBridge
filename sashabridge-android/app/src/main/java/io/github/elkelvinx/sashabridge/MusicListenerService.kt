@@ -14,10 +14,12 @@ import io.github.elkelvinx.sashabridge.history.HistoryRecorder
 import io.github.elkelvinx.sashabridge.history.HistoryRepository
 import io.github.elkelvinx.sashabridge.media.MediaCommandExecutor
 import io.github.elkelvinx.sashabridge.media.MediaSessionTracker
+import io.github.elkelvinx.sashabridge.media.MediaSnapshot
 import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
 import io.github.elkelvinx.sashabridge.pen.TabletRepository
 import io.github.elkelvinx.sashabridge.pen.CaptureNotifier
 import io.github.elkelvinx.sashabridge.server.BridgeServer
+import io.github.elkelvinx.sashabridge.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,6 +28,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
@@ -39,7 +43,10 @@ import kotlinx.coroutines.launch
  *   PC and runs the PC's commands through [MediaCommandExecutor].
  * - The commands pressed on the app's own screen ([BridgeRepository.commands]) run through
  *   the same executor, whether the bridge is on or off.
- * - The tracks listened to go to the history ([HistoryRecorder], [HistoryRepository]).
+ * - The tracks listened to go to the history ([HistoryRecorder], [HistoryRepository]), unless
+ *   the user turned it off ([SettingsRepository.recordHistory]).
+ * - A video hidden from the PC shows on the screen ([BridgeRepository.hiddenSince]), and the PC
+ *   hears whether the next press goes back to it.
  *
  * When Android disconnects the listener, for example after the app is updated, the service
  * asks to be bound again with [requestRebind].
@@ -53,6 +60,9 @@ class MusicListenerService : NotificationListenerService() {
 
     /** Shared state of the bridge. Set in [onCreate]. */
     private lateinit var repository: BridgeRepository
+
+    /** The user's choices. Set in [onCreate]. */
+    private lateinit var settings: SettingsRepository
 
     /** Observer of the media sessions. Created in [onCreate], started in [onListenerConnected]. */
     private lateinit var tracker: MediaSessionTracker
@@ -74,6 +84,7 @@ class MusicListenerService : NotificationListenerService() {
         super.onCreate()
         Log.i(LOG_TAG, "Listener service created")
         repository = BridgeRepository.get(this)
+        settings = SettingsRepository.get(this)
         tracker = MediaSessionTracker(
             getSystemService(MEDIA_SESSION_SERVICE) as MediaSessionManager,
             listenerComponent(),
@@ -94,6 +105,9 @@ class MusicListenerService : NotificationListenerService() {
             onCommand = commandExecutor::execute,
             annotations = AnnotationRepository.shared,
             tablet = TabletRepository.shared,
+            // The next press of the PC's shortcut goes back to the video only if the user wants it.
+            hidden = combine(repository.hiddenSince, settings.returnToVideo) { since, back -> since != null && back }
+                .distinctUntilChanged(),
         )
         captureNotifier = CaptureNotifier(this)
     }
@@ -118,6 +132,7 @@ class MusicListenerService : NotificationListenerService() {
         listenerJob = serviceScope.launch {
             launch { tracker.media.collect(repository::updateMedia) }
             launch { tracker.queue.collect(repository::updateQueue) }
+            launch { tracker.hiddenSince.collect(repository::updateHiddenSince) }
             launch { repository.commands.collect { commandExecutor.execute(it) } }
             launch { offerCaptures() }
             launch { recordHistory() }
@@ -159,6 +174,7 @@ class MusicListenerService : NotificationListenerService() {
         tracker.stop()
         repository.updateMedia(null)
         repository.updateQueue(null)
+        repository.updateHiddenSince(null)
         repository.setListenerConnected(false)
         server.release()
     }
@@ -189,13 +205,18 @@ class MusicListenerService : NotificationListenerService() {
         history.prune()
         launch {
             tracker.media.collect { snapshot ->
-                recorder.update(snapshot, SystemClock.elapsedRealtime())?.let { history.record(it) }
+                recorder.update(snapshot, SystemClock.elapsedRealtime())?.let { recordIfWanted(history, it) }
             }
         }
         while (true) {
             delay(HISTORY_TICK_MS)
-            recorder.tick(SystemClock.elapsedRealtime())?.let { history.record(it) }
+            recorder.tick(SystemClock.elapsedRealtime())?.let { recordIfWanted(history, it) }
         }
+    }
+
+    /** Adds [snapshot] to [history], unless the user turned the history off. */
+    private suspend fun recordIfWanted(history: HistoryRepository, snapshot: MediaSnapshot) {
+        if (settings.recordHistory.value) history.record(snapshot)
     }
 
     /** Component name of this listener. */

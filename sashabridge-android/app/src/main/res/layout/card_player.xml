@@ -25,6 +25,7 @@
             android:scaleType="centerCrop" />
 
         <View
+            android:id="@+id/coverScrim"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_alignTop="@+id/playerContent"

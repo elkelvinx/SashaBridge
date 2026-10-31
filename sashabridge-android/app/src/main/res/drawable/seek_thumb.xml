@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Seek bar ball in strong wine; it grows while it is being dragged. -->
+<!-- Seek bar ball in the strong shade of the accent; it grows while it is being dragged. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape android:shape="oval">
-            <solid android:color="@color/seek_thumb" />
+            <solid android:color="?attr/sashaAccent" />
             <size android:width="24dp" android:height="24dp" />
         </shape>
     </item>
     <item>
         <shape android:shape="oval">
-            <solid android:color="@color/seek_thumb" />
+            <solid android:color="?attr/sashaAccent" />
             <size android:width="18dp" android:height="18dp" />
         </shape>
     </item>

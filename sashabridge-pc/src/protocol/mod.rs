@@ -28,6 +28,8 @@ pub enum PcCommand {
     ToggleLike,
     /// Pauses the video playing on the phone and shows the last music track instead.
     Hide,
+    /// Goes back to the video that [`PcCommand::Hide`] hid, and resumes it.
+    Unhide,
 }
 
 impl PcCommand {
@@ -50,6 +52,7 @@ impl PcCommand {
             Self::ToggleShuffle => v2::Command::ToggleShuffle,
             Self::ToggleLike => v2::Command::ToggleLike,
             Self::Hide => v2::Command::Hide,
+            Self::Unhide => v2::Command::Unhide,
         }
     }
 }
@@ -221,6 +224,7 @@ mod tests {
             (PcCommand::ToggleShuffle, "cmd-toggle-shuffle.json"),
             (PcCommand::ToggleLike, "cmd-toggle-like.json"),
             (PcCommand::Hide, "cmd-hide.json"),
+            (PcCommand::Unhide, "cmd-unhide.json"),
         ];
         for (command, file) in cases {
             let encoded = command.encode();

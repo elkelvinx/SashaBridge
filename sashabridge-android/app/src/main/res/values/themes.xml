@@ -15,9 +15,52 @@
         <!-- Tonal buttons (Cola, Dar acceso, Abrir ajustes) in the app's palette, not Material's. -->
         <item name="colorSecondaryContainer">@color/surface_variant</item>
         <item name="colorOnSecondaryContainer">@color/on_surface</item>
+        <!-- Wine, the default accent; see attrs.xml. -->
+        <item name="sashaAccent">@color/seek_thumb</item>
+        <item name="sashaAccentPlayed">@color/seek_played</item>
+        <item name="sashaAccentSoft">@color/accent_wine_soft</item>
     </style>
 
     <style name="Theme.SashaBridge" parent="Base.Theme.SashaBridge" />
+
+    <!-- The other accents of Ajustes > Apariencia, laid over the theme of each screen. Wine is
+         the theme itself, so it needs none. -->
+    <style name="ThemeOverlay.SashaBridge.Accent.Wine" parent="" />
+
+    <style name="ThemeOverlay.SashaBridge.Accent.Blue" parent="">
+        <item name="colorPrimary">@color/accent_blue</item>
+        <item name="sashaAccent">@color/accent_blue_strong</item>
+        <item name="sashaAccentPlayed">@color/accent_blue_played</item>
+        <item name="sashaAccentSoft">@color/accent_blue_soft</item>
+    </style>
+
+    <style name="ThemeOverlay.SashaBridge.Accent.Green" parent="">
+        <item name="colorPrimary">@color/accent_green</item>
+        <item name="sashaAccent">@color/accent_green_strong</item>
+        <item name="sashaAccentPlayed">@color/accent_green_played</item>
+        <item name="sashaAccentSoft">@color/accent_green_soft</item>
+    </style>
+
+    <style name="ThemeOverlay.SashaBridge.Accent.Purple" parent="">
+        <item name="colorPrimary">@color/accent_purple</item>
+        <item name="sashaAccent">@color/accent_purple_strong</item>
+        <item name="sashaAccentPlayed">@color/accent_purple_played</item>
+        <item name="sashaAccentSoft">@color/accent_purple_soft</item>
+    </style>
+
+    <style name="ThemeOverlay.SashaBridge.Accent.Amber" parent="">
+        <item name="colorPrimary">@color/accent_amber</item>
+        <item name="sashaAccent">@color/accent_amber_strong</item>
+        <item name="sashaAccentPlayed">@color/accent_amber_played</item>
+        <item name="sashaAccentSoft">@color/accent_amber_soft</item>
+    </style>
+
+    <style name="ThemeOverlay.SashaBridge.Accent.Pink" parent="">
+        <item name="colorPrimary">@color/accent_pink</item>
+        <item name="sashaAccent">@color/accent_pink_strong</item>
+        <item name="sashaAccentPlayed">@color/accent_pink_played</item>
+        <item name="sashaAccentSoft">@color/accent_pink_soft</item>
+    </style>
 
     <!-- The annotation screen is always dark, so the capture stands out in either theme. -->
     <style name="Theme.SashaBridge.Annotate">
@@ -30,6 +73,129 @@
         <item name="strokeColor">@color/outline</item>
         <item name="cardCornerRadius">20dp</item>
         <item name="contentPadding">16dp</item>
+    </style>
+
+    <!-- Rows of the settings screen: a heading per card, choices and switches, and the
+         muted line under each, indented under the text of a choice. -->
+    <style name="Widget.SashaBridge.SettingsHeading" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleMedium</item>
+        <item name="android:textColor">@color/on_surface</item>
+    </style>
+
+    <style name="Widget.SashaBridge.SettingsLabel" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">12dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleSmall</item>
+        <item name="android:textColor">@color/on_surface</item>
+    </style>
+
+    <!-- One choice of a row of choices that fill the card's width, such as the theme. -->
+    <style name="Widget.SashaBridge.SettingsSegment" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <!-- "Vista previa" row of the settings: touching it unfolds or folds an example. -->
+    <style name="Widget.SashaBridge.PreviewHeader" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">12dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="Widget.SashaBridge.PreviewTitle" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleSmall</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+    </style>
+
+    <!-- Arrow of the "Vista previa" row; the code turns it up while the example shows. -->
+    <style name="Widget.SashaBridge.PreviewChevron" parent="">
+        <item name="android:layout_width">24dp</item>
+        <item name="android:layout_height">24dp</item>
+        <item name="android:src">@drawable/ic_expand_more</item>
+        <item name="tint">@color/on_surface_muted</item>
+    </style>
+
+    <!-- A mode icon of the color example, as it looks when the mode is on. -->
+    <style name="Widget.SashaBridge.PreviewIcon" parent="">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:padding">8dp</item>
+        <item name="tint">?attr/sashaAccent</item>
+    </style>
+
+    <!-- A setting chosen on a scale from 0 to 100, with words at its ends instead of numbers. -->
+    <style name="Widget.SashaBridge.SettingsSlider" parent="Widget.Material3.Slider">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:valueFrom">0</item>
+        <item name="android:valueTo">100</item>
+        <item name="android:stepSize">5</item>
+        <item name="labelBehavior">gone</item>
+        <!-- A dot per step would crowd the track: 20 of them. -->
+        <item name="tickVisible">false</item>
+    </style>
+
+    <style name="Widget.SashaBridge.SliderEnds" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingHorizontal">16dp</item>
+    </style>
+
+    <style name="Widget.SashaBridge.SliderEnd" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodySmall</item>
+        <item name="android:textColor">@color/on_surface_muted</item>
+    </style>
+
+    <!-- Round accent swatch of the settings; the chosen one carries a check mark. -->
+    <style name="Widget.SashaBridge.AccentSwatch" parent="">
+        <item name="android:layout_width">36dp</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:layout_marginEnd">12dp</item>
+        <item name="android:background">@drawable/color_swatch</item>
+        <item name="android:scaleType">centerInside</item>
+        <item name="android:padding">6dp</item>
+        <item name="tint">@android:color/white</item>
+    </style>
+
+    <style name="Widget.SashaBridge.SettingsDetail" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">36dp</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyMedium</item>
+        <item name="android:textColor">@color/on_surface_muted</item>
+    </style>
+
+    <style name="Widget.SashaBridge.SettingsChoice" parent="Widget.Material3.CompoundButton.RadioButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
+        <item name="android:textColor">@color/on_surface</item>
+    </style>
+
+    <style name="Widget.SashaBridge.SettingsSwitch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
+        <item name="android:textColor">@color/on_surface</item>
     </style>
 
     <style name="ShapeAppearance.SashaBridge.Cover" parent="">

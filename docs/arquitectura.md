@@ -51,7 +51,11 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `media/AlbumArtEncoder` | Escala la carátula a 300 px como máximo, la codifica en JPEG fuera del hilo principal y calcula su `artId` a partir de los bytes. |
 | `media/MetadataNormalizer`, `ShuffleControl` | Separan el contexto que Spotify añade al artista y leen o cambian el modo aleatorio mediante las acciones propias del reproductor. |
 | `media/RepeatControl`, `LikeControl`, `ActionNames` | Leen y pulsan "repetir" y "me gusta" con las acciones propias del reproductor. YouTube Music no cambia el identificador de sus acciones: indica el modo en el nombre, en el idioma del teléfono, y `ActionNames` lo interpreta en español y en inglés. |
-| `media/MediaCommandExecutor` | Ejecuta las órdenes de la PC y de la pantalla sobre el reproductor elegido. Sin reproductor, envía la tecla multimedia equivalente. `HIDE` oculta el vídeo (ver la sección 4). |
+| `media/MediaCommandExecutor` | Ejecuta las órdenes de la PC y de la pantalla sobre el reproductor elegido. Sin reproductor, envía la tecla multimedia equivalente. `HIDE` oculta el vídeo y `UNHIDE` vuelve a él (ver la sección 4). |
+| `media/PlayerScreen` | Abre una app de música o de vídeo en la pantalla que publica su sesión, con el permiso que Android 14+ exige para hacerlo mientras SashaBridge está delante. La usan el icono de la tarjeta y la vuelta al vídeo. |
+| `settings/SettingsRepository`, `SettingsActivity` | Ajustes del usuario (apariencia, forma de ocultar y si la pantalla negra cubre también el vertical, volver al vídeo, pantalla encendida en horizontal, guardar el historial) como `StateFlow` persistidos, y su pantalla, solo en vertical. |
+| `settings/PreviewSection`, `BackdropPreview` | Las vistas previas desplegables de los ajustes: una fila que despliega o pliega el ejemplo, que solo se dibuja abierto y recuerda su estado, y la tarjeta de ejemplo del fondo, con la carátula de la canción que suena, de la última escuchada o una dibujada. |
+| `settings/Appearance`, `SashaBridgeApp` | Tema claro u oscuro para toda la app (`AppCompatDelegate.setDefaultNightMode`, aplicado al arrancar el proceso) y color de acento: una superposición de tema (`ThemeOverlay.SashaBridge.Accent.*`) que cada pantalla aplica antes de inflar su diseño. |
 | `media/HiddenPlayer` | La última canción del historial como reproductor en pausa, para mostrarla mientras se oculta un vídeo si su app ya no tiene sesión. Lógica pura. |
 | `media/ThumbnailStore`, `ThumbnailSources` | Carátulas pequeñas (192 px) de la cola y del historial, en memoria y como WebP en la caché. Las del historial van a los archivos de la app y se borran cuando el historial deja de nombrarlas. |
 | `history/` | `HistoryRecorder` decide cuándo una canción cuenta como escuchada: 30 s sonando, o la mitad si es más corta, y nunca un vídeo. `HistoryRepository` la guarda 50 días en SQLite (`history.db`) con su carátula, y una canción repetida seguida cuenta una vez. `HistoryActivity` la muestra por días y con búsqueda, y `PlayerLinks` la abre en su app. |
@@ -60,7 +64,7 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `server/BridgeServer` | Servidor WebSocket (Ktor 3, motor CIO) en `127.0.0.1:8080`. Arranque y parada serializados, reintento si el puerto está ocupado. |
 | `server/ClientSession` | Conversación con una PC: saludo, estado inicial, cambios y órdenes. |
 | `protocol/` | Tipos del protocolo v2 (`PhoneMessage`, `PcMessage`), su codificación (`ProtocolCodec`) y la traducción de estados a mensajes de una sesión (`MediaStateEncoder`). |
-| `ui/BridgePhase`, `ui/PlayerCard`, `MainActivity` | Pantalla: estado del puente, avisos de permisos y batería, Sasha, y la tarjeta del reproductor con sus controles y la barra de progreso. |
+| `ui/BridgePhase`, `ui/PlayerCard`, `MainActivity` | Pantalla: estado del puente, avisos de permisos y batería, Sasha, la tarjeta del reproductor con sus controles y la barra de progreso, y la pantalla negra de la forma de ocultar "Pantalla negra". |
 | `server/PenSession` | Conversación con una PC en la ruta `/pen`: estado de las dos pantallas del S Pen, capturas, anotaciones, monitor de la tableta, latencia y las muestras del lápiz en frames binarios. |
 | `pen/AnnotationRepository`, `pen/TabletRepository` | Estado compartido entre `PenSession` y cada pantalla del S Pen. |
 | `pen/AnnotateActivity`, `pen/InkCanvasView` | Modo Anotar: la captura (de la PC o compartida desde otra app), las herramientas (lápiz con presión, resaltador, línea, rectángulo, flecha, texto con tamaño, insertar imagen, Mover y Cambiar tamaño), deshacer y rehacer, y el menú "+" para enviar o descartar. |
@@ -184,11 +188,17 @@ Crate `sashabridge_pc`, en `sashabridge-pc/src/`.
 **Me gusta desde la PC.** `Ctrl+Alt+L` envía `TOGGLE_LIKE` y el teléfono pulsa la acción de "me gusta" del reproductor. Cuando el siguiente `media.state` trae el `liked` cambiado, la PC lo confirma con el aviso de `osd`. Si el reproductor no tiene esa acción, la PC solo lo registra.
 
 **Ocultar un vídeo.**
-1. `Ctrl+Alt+O` envía `HIDE` y, a continuación, la PC ejecuta `adb shell am start` para traer SashaBridge al frente.
+1. `Ctrl+Alt+O` envía `HIDE` y, a continuación, la PC ejecuta `adb shell am start` para traer SashaBridge al frente. Con la forma "Pantalla negra", `MainActivity` cubre todo de negro, oculta las barras y baja el brillo al mínimo; tocar dos veces descubre SashaBridge.
 2. El teléfono busca la última canción del historial y pausa todos los reproductores que suenan.
 3. Mientras dure, `MediaSessionTracker` solo sigue a la app de esa canción. Si ya no tiene sesión, publica la canción del historial en pausa (`HiddenPlayer`), con la carátula tal como la dio el reproductor si sigue guardada, o la pequeña del historial. El vídeo nunca se publica.
 4. Sin sesión de la app de música, reproducir abre la canción en su app (`PlayerLinks`); las demás órdenes se ignoran, porque una tecla multimedia iría al vídeo.
 5. Termina cuando un reproductor vuelve a sonar, pasado un segundo: el vídeo, a punto de pausarse, aún puede informar de que suena.
+
+**Volver al vídeo.**
+1. Mientras hay un vídeo oculto, el teléfono envía `hide.status` con `hidden: true`, salvo que el usuario haya desactivado la vuelta en los ajustes. La PC lo guarda en `NowPlaying`.
+2. Con eso, `connection` convierte la siguiente pulsación de `Ctrl+Alt+O` en `UNHIDE` y no ejecuta `am start`.
+3. Con la pantalla encendida y desbloqueada, el teléfono termina la ocultación, abre la app del vídeo en la pantalla de su sesión (`PlayerScreen`) y reanuda lo que había pausado. Como una app de vídeo puede ignorar la orden hasta que su pantalla está delante, la repite a los 0,6 y a los 1,5 s si aún no suena.
+4. El teléfono envía `hide.status` con `hidden: false`, y el atajo vuelve a ocultar.
 
 **Desconexiones.** Si el teléfono cierra la sesión o la app muere, la PC marca la sesión de Windows como detenida y vuelve al bucle de reintentos. Mientras espera, su consumo de CPU es prácticamente nulo.
 
@@ -237,7 +247,15 @@ El recorte de Windows escribe el portapapeles más de una vez por captura. La PC
 | Notificaciones con una identidad registrada en `HKCU\Software\Classes\AppUserModelId` | Un programa sin instalador no tiene acceso directo en el menú Inicio; el registro le da nombre e icono propios. Si Windows rechaza la notificación, suena un aviso. |
 | Aviso propio (`osd`) para "me gusta" en lugar de una notificación | Con una app a pantalla completa, el asistente de concentración de Windows guarda las notificaciones sin mostrarlas. Una versión translúcida (`WS_EX_LAYERED`) no llegaba a dibujarse en esta PC; la ventana es opaca. |
 | La PC abre SashaBridge con adb al ocultar un vídeo | Android no deja que una app en segundo plano abra su pantalla, y el servicio de notificaciones no está exento. La PC ya usa adb para el túnel, y adb puede abrir cualquier app. |
+| Al volver, el teléfono abre el vídeo con la pantalla de su sesión, no la PC con adb | La pantalla que publica la sesión es la del vídeo que sonaba. Con adb solo se puede abrir la pantalla de inicio de la app, que en YouTube podría poner una página nueva encima del vídeo. SashaBridge está delante, así que Android le deja abrirla. |
+| La PC sabe si toca ocultar o volver por `hide.status`, no por su cuenta | Solo el teléfono sabe si la ocultación sigue: termina sola si algo suena, o si la app se reinicia. Un estado propio de la PC se desincronizaría. |
+| Volver no reanuda nada con la pantalla apagada o bloqueada | El vídeo sonaría desde un teléfono que nadie mira. Desbloqueado, SashaBridge (o la pantalla negra) sigue delante y el atajo funciona. |
 | Al ocultar se muestra la última canción de música en pausa, sin reanudarla | Lo pidió el usuario (opción B): la pantalla debe parecer música sin que suene nada de golpe. La opción A, fundido a negro como si se apagara la pantalla, queda para una pantalla de ajustes. |
+| El acento como atributos de tema (`colorPrimary`, `sashaAccent`, `sashaAccentPlayed`, `sashaAccentSoft`) | Las vistas y los dibujos leen el color del tema en lugar de un color fijo, así que cambiar de acento es aplicar otra superposición y rehacer la pantalla. Cada acento tiene tonos más claros para el tema oscuro. |
+| Colores más vivos en el fondo desenfocado | Al desenfocar, los colores se mezclan hacia el gris, y con carátulas de colores suaves el fondo casi no se notaba bajo el velo. Ahora se refuerzan (`Backdrop.saturate`, ×1,45) y el velo es algo más fino. |
+| Desenfoque e intensidad del fondo ajustables, de 0 a 100 | El desenfoque elige el radio (`Backdrop.blurRadius`, de 0 a 9 píxeles sobre una copia de 48 px). La intensidad elige la opacidad del velo (`Backdrop.veilAlpha`, del 100 al 50 % del velo más fuerte, que guarda el dibujo). Así se cambia sin rehacer la pantalla. |
+| Un color primario nuevo redibuja los ajustes en el sitio | Rehacer la actividad (`recreate`) tardaba en mostrar la marca del color elegido. Ahora se aplica la superposición al tema y se vuelve a inflar el contenido, conservando el desplazamiento. |
+| Las vistas previas usan carátulas del teléfono | La app no lleva carátulas de discos: tienen derechos de autor. La vista previa usa la de la canción que suena o la de la última escuchada. |
 | Historial en SQLite con la carátula guardada aparte | La carátula de una canción solo se conoce mientras suena; una copia pequeña propia permite mostrarla después, sin red, durante los 50 días. |
 
 ## 6. Defectos corregidos
@@ -271,5 +289,4 @@ Los identificadores vienen del plan de refactorización y de `docs/diagnostico-f
 
 - **Tableta mapeada a una ventana.** Hoy el área de dibujo corresponde a un monitor entero. Mapearla a una sola ventana daría más precisión en apps pequeñas.
 - **Ver la pantalla de la PC en el teléfono** mientras se dibuja en modo Tableta. Exige enviar vídeo de la PC al teléfono.
-- **Pantalla de ajustes** (2.4): elegir entre las dos formas de ocultar un vídeo (A o B) y otras preferencias.
 - **Letras sincronizadas** (2.4), con traducción; antes, una prueba de que la fuente las tiene.

@@ -23,14 +23,41 @@
     <color name="button_idle">#E6D6CC</color>
 
     <!-- Veil over the blurred art of the player card: lets the colors through, keeps text readable. -->
-    <color name="scrim_top">#A6FFFFFF</color>
-    <color name="scrim_middle">#BFFFFFFF</color>
-    <color name="scrim_bottom">#D9FFFFFF</color>
+    <!-- The strongest veil (73/85/100 %); the card shows it at 50 to 100 % of this, as the
+         user sets in Ajustes > Fondo de la tarjeta (75 % by default: 55/64/75 %). -->
+    <color name="scrim_top">#BAFFFFFF</color>
+    <color name="scrim_middle">#D9FFFFFF</color>
+    <color name="scrim_bottom">#FFFFFFFF</color>
 
     <!-- Seek bar: light coffee track, dark red played part, strong wine ball. -->
     <color name="seek_track">#C9A27E</color>
     <color name="seek_played">#7A1830</color>
     <color name="seek_thumb">#A3173F</color>
+
+    <!-- Accent colors of Ajustes > Apariencia, besides wine: main shade (buttons), strong shade
+         (seek ball, active icons, heart), played part of the seek bar, and the translucent
+         pill of the annotation tools. The night variants are lighter. -->
+    <color name="accent_wine_soft">#809B2C4B</color>
+    <color name="accent_blue">#1F4E8C</color>
+    <color name="accent_blue_strong">#1E66C9</color>
+    <color name="accent_blue_played">#1A4A86</color>
+    <color name="accent_blue_soft">#803A6FB8</color>
+    <color name="accent_green">#2E6B4A</color>
+    <color name="accent_green_strong">#2E8B57</color>
+    <color name="accent_green_played">#245C3E</color>
+    <color name="accent_green_soft">#803F8A62</color>
+    <color name="accent_purple">#5B2A86</color>
+    <color name="accent_purple_strong">#7B3FBF</color>
+    <color name="accent_purple_played">#4E2475</color>
+    <color name="accent_purple_soft">#807A45AE</color>
+    <color name="accent_amber">#9A4A12</color>
+    <color name="accent_amber_strong">#D2691E</color>
+    <color name="accent_amber_played">#8A4210</color>
+    <color name="accent_amber_soft">#80B8662A</color>
+    <color name="accent_pink">#A8325E</color>
+    <color name="accent_pink_strong">#D63F7A</color>
+    <color name="accent_pink_played">#9A2A55</color>
+    <color name="accent_pink_soft">#80C24A78</color>
 
     <color name="status_connected">#4E9A5B</color>
     <color name="status_waiting">#C98E2A</color>

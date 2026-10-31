@@ -49,6 +49,7 @@ import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import io.github.elkelvinx.sashabridge.protocol.PhoneMessage
+import io.github.elkelvinx.sashabridge.settings.Appearance
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import kotlin.math.max
@@ -126,6 +127,7 @@ class AnnotateActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Appearance.applyAccent(this)
         enableEdgeToEdge()
         setContentView(R.layout.activity_annotate)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

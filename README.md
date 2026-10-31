@@ -78,15 +78,30 @@ cargo run
 |---|---|
 | Teclas multimedia y panel de Windows | Reproducir, pausar, pasar de canción y mover la posición del reproductor del teléfono |
 | `Ctrl+Alt+L` | La canción que suena pasa a "Tus me gusta" de Spotify o a "Me gusta" de YouTube Music; si ya estaba, se quita. Un aviso en la esquina inferior derecha de la pantalla lo confirma |
-| `Ctrl+Alt+O` | Oculta el vídeo del teléfono (ver abajo) |
+| `Ctrl+Alt+O` | Oculta el vídeo del teléfono; otra pulsación vuelve a él (ver abajo) |
 | `Ctrl+Alt+A` | Abre el recorte de Windows y envía la captura a Anotar (ver [Anotar](#anotar)) |
 
 **Ocultar un vídeo (`Ctrl+Alt+O`):**
 - El vídeo que suena en el teléfono (YouTube, Netflix...) se pausa.
 - SashaBridge pasa al frente con la última canción de música del historial, en pausa. Lo mismo se ve en el panel de Windows.
 - Spotify no arranca solo. Reproducir en SashaBridge pone esa canción: en su app, si sigue abierta, o abriéndola en Spotify o YouTube Music.
-- Todo vuelve a la normalidad en cuanto algo suena: la música desde SashaBridge o el vídeo desde su app.
+- **Volver:** `Ctrl+Alt+O` otra vez abre el vídeo donde estaba y lo reanuda. Con la pantalla del teléfono apagada o bloqueada no hace nada, para que no suene nada de golpe; al desbloquearla, el atajo funciona de nuevo.
+- Todo vuelve a la normalidad también en cuanto algo suena: la música desde SashaBridge o el vídeo desde su app. Entonces el atajo vuelve a ocultar.
 - Necesita el cable USB, porque la PC abre SashaBridge con adb. Un vídeo en imagen en imagen se pausa, pero su ventanita sigue a la vista.
+
+### Ajustes
+
+En vertical, el engranaje de la pantalla principal abre los ajustes:
+- **Apariencia:**
+  - **Tema:** como el teléfono, claro u oscuro.
+  - **Color primario:** vino, azul, verde, morado, ámbar o rosa. Es el color del botón de reproducir, de la barra de progreso, de los modos activos, del corazón y de los interruptores. Cambia al instante.
+  - **Barra de progreso:** con ondas o lisa.
+  - **Vista previa** (desplegable): los controles del reproductor con el color y la barra elegidos. Solo se dibuja abierta, y la app recuerda si la dejaste abierta.
+- **Fondo de la tarjeta:** cuánto se desenfoca la carátula detrás de la canción (de poco a mucho) y con qué intensidad se ve (de sutil a intensa). Su vista previa desplegable es una tarjeta pequeña con la carátula de la canción que suena, o de la última que escuchaste, o una de ejemplo si no hay ninguna.
+- **Ocultar un vídeo:** "Mostrar la música en pausa" (lo descrito arriba) o "Pantalla negra", en la que el teléfono parece apagado: negro, sin barras y con el brillo al mínimo. Tocar dos veces la pantalla negra muestra SashaBridge. Con la pantalla negra aparece "También en vertical": si se apaga, la pantalla negra solo sale en horizontal y en vertical se ve la música en pausa.
+- **Volver al vídeo con otra pulsación:** si se desactiva, `Ctrl+Alt+O` siempre oculta.
+- **Pantalla horizontal:** mantenerla encendida mientras carga, o dejar que se apague como siempre.
+- **Historial:** dejar de guardar las canciones, o borrarlo entero con sus carátulas.
 
 ### Anotar
 
