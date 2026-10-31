@@ -344,6 +344,9 @@ pub enum Command {
     ToggleShuffle,
     /// Presses the player's own like button, which likes the track or takes the like back.
     ToggleLike,
+    /// Pauses every player but the music one and shows the last music track, paused, instead
+    /// of the video that was playing.
+    Hide,
 }
 
 /// Wire form of [`Command`], before the action and the position are checked together.
@@ -376,6 +379,8 @@ enum CommandAction {
     ToggleShuffle,
     /// See [`Command::ToggleLike`].
     ToggleLike,
+    /// See [`Command::Hide`].
+    Hide,
 }
 
 impl TryFrom<WireCommand> for Command {
@@ -395,6 +400,7 @@ impl TryFrom<WireCommand> for Command {
             (CommandAction::Previous, None) => Self::Previous,
             (CommandAction::ToggleShuffle, None) => Self::ToggleShuffle,
             (CommandAction::ToggleLike, None) => Self::ToggleLike,
+            (CommandAction::Hide, None) => Self::Hide,
         };
         Ok(command)
     }
@@ -412,6 +418,7 @@ impl From<Command> for WireCommand {
             Command::Seek { position_ms } => (CommandAction::Seek, Some(position_ms)),
             Command::ToggleShuffle => (CommandAction::ToggleShuffle, None),
             Command::ToggleLike => (CommandAction::ToggleLike, None),
+            Command::Hide => (CommandAction::Hide, None),
         };
         Self { action, position_ms }
     }

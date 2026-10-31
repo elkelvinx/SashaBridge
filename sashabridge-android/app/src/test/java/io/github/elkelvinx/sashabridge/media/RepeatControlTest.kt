@@ -51,4 +51,30 @@ class RepeatControlTest {
         assertEquals(RepeatMode.ALL, RepeatControl.modeOf(ids, mapOf("loop_mode_action" to "Repetir todo")))
         assertEquals(RepeatMode.ONE, RepeatControl.modeOf(ids, mapOf("loop_mode_action" to "Repetir una canción")))
     }
+
+    /** The names in YouTube Music's own Spanish texts, and their English counterparts. */
+    @Test
+    fun readsEveryYouTubeMusicName() {
+        val spanish = mapOf(
+            "Repetición desactivada" to RepeatMode.OFF,
+            "Repetición inhabilitada" to RepeatMode.OFF,
+            "Repetición activada" to RepeatMode.ALL,
+            "Repetir todas las canciones" to RepeatMode.ALL,
+            "Repetir uno" to RepeatMode.ONE,
+            "Repetir una vez" to RepeatMode.ONE,
+        )
+        val english = mapOf(
+            "Repeat off" to RepeatMode.OFF,
+            "Repeat disabled" to RepeatMode.OFF,
+            "Repeat on" to RepeatMode.ALL,
+            "Repeat all" to RepeatMode.ALL,
+            "Repeat one" to RepeatMode.ONE,
+            "Repeat once" to RepeatMode.ONE,
+        )
+
+        for ((name, mode) in spanish + english) {
+            assertEquals(name, mode, ActionNames.repeatMode(name))
+        }
+        assertNull(ActionNames.repeatMode("Reproducir"))
+    }
 }

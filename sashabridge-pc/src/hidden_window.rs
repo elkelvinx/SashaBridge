@@ -15,8 +15,9 @@
 //!   copied image as explicitly asked for, so it is sent even when the phone is not waiting.
 //!
 //! It also registers Ctrl+Alt+L, which likes the track playing on the phone ([`PcCommand::ToggleLike`]),
-//! and shows the on-screen confirmations of [`crate::osd`] that other threads send through
-//! an [`Announcer`].
+//! and Ctrl+Alt+O, which hides the video playing on the phone behind the last music track
+//! ([`PcCommand::Hide`]), and shows the on-screen confirmations of [`crate::osd`] that other
+//! threads send through an [`Announcer`].
 
 use std::cell::{Cell, OnceCell};
 use std::ffi::c_void;
@@ -62,6 +63,12 @@ const LIKE_HOTKEY: i32 = 2;
 
 /// Virtual-key code of the like shortcut's letter.
 const LIKE_KEY: u32 = b'L' as u32;
+
+/// Identifier of the Ctrl+Alt+O shortcut.
+const HIDE_HOTKEY: i32 = 3;
+
+/// Virtual-key code of the hide shortcut's letter: O, for "ocultar".
+const HIDE_KEY: u32 = b'O' as u32;
 
 /// How long after Ctrl+Alt+A a copied image still counts as the one asked for.
 const SHORTCUT_WINDOW: Duration = Duration::from_secs(60);
@@ -155,7 +162,7 @@ impl ClipboardOwner {
 thread_local! {
     /// Where the window thread reports its events.
     static EVENTS: OnceCell<UnboundedSender<WindowEvent>> = const { OnceCell::new() };
-    /// Where Ctrl+Alt+L sends its command for the phone.
+    /// Where Ctrl+Alt+L and Ctrl+Alt+O send their commands for the phone.
     static COMMANDS: OnceCell<Sender<PcCommand>> = const { OnceCell::new() };
     /// Until when a copied image answers Ctrl+Alt+A.
     static SHORTCUT_UNTIL: Cell<Option<Instant>> = const { Cell::new(None) };
@@ -166,8 +173,8 @@ thread_local! {
 /// Creates the hidden window on a new thread and returns its handle.
 ///
 /// The thread keeps pumping messages until the process exits, reports clipboard images to
-/// `events`, and sends the command of Ctrl+Alt+L to `commands`, the queue of the music
-/// connection.
+/// `events`, and sends the commands of Ctrl+Alt+L and Ctrl+Alt+O to `commands`, the queue of
+/// the music connection.
 ///
 /// # Errors
 ///
@@ -217,8 +224,8 @@ fn run_window_thread(
     }
 }
 
-/// Subscribes the window to clipboard changes and registers Ctrl+Alt+A and Ctrl+Alt+L. Each
-/// failing only disables that feature.
+/// Subscribes the window to clipboard changes and registers Ctrl+Alt+A, Ctrl+Alt+L and
+/// Ctrl+Alt+O. Each failing only disables that feature.
 fn listen(hwnd: HWND) {
     // SAFETY: `hwnd` is the window just created on this thread.
     if unsafe { AddClipboardFormatListener(hwnd) } == 0 {
@@ -234,6 +241,11 @@ fn listen(hwnd: HWND) {
     let registered = unsafe { RegisterHotKey(hwnd, LIKE_HOTKEY, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, LIKE_KEY) };
     if registered == 0 {
         warn!(error = %io::Error::last_os_error(), "Ctrl+Alt+L is taken by another program");
+    }
+    // SAFETY: as above.
+    let registered = unsafe { RegisterHotKey(hwnd, HIDE_HOTKEY, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, HIDE_KEY) };
+    if registered == 0 {
+        warn!(error = %io::Error::last_os_error(), "Ctrl+Alt+O is taken by another program");
     }
 }
 
@@ -310,7 +322,13 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
             0
         }
         WM_HOTKEY if wparam == LIKE_HOTKEY as usize => {
-            on_like_shortcut();
+            info!("Ctrl+Alt+L: like the track playing on the phone");
+            send_command(PcCommand::ToggleLike, "Ctrl+Alt+L");
+            0
+        }
+        WM_HOTKEY if wparam == HIDE_HOTKEY as usize => {
+            info!("Ctrl+Alt+O: hide the video playing on the phone");
+            send_command(PcCommand::Hide, "Ctrl+Alt+O");
             0
         }
         WM_ANNOUNCE => {
@@ -373,14 +391,13 @@ fn on_clipboard_settled(hwnd: HWND) {
     });
 }
 
-/// Asks the phone to like the track playing, or to take the like back.
-fn on_like_shortcut() {
-    info!("Ctrl+Alt+L: like the track playing on the phone");
+/// Sends the command of a shortcut to the phone; `shortcut` names it in the log.
+fn send_command(command: PcCommand, shortcut: &str) {
     COMMANDS.with(|cell| {
         if let Some(commands) = cell.get()
-            && commands.try_send(PcCommand::ToggleLike).is_err()
+            && commands.try_send(command).is_err()
         {
-            warn!("the command queue is full; Ctrl+Alt+L was dropped");
+            warn!("the command queue is full; {shortcut} was dropped");
         }
     });
 }

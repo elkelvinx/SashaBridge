@@ -26,6 +26,8 @@ pub enum PcCommand {
     ToggleShuffle,
     /// Presses the player's like button.
     ToggleLike,
+    /// Pauses the video playing on the phone and shows the last music track instead.
+    Hide,
 }
 
 impl PcCommand {
@@ -47,6 +49,7 @@ impl PcCommand {
             },
             Self::ToggleShuffle => v2::Command::ToggleShuffle,
             Self::ToggleLike => v2::Command::ToggleLike,
+            Self::Hide => v2::Command::Hide,
         }
     }
 }
@@ -217,6 +220,7 @@ mod tests {
             (PcCommand::Seek(Duration::from_secs(60)), "cmd-seek.json"),
             (PcCommand::ToggleShuffle, "cmd-toggle-shuffle.json"),
             (PcCommand::ToggleLike, "cmd-toggle-like.json"),
+            (PcCommand::Hide, "cmd-hide.json"),
         ];
         for (command, file) in cases {
             let encoded = command.encode();

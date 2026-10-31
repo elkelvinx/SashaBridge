@@ -1,5 +1,6 @@
 package io.github.elkelvinx.sashabridge.history
 
+import android.app.Activity
 import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -28,9 +29,12 @@ internal object PlayerLinks {
     /**
      * Opens [entry] in its player.
      *
+     * @param context A screen, or a service while one of the app's screens is in front:
+     *   Android keeps an app in the background from opening screens.
      * @return Whether some screen of the player opened.
      */
     fun open(context: Context, entry: HistoryEntry): Boolean = intentsFor(context, entry).any { intent ->
+        if (context !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             context.startActivity(intent)
             true

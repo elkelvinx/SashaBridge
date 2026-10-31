@@ -100,7 +100,7 @@ Orden para el reproductor activo.
 
 | Campo | Tipo | Anulable | Restricciones |
 |---|---|---|---|
-| `action` | texto | No | `PLAY`, `PAUSE`, `TOGGLE`, `NEXT`, `PREVIOUS`, `SEEK`, `TOGGLE_SHUFFLE` o `TOGGLE_LIKE`. |
+| `action` | texto | No | `PLAY`, `PAUSE`, `TOGGLE`, `NEXT`, `PREVIOUS`, `SEEK`, `TOGGLE_SHUFFLE`, `TOGGLE_LIKE` o `HIDE`. |
 | `positionMs` | entero | Sí | Obligatorio y mayor o igual que 0 con `SEEK`. Con las demás acciones debe valer `null`. |
 
 `PLAY` y `PAUSE` son órdenes explícitas: repetir `PAUSE` sobre un reproductor ya pausado no lo reanuda. `TOGGLE` existe para las teclas de reproducir/pausar que no indican el estado deseado.
@@ -108,6 +108,13 @@ Orden para el reproductor activo.
 `TOGGLE_SHUFFLE` equivale a pulsar el botón de aleatorio del propio reproductor, que pasa al modo siguiente. En Spotify el ciclo es `OFF` → `ON` → `SMART` → `OFF`. Solo tiene efecto si el último `media.state` trae `shuffle` distinto de `null`; el nuevo modo llega en el siguiente `media.state`.
 
 `TOGGLE_LIKE` equivale a pulsar el botón de "me gusta" del propio reproductor: el corazón de Spotify o el pulgar arriba de YouTube Music. Si la pista ya gustaba, lo quita. El nuevo estado llega en el `liked` del siguiente `media.state`.
+
+`HIDE` oculta el vídeo que suena en el teléfono (atajo `Ctrl+Alt+O` de la PC):
+- El teléfono pausa todos los reproductores que suenan.
+- Mientras dure, solo sigue al reproductor de la última canción del historial, en pausa. Si esa app ya no tiene sesión, el `media.state` describe esa canción tal como la guarda el historial, sin `durationMs` ni posición. Nunca describe el vídeo.
+- Termina en cuanto un reproductor vuelve a sonar, pasado un segundo.
+- La PC trae SashaBridge al frente por su cuenta con `adb shell am start`, porque Android no deja que una app se abra sola desde segundo plano.
+- Un teléfono anterior a la 2.3 rechaza `HIDE` como acción desconocida y la ignora.
 
 ```json
 {"type":"cmd","action":"PAUSE","positionMs":null}

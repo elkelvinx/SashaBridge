@@ -38,6 +38,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  * rest of the burst is grouped and published once no change has arrived for [QUIET_PERIOD_MS].
  * Identical consecutive snapshots are dropped, so a burst produces at most two messages.
  *
+ * [hide] pauses the video and pins the music player until a player starts playing again;
+ * meanwhile the video is never published.
+ *
  * Threading: [start], [stop] and every callback run on the main thread, which owns the
  * session map. [media] can be collected and [currentController] called from any thread.
  *
@@ -89,6 +92,17 @@ class MediaSessionTracker(
     /** Controller chosen by [ActiveControllerPolicy], written on the main thread. */
     @Volatile
     private var activeController: MediaController? = null
+
+    /** The hiding in progress ([hide]), or `null`. Written on the main thread. */
+    @Volatile
+    private var hiding: Hiding? = null
+
+    /**
+     * Whether a video is hidden and the music player shown instead has no session, so the
+     * published track is the history's and no player takes commands. Callable from any thread.
+     */
+    val isHidingWithoutPlayer: Boolean
+        get() = hiding != null && activeController == null
 
     /** Loop that turns [changes] into snapshots while the tracker runs. */
     private var job: Job? = null
@@ -166,6 +180,38 @@ class MediaSessionTracker(
         )
     }
 
+    /**
+     * Hides the video: pauses every player that plays and follows only [musicSource], paused,
+     * until a player starts playing again ([endHiding]). If [musicSource] has no session,
+     * [fallback] is published instead. The video is never published meanwhile. Main thread.
+     *
+     * @param musicSource Package of the music player to show, or `null` to show none.
+     * @param fallback The track to show if that player has no session, or `null` for none.
+     */
+    fun hide(musicSource: String?, fallback: MediaSnapshot?) {
+        sessions.values
+            .filter { it.controller.playbackState?.state.isActiveState() }
+            .forEach { tracked ->
+                Log.i(LOG_TAG, "Hiding: pausing ${tracked.controller.packageName}")
+                tracked.controller.transportControls.pause()
+            }
+        hiding = Hiding(musicSource, fallback, SystemClock.elapsedRealtime())
+        signalChange()
+    }
+
+    /**
+     * Ends the hiding once a player starts playing, except during the first [HIDE_GRACE_MS],
+     * when the paused video may still report the states it was going through. Main thread.
+     *
+     * @param nowMs `SystemClock.elapsedRealtime()` of the start.
+     */
+    private fun endHiding(nowMs: Long) {
+        val current = hiding ?: return
+        if (nowMs - current.sinceMs <= HIDE_GRACE_MS) return
+        hiding = null
+        Log.i(LOG_TAG, "A player started playing; nothing is hidden any more")
+    }
+
     /** Stops observing and forgets every session. Safe to call when not started. Main thread only. */
     fun stop() {
         job?.cancel()
@@ -173,6 +219,7 @@ class MediaSessionTracker(
         sessionManager.removeOnActiveSessionsChangedListener(sessionsListener)
         sessions.values.forEach { it.controller.unregisterCallback(it) }
         sessions.clear()
+        hiding = null
         activeController = null
         mutableMedia.value = null
         mutableQueue.value = null
@@ -213,31 +260,38 @@ class MediaSessionTracker(
     /**
      * Applies [ActiveControllerPolicy] to the sessions that have metadata. Sessions without
      * metadata (for example, an app that registered a session but plays nothing) are ignored.
-     * Main thread.
+     * While hiding, only the music player may be chosen. Main thread.
      */
-    private fun chooseController(): MediaController? = ActiveControllerPolicy.choose(
-        sessions.values
-            .filter { it.controller.metadata != null }
-            .map { tracked ->
-                ControllerCandidate(
-                    player = tracked.controller,
-                    isActive = tracked.controller.playbackState?.state.isActiveState(),
-                    lastStateChangeMs = tracked.lastStateChangeMs,
-                    systemOrder = tracked.systemOrder,
-                )
-            },
-    )
+    private fun chooseController(): MediaController? {
+        val current = hiding
+        if (current != null && current.musicSource == null) return null
+        return ActiveControllerPolicy.choose(
+            sessions.values
+                .filter { it.controller.metadata != null }
+                .map { tracked ->
+                    ControllerCandidate(
+                        player = tracked.controller,
+                        source = tracked.controller.packageName,
+                        isActive = tracked.controller.playbackState?.state.isActiveState(),
+                        lastStateChangeMs = tracked.lastStateChangeMs,
+                        systemOrder = tracked.systemOrder,
+                    )
+                },
+            pinnedSource = current?.musicSource,
+        )
+    }
 
     /**
      * Reads the active player into a [MediaSnapshot]. Runs on the main thread; suspends while
      * the album art is encoded.
      *
-     * @return The snapshot, or `null` when no player has metadata.
+     * @return The snapshot, or `null` when no player has metadata. While hiding without the
+     *   music player, the track given to [hide].
      */
     private suspend fun buildSnapshot(): MediaSnapshot? {
         val controller = chooseController()
         activeController = controller
-        if (controller == null) return null
+        if (controller == null) return hiding?.fallback
         val metadata = controller.metadata ?: return null
         val state = controller.playbackState
         val source = controller.packageName
@@ -348,12 +402,16 @@ class MediaSessionTracker(
             logCustomActions(controller.playbackState)
         }
 
-        /** Records the time of real state changes (play, pause, stop) and schedules a snapshot. */
+        /**
+         * Records the time of real state changes (play, pause, stop), ends a hiding when the
+         * player starts playing, and schedules a snapshot.
+         */
         override fun onPlaybackStateChanged(state: PlaybackState?) {
             val code = state?.state
             if (code != lastStateCode) {
                 lastStateCode = code
                 lastStateChangeMs = SystemClock.elapsedRealtime()
+                if (code == PlaybackState.STATE_PLAYING) endHiding(lastStateChangeMs)
             }
             logCustomActions(state)
             signalChange()
@@ -397,10 +455,25 @@ class MediaSessionTracker(
         }
     }
 
+    /**
+     * A hiding in progress.
+     *
+     * @property musicSource Package of the only player that may be followed, or `null` for none.
+     * @property fallback What to publish while that player has no session, or `null`.
+     * @property sinceMs `SystemClock.elapsedRealtime()` of the start of the hiding.
+     */
+    private class Hiding(val musicSource: String?, val fallback: MediaSnapshot?, val sinceMs: Long)
+
     companion object {
 
         /** Time without changes after which a burst of updates is considered finished. */
         const val QUIET_PERIOD_MS: Long = 150L
+
+        /**
+         * Time after [hide] in which a player that starts playing does not end the hiding: a
+         * video paused while it loads may still report that it plays before it pauses.
+         */
+        const val HIDE_GRACE_MS: Long = 1_000L
     }
 }
 

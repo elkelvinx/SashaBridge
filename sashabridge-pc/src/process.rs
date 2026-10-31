@@ -35,6 +35,20 @@ use crate::config::{ADB_TIMEOUT, ToolPaths};
 /// Arguments for scrcpy: audio only, without a window.
 const SCRCPY_ARGS: [&str; 2] = ["--no-video", "--no-window"];
 
+/// adb command that brings SashaBridge to the front, as its launcher icon does: an open
+/// SashaBridge comes back as it was instead of opening a second main screen.
+const SHOW_APP_ARGS: [&str; 9] = [
+    "shell",
+    "am",
+    "start",
+    "-a",
+    "android.intent.action.MAIN",
+    "-c",
+    "android.intent.category.LAUNCHER",
+    "-n",
+    "io.github.elkelvinx.sashabridge/.MainActivity",
+];
+
 /// Name of the mutex that marks a running client, local to the Windows session.
 const INSTANCE_MUTEX_NAME: &[u8] = b"Local\\SashaBridgePcClient\0";
 
@@ -122,6 +136,20 @@ impl DeviceLink {
         Ok(())
     }
 
+    /// Brings SashaBridge to the front of the phone's screen, without waiting for it.
+    ///
+    /// Android does not let an app open itself from the background, but adb may open any
+    /// app. A failure, such as a phone without the app or a cable just pulled, is only logged.
+    pub fn show_app(&self) {
+        let adb = self.adb.clone();
+        tokio::spawn(async move {
+            match adb.run(&SHOW_APP_ARGS).await {
+                Ok(()) => debug!("SashaBridge brought to the front of the phone"),
+                Err(error) => warn!("cannot bring SashaBridge to the front: {error:#}"),
+            }
+        });
+    }
+
     /// Starts scrcpy again if it has exited. Failures are logged and retried on the next call.
     pub fn ensure_audio(&mut self) {
         if let Err(error) = self.scrcpy.ensure_running() {
@@ -140,7 +168,7 @@ impl DeviceLink {
 }
 
 /// adb client.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Adb {
     /// Path of `adb.exe`.
     exe: PathBuf,

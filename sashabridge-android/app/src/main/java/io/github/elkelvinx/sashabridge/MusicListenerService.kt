@@ -80,7 +80,13 @@ class MusicListenerService : NotificationListenerService() {
             serviceScope,
             contentResolver,
         )
-        commandExecutor = MediaCommandExecutor(tracker, getSystemService(AUDIO_SERVICE) as AudioManager)
+        commandExecutor = MediaCommandExecutor(
+            tracker,
+            getSystemService(AUDIO_SERVICE) as AudioManager,
+            this,
+            HistoryRepository.get(this),
+            serviceScope,
+        )
         server = BridgeServer(
             media = repository.media,
             deviceName = Build.MODEL,

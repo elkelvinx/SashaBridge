@@ -157,4 +157,10 @@ enum class CommandAction {
      * already has it.
      */
     TOGGLE_LIKE,
+
+    /**
+     * Pauses every player but the music one and shows the last music track, paused, instead
+     * of the video that was playing. The PC then brings SashaBridge to the front itself.
+     */
+    HIDE,
 }

@@ -139,6 +139,11 @@ async fn run_session(
                     warn!(%error, "cannot send the command, connection lost");
                     return;
                 }
+                // The phone pauses the video itself, but only adb can bring SashaBridge to
+                // the front: Android keeps an app in the background from opening itself.
+                if command == PcCommand::Hide {
+                    link.show_app();
+                }
             }
             _ = watchdog.tick() => link.ensure_audio(),
         }

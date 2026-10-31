@@ -7,9 +7,9 @@ import org.junit.Test
 /** Choice of the player that the bridge follows. */
 class ActiveControllerPolicyTest {
 
-    /** Builds a candidate whose player is identified by [name]. */
+    /** Builds a candidate whose player and package are both [name]. */
     private fun candidate(name: String, active: Boolean, changedAt: Long, order: Int) =
-        ControllerCandidate(name, active, changedAt, order)
+        ControllerCandidate(name, name, active, changedAt, order)
 
     /** E4: a playing player wins over a paused one, even if the paused one is first in the system list. */
     @Test
@@ -75,5 +75,28 @@ class ActiveControllerPolicyTest {
     @Test
     fun noCandidatesGivesNull() {
         assertNull(ActiveControllerPolicy.choose(emptyList<ControllerCandidate<String>>()))
+    }
+
+    /** While a video is hidden, the paused music player wins over anything that plays. */
+    @Test
+    fun aPinnedPlayerWinsOverAPlayingOne() {
+        val chosen = ActiveControllerPolicy.choose(
+            listOf(
+                candidate("youtube", active = true, changedAt = 9_000, order = 0),
+                candidate("spotify", active = false, changedAt = 1_000, order = 1),
+            ),
+            pinnedSource = "spotify",
+        )
+        assertEquals("spotify", chosen)
+    }
+
+    /** Without a session of the pinned player there is no player, never the video. */
+    @Test
+    fun aMissingPinnedPlayerGivesNull() {
+        val chosen = ActiveControllerPolicy.choose(
+            listOf(candidate("youtube", active = true, changedAt = 9_000, order = 0)),
+            pinnedSource = "spotify",
+        )
+        assertNull(chosen)
     }
 }

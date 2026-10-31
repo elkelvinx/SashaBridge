@@ -14,13 +14,13 @@ import java.util.Locale
 internal object ActionNames {
 
     /** Words of a mode that is off. Checked first: "desactivada" contains "activada". */
-    private val OFF = listOf("desactiv", "apagad", "ningun", "off", "disabled", "none")
+    private val OFF = listOf("desactiv", "inhabilit", "apagad", "ningun", "off", "disabled", "none")
 
     /** Words of a mode that is on. */
     private val ON = listOf("activ", "encendid", " on", "enabled")
 
     /** Words of repeating one track. */
-    private val ONE = listOf("una", "canción", "cancion", "one", "song", "track")
+    private val ONE = listOf("una", "uno", "canción", "cancion", "one", "once", "song", "track")
 
     /** Words of repeating the whole list. */
     private val ALL = listOf("todo", "todas", "lista", "all", "playlist", "queue")
@@ -35,13 +35,18 @@ internal object ActionNames {
         }
     }
 
-    /** The repeat mode [name] describes, or `null` if it says none. */
+    /**
+     * The repeat mode [name] describes, or `null` if it says none. The whole list is checked
+     * before one track ("todas las canciones" contains "cancion"), and a plain "on"
+     * ("Repetición activada", as YouTube Music says) means the whole list.
+     */
     fun repeatMode(name: String?): RepeatMode? {
         val text = name?.lowercase(Locale.ROOT) ?: return null
         return when {
             OFF.any { it in text } -> RepeatMode.OFF
-            ONE.any { it in text } -> RepeatMode.ONE
             ALL.any { it in text } -> RepeatMode.ALL
+            ONE.any { it in text } -> RepeatMode.ONE
+            ON.any { it in text } -> RepeatMode.ALL
             else -> null
         }
     }
