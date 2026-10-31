@@ -46,11 +46,16 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 |---|---|
 | `MusicListenerService` | Servicio de escucha de notificaciones. Android lo enlaza cuando el usuario concede el acceso a notificaciones, y ese enlace es lo que permite leer las sesiones multimedia de otras apps. Solo coordina: arranca y detiene el resto. |
 | `media/MediaSessionTracker` | Observa todas las sesiones activas (`OnActiveSessionsChangedListener` y un `MediaController.Callback` por reproductor) y publica un `StateFlow<MediaSnapshot?>` con el reproductor elegido. Agrupa las ráfagas de cambios. |
-| `media/ActiveControllerPolicy` | Elige el reproductor: primero el que suena, después el que cambió de estado más recientemente y por último el orden del sistema. Lógica pura. |
+| `media/ActiveControllerPolicy` | Elige el reproductor: primero el que suena, después el que cambió de estado más recientemente y por último el orden del sistema. Mientras se oculta un vídeo, solo puede elegir el reproductor de música fijado. Lógica pura. |
 | `media/MediaSnapshot`, `PlaybackPositionCalculator` | Estado inmutable del reproductor y extrapolación de la posición al momento del envío. |
 | `media/AlbumArtEncoder` | Escala la carátula a 300 px como máximo, la codifica en JPEG fuera del hilo principal y calcula su `artId` a partir de los bytes. |
 | `media/MetadataNormalizer`, `ShuffleControl` | Separan el contexto que Spotify añade al artista y leen o cambian el modo aleatorio mediante las acciones propias del reproductor. |
-| `media/MediaCommandExecutor` | Ejecuta las órdenes de la PC sobre el reproductor elegido. Sin reproductor, envía la tecla multimedia equivalente. |
+| `media/RepeatControl`, `LikeControl`, `ActionNames` | Leen y pulsan "repetir" y "me gusta" con las acciones propias del reproductor. YouTube Music no cambia el identificador de sus acciones: indica el modo en el nombre, en el idioma del teléfono, y `ActionNames` lo interpreta en español y en inglés. |
+| `media/MediaCommandExecutor` | Ejecuta las órdenes de la PC y de la pantalla sobre el reproductor elegido. Sin reproductor, envía la tecla multimedia equivalente. `HIDE` oculta el vídeo (ver la sección 4). |
+| `media/HiddenPlayer` | La última canción del historial como reproductor en pausa, para mostrarla mientras se oculta un vídeo si su app ya no tiene sesión. Lógica pura. |
+| `media/ThumbnailStore`, `ThumbnailSources` | Carátulas pequeñas (192 px) de la cola y del historial, en memoria y como WebP en la caché. Las del historial van a los archivos de la app y se borran cuando el historial deja de nombrarlas. |
+| `history/` | `HistoryRecorder` decide cuándo una canción cuenta como escuchada: 30 s sonando, o la mitad si es más corta, y nunca un vídeo. `HistoryRepository` la guarda 50 días en SQLite (`history.db`) con su carátula, y una canción repetida seguida cuenta una vez. `HistoryActivity` la muestra por días y con búsqueda, y `PlayerLinks` la abre en su app. |
+| `ui/FrameTicker` | Reloj común de la pantalla (`Choreographer`, un paso cada 66 ms): mueve a Sasha, la onda de la barra y el tiempo transcurrido. |
 | `bridge/BridgeRepository` | Única fuente de verdad del proceso: `enabled` (persistido), `status` del servidor, `media` y `listenerConnected`. La leen el servicio y la pantalla. |
 | `server/BridgeServer` | Servidor WebSocket (Ktor 3, motor CIO) en `127.0.0.1:8080`. Arranque y parada serializados, reintento si el puerto está ocupado. |
 | `server/ClientSession` | Conversación con una PC: saludo, estado inicial, cambios y órdenes. |
@@ -71,6 +76,7 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 |---|---|
 | Ciclo de vida del servicio y de la actividad, callbacks de las sesiones multimedia, construcción de los estados | Hilo principal |
 | Codificación de carátulas, y decodificación y codificación de las capturas de Anotar | `Dispatchers.Default` |
+| Historial (SQLite) y carátulas pequeñas (disco y descargas) | `Dispatchers.IO` |
 | Eventos del S Pen (dibujo, flotar) y su envío a `TabletRepository` | Hilo principal |
 | Arranque y parada del servidor, `bind` del puerto | `Dispatchers.IO` |
 | Sesiones WebSocket y ejecución de las órdenes de la PC | Dispatcher de Ktor |
@@ -91,9 +97,14 @@ El puerto es un recurso del proceso, no de la instancia del servicio. Tras **For
 
 La tarjeta "Sonando" (`PlayerCard`) controla el reproductor desde el propio teléfono. Cada `MediaSnapshot` que recibe es una *instantánea*: una foto inmutable del reproductor en un momento, con la posición y la hora a la que el reproductor la informó, de modo que la posición actual se calcula sin esperar a otra actualización. Sus botones publican órdenes en `BridgeRepository.commands`, y el servicio las ejecuta con el mismo `MediaCommandExecutor` que las de la PC, esté el puente encendido o apagado. La barra de progreso avanza sola entre estados, extrapolando la posición con el reloj del teléfono. Al soltarla envía `SEEK` y mantiene la posición pedida hasta que el reproductor confirma la nueva. La tarjeta tiene de fondo la carátula muy desenfocada, bajo un velo que mantiene el texto legible. Muestra el icono real de la app que suena, tomado del sistema, y la parte reproducida de la barra es una onda (`WavyProgressDrawable`) que solo se anima mientras suena y la pantalla es visible.
 
-La pantalla también ofrece dos funciones que el protocolo todavía no lleva a la PC: **repetir**, mediante la acción propia del reproductor (`RepeatControl`), y la **cola de reproducción** que publica cada app (`PlayerQueue`, en una hoja inferior desde la que se salta a cualquier canción). Ambas viajan como `PlayerCommand`, el tipo de las órdenes de la pantalla. Spotify publica el modo de repetir igual que el aleatorio, en el identificador de su acción: `TURN_REPEAT_ALL_ON` (sin repetir), `TURN_REPEAT_ONE_ON` (todas) y `TURN_REPEAT_OFF` (una). Echo Music permite pulsar repetir, pero no revela el modo, y la app oficial de YouTube Music no ofrece la acción.
+La pantalla también ofrece funciones que el protocolo no lleva a la PC: **repetir**, mediante la acción propia del reproductor (`RepeatControl`), la **cola de reproducción** que publica cada app (`PlayerQueue`, en una hoja inferior con la carátula de cada canción, desde la que se salta a cualquiera) y el **historial**. Repetir y saltar en la cola viajan como `PlayerCommand`, el tipo de las órdenes de la pantalla. Cómo indica cada app el modo de repetir:
+- **Spotify:** igual que el aleatorio, en el identificador de su acción: `TURN_REPEAT_ALL_ON` (sin repetir), `TURN_REPEAT_ONE_ON` (todas) y `TURN_REPEAT_OFF` (una).
+- **YouTube Music:** en el nombre de `loop_mode_action`: "Repetición desactivada", "Repetición activada" (todas) y "Repetir uno" (una).
+- **Echo Music:** permite pulsar repetir, pero no revela el modo.
 
-**Cambio de canción.** La tarjeta no cambia de canción hasta tener la carátula nueva. En cuanto empieza el cambio (un botón, o el primer estado de otra pista), la carátula actual se desliza y se frena mientras espera; cuando llega la imagen, sale del todo y entra la nueva desde el otro lado. Si la pista no trae carátula en 1,5 s, se muestra sin ella; si un salto no cambia nada en 3 s, la tarjeta vuelve a su sitio.
+"Me gusta" sí llega a la PC: el estado viaja en el campo `liked` de `media.state`, y la orden `TOGGLE_LIKE` sale del corazón de la tarjeta o del atajo `Ctrl+Alt+L`.
+
+**Cambio de canción.** La tarjeta no cambia de canción hasta tener la carátula nueva. En cuanto empieza el cambio (un botón, o el primer estado de otra pista), la carátula actual se desliza y se frena mientras espera; cuando llega la imagen, sale del todo y entra la nueva desde el otro lado. Si la pista no trae carátula en 1,5 s, se muestra sin ella; si un salto no cambia nada en 3 s, la tarjeta vuelve a su sitio. La carátula sale hacia el lado de la canción nueva: con un botón, según el botón; si el cambio viene de la propia app o de la cola, según la posición de las dos canciones en la cola. Spotify envía la imagen entre 0,5 y 1,4 s después del título, pero publica su dirección `content://` (`ALBUM_ART_URI`) junto con el título, y `AlbumArtEncoder` la lee de ahí al momento.
 
 **Orientaciones.** `layout/` y `layout-land/` comparten las tarjetas `card_status`, `card_player` y `card_battery`, con los mismos identificadores, así que `PlayerCard` no distingue la orientación. En horizontal la pantalla se divide en dos columnas y el botón de apagar el puente no se muestra, para que girar el teléfono y usarlo como pantalla de "Sonando" no permita apagarlo por accidente.
 
@@ -101,7 +112,13 @@ La pantalla también ofrece dos funciones que el protocolo todavía no lleva a l
 - **Espacio:** sin barra de estado (la tarjeta de Estado muestra la batería y la hora), sin el pie de conexión, y la carátula ocupa el alto de su fila.
 - **Pantalla encendida solo cargando:** `FLAG_KEEP_SCREEN_ON` mientras el teléfono carga; sin cargar, se apaga cuando Android diga.
 - **Protección OLED:** cada minuto el contenido se mueve hasta 3 dp, en un ciclo de 8 posiciones.
-- **Pocos fotogramas:** la onda de la barra avanza a 20 fps en lugar de a la frecuencia de la pantalla; el desenfoque de la carátula se calcula una vez por canción (`Backdrop`) en lugar de en la GPU en cada fotograma; el título no usa marquesina; y, en Android 15+, Sasha y la barra piden la categoría de frecuencia baja. Medido en el S22 Ultra con música: de unos 120 fotogramas por segundo a unos 29.
+- **Pocos fotogramas:**
+  - Sasha, la onda de la barra y el tiempo avanzan juntos con `FrameTicker`, unos 15 pasos por segundo, en lugar de a la frecuencia de la pantalla.
+  - La app pide a la pantalla el modo de 60 Hz.
+  - El desenfoque de la carátula se calcula una vez por canción (`Backdrop`) en lugar de en la GPU en cada fotograma.
+  - El título no usa marquesina.
+
+  Medido en el S22 Ultra con música: de unos 120 fotogramas por segundo a unos 29. Sasha se dibuja con píxeles enteros y sin filtrado, así que se ve nítida.
 
 Sasha, la perrita salchicha que da nombre a la app, acompaña el estado. Todo lo suyo (poses, animaciones, reloj de arena y tragos de agua) está en `ui/SashaView`, de modo que un sprite nuevo solo toca `tools/sasha_sprite.py` y esa clase:
 
@@ -123,13 +140,14 @@ Crate `sashabridge_pc`, en `sashabridge-pc/src/`.
 |---|---|
 | `main` | Arranque, orden de los componentes y cierre con `Ctrl+C` o al cerrar la consola. |
 | `config` | Puerto, tiempos (espera de 1 a 5 s, tiempo máximo de conexión de 5 s) y búsqueda de los binarios de scrcpy. |
-| `process` | `InstanceLock` (mutex con nombre: un solo cliente) y `DeviceLink`: arranque del servidor adb, túnel `adb forward` y scrcpy dentro de un Job Object. |
+| `process` | `InstanceLock` (mutex con nombre: un solo cliente) y `DeviceLink`: arranque del servidor adb, túnel `adb forward`, scrcpy dentro de un Job Object, y `show_app`, que trae SashaBridge al frente del teléfono con `adb shell am start`. |
 | `connection` | Bucle de conexión con espera exponencial y sesión WebSocket: saludo, mensajes del teléfono y envío de órdenes. |
 | `protocol` | Tipos del protocolo v2, decodificación de mensajes del teléfono y codificación de órdenes. |
 | `now_playing` | Convierte los mensajes en lo que debe mostrar Windows (`MediaView`) y decide qué carátula corresponde a cada estado. |
 | `cover_cache` | Archivos de carátula en `%TEMP%\sashabridge\covers\`: uno por `artId`, y solo se conserva el actual. |
 | `media_controls` | Sesión SMTC propia sobre la API WinRT: metadatos, carátula, línea de tiempo, estado, botón de aleatorio y botones de Windows convertidos en `PcCommand`. |
-| `hidden_window` | Ventana Win32 invisible con su bucle de mensajes. SMTC la necesita en aplicaciones de escritorio, y también escucha el portapapeles (capturas nuevas) y el atajo `Ctrl+Alt+A`, que abre el recorte de Windows. |
+| `hidden_window` | Ventana Win32 invisible con su bucle de mensajes. SMTC la necesita en aplicaciones de escritorio. También escucha el portapapeles (capturas nuevas) y los atajos: `Ctrl+Alt+A` abre el recorte de Windows, `Ctrl+Alt+L` da "me gusta" y `Ctrl+Alt+O` oculta el vídeo del teléfono. |
+| `osd` | Aviso propio en la esquina inferior derecha de la pantalla, que confirma un "me gusta": una ventana opaca, siempre encima y sin foco, que se desvanece a los 2 s. |
 | `backoff` | Espera exponencial de las dos conexiones. |
 | `pen_route` | La sesión `/pen`: la mantiene abierta y reparte sus mensajes entre Anotar y Tableta. |
 | `annotate` | Codifica las capturas y recibe las anotaciones: portapapeles, archivo en `Imágenes\SashaBridge` y notificación. |
@@ -162,6 +180,15 @@ Crate `sashabridge_pc`, en `sashabridge-pc/src/`.
 **Cambio de canción.** El reproductor emite una ráfaga de callbacks (Spotify, más de 20 por cambio). `MediaSessionTracker` publica el primero al instante y el estado final cuando pasan 150 ms sin cambios. `ClientSession` envía `media.art` solo si el `artId` es distinto del último que envió en la sesión, y siempre antes del `media.state` que lo cita. La PC muestra la carátula solo si el `artId` del estado coincide con la última imagen recibida; si no, muestra el estado sin carátula.
 
 **Orden desde Windows.** Un botón del flyout produce un `PcCommand`, que viaja como `cmd` (`PLAY` y `PAUSE` son órdenes explícitas, no un interruptor). `MediaCommandExecutor` la aplica al mismo reproductor cuyo estado se ve en Windows, y el resultado vuelve con el siguiente `media.state`.
+
+**Me gusta desde la PC.** `Ctrl+Alt+L` envía `TOGGLE_LIKE` y el teléfono pulsa la acción de "me gusta" del reproductor. Cuando el siguiente `media.state` trae el `liked` cambiado, la PC lo confirma con el aviso de `osd`. Si el reproductor no tiene esa acción, la PC solo lo registra.
+
+**Ocultar un vídeo.**
+1. `Ctrl+Alt+O` envía `HIDE` y, a continuación, la PC ejecuta `adb shell am start` para traer SashaBridge al frente.
+2. El teléfono busca la última canción del historial y pausa todos los reproductores que suenan.
+3. Mientras dure, `MediaSessionTracker` solo sigue a la app de esa canción. Si ya no tiene sesión, publica la canción del historial en pausa (`HiddenPlayer`), con la carátula tal como la dio el reproductor si sigue guardada, o la pequeña del historial. El vídeo nunca se publica.
+4. Sin sesión de la app de música, reproducir abre la canción en su app (`PlayerLinks`); las demás órdenes se ignoran, porque una tecla multimedia iría al vídeo.
+5. Termina cuando un reproductor vuelve a sonar, pasado un segundo: el vídeo, a punto de pausarse, aún puede informar de que suena.
 
 **Desconexiones.** Si el teléfono cierra la sesión o la app muere, la PC marca la sesión de Windows como detenida y vuelve al bucle de reintentos. Mientras espera, su consumo de CPU es prácticamente nulo.
 
@@ -208,6 +235,10 @@ El recorte de Windows escribe el portapapeles más de una vez por captura. La PC
 | El icono de la app abre la pantalla que publica su sesión | Cada reproductor indica en su `MediaSession` qué pantalla abrir; Android 14+ exige que quien la lanza lo autorice (`setPendingIntentBackgroundActivityStartMode`). Si no hay, se abre la app. |
 | Eventos del lápiz sin agrupar por fotograma (`requestUnbufferedDispatch`) | Android agrupa la entrada una vez por fotograma, y la pantalla baja su frecuencia cuando casi nada se mueve; sin esto, las muestras llegarían tarde y a ráfagas. |
 | Notificaciones con una identidad registrada en `HKCU\Software\Classes\AppUserModelId` | Un programa sin instalador no tiene acceso directo en el menú Inicio; el registro le da nombre e icono propios. Si Windows rechaza la notificación, suena un aviso. |
+| Aviso propio (`osd`) para "me gusta" en lugar de una notificación | Con una app a pantalla completa, el asistente de concentración de Windows guarda las notificaciones sin mostrarlas. Una versión translúcida (`WS_EX_LAYERED`) no llegaba a dibujarse en esta PC; la ventana es opaca. |
+| La PC abre SashaBridge con adb al ocultar un vídeo | Android no deja que una app en segundo plano abra su pantalla, y el servicio de notificaciones no está exento. La PC ya usa adb para el túnel, y adb puede abrir cualquier app. |
+| Al ocultar se muestra la última canción de música en pausa, sin reanudarla | Lo pidió el usuario (opción B): la pantalla debe parecer música sin que suene nada de golpe. La opción A, fundido a negro como si se apagara la pantalla, queda para una pantalla de ajustes. |
+| Historial en SQLite con la carátula guardada aparte | La carátula de una canción solo se conoce mientras suena; una copia pequeña propia permite mostrarla después, sin red, durante los 50 días. |
 
 ## 6. Defectos corregidos
 
@@ -240,4 +271,5 @@ Los identificadores vienen del plan de refactorización y de `docs/diagnostico-f
 
 - **Tableta mapeada a una ventana.** Hoy el área de dibujo corresponde a un monitor entero. Mapearla a una sola ventana daría más precisión en apps pequeñas.
 - **Ver la pantalla de la PC en el teléfono** mientras se dibuja en modo Tableta. Exige enviar vídeo de la PC al teléfono.
-- **Más reproductores con modo aleatorio.** YouTube Music ofrece una acción `shuffle_action`, pero su identificador no cambia con el modo: solo lo indica el texto, que depende del idioma. Habría que interpretarlo de otra forma.
+- **Pantalla de ajustes** (2.4): elegir entre las dos formas de ocultar un vídeo (A o B) y otras preferencias.
+- **Letras sincronizadas** (2.4), con traducción; antes, una prueba de que la fuente las tiene.

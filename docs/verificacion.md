@@ -1,6 +1,6 @@
 # Verificación de SashaBridge
 
-Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, después las manuales contra Windows y por último los escenarios de aceptación con el teléfono, los de la música y los del S Pen. Al final están los resultados de la regresión de la versión 2.0 y de las pruebas de la 2.1 y la 2.2.
+Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, después las manuales contra Windows y por último los escenarios de aceptación con el teléfono, los de la música y los del S Pen. Al final están los resultados de la regresión de la versión 2.0 y de las pruebas de la 2.1, la 2.2 y la 2.3.
 
 ## 1. Pruebas automáticas
 
@@ -9,7 +9,7 @@ Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, desp
 | PC | `cargo clippy --all-targets -- -D warnings` | Análisis estático sin avisos |
 | PC | `cargo test` | Fixtures del protocolo y de las muestras del lápiz, regla de la carátula (R6), caché de carátulas, espera exponencial, botones de Windows, conversión de imágenes (DIB y PNG), mapeo de la Tableta a un monitor, eventos del lápiz sintético, y el texto de las notificaciones |
 | PC | `cargo doc --no-deps` | Documentación del código |
-| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; elección del reproductor; posición; modos aleatorio y repetir; mensajes de una sesión; estado de la pantalla; formato de los tiempos; geometría de las marcas de Anotar (flechas, borrar, mover, recuadro); y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos, y la ruta `/pen` con capturas, monitor, latencia y muestras binarias) |
+| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; elección del reproductor, también con un vídeo oculto; posición; modos aleatorio y repetir, incluidos los nombres de YouTube Music en español e inglés; me gusta; carátulas de la cola; historial; dirección de un cambio de canción según la cola; canción mostrada al ocultar un vídeo; mensajes de una sesión; estado de la pantalla; formato de los tiempos; geometría de las marcas de Anotar (flechas, borrar, mover, recuadro); y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos, y la ruta `/pen` con capturas, monitor, latencia y muestras binarias) |
 | Android | `.\gradlew.bat :app:lintDebug` | Análisis estático de la app |
 
 Gradle necesita `JAVA_HOME` apuntando al JDK de Android Studio, por ejemplo `C:\Program Files\Android\Android Studio\jbr`.
@@ -79,6 +79,21 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | S11 | Mantener pulsado Mover → Cambiar tamaño; estirar un recuadro y un texto | El menú se abre hacia arriba; el recuadro se estira con la esquina opuesta fija; el texto crece de letra |
 | S12 | Insertar imagen; Compartir → SashaBridge desde la Galería, con y sin PC | La foto aparece encima, centrada y seleccionada; la compartida llega al portapapeles, al momento o al conectar la PC |
 | S13 | Tocar el icono de la app en la tarjeta del reproductor | Se abre esa app; "atrás" vuelve a SashaBridge |
+
+### Música (2.3)
+
+| ID | Escenario | Resultado esperado |
+|---|---|---|
+| M1 | Corazón de la tarjeta con Spotify y con YouTube Music | La canción entra o sale de "Me gusta" en la app; el corazón cambia de estado |
+| M2 | `Ctrl+Alt+L` en la PC, también con una app a pantalla completa | Igual que M1, con el aviso en la esquina inferior derecha |
+| M3 | Abrir la cola con Spotify y con YouTube Music | Cada canción con su carátula; tocar una salta a ella |
+| M4 | Escuchar una canción 30 s; abrir Historial; buscar; tocar una canción | Aparece una vez, bajo "Hoy" y con carátula; la búsqueda la encuentra; tocarla la abre en su app. Un vídeo de YouTube no entra |
+| M5 | Pasar de canción desde la propia app, hacia adelante y hacia atrás, y desde la cola | La carátula sale hacia el lado correcto, una sola vez por cambio |
+| M6 | Pantalla en horizontal con la PC conectada | Sasha nítida, galope y onda sin saltos; la pantalla funciona a 60 Hz |
+| M7 | Repetir en YouTube Music, tres pulsaciones | Sin repetir (icono neutro), todas (vino) y una (vino con "1"); el registro muestra `repeat=ALL` y `repeat=ONE` |
+| M8 | Spotify con "repetir una"; dejar que la canción termine sola | La misma canción vuelve a empezar |
+| M9 | Un vídeo de YouTube sonando; `Ctrl+Alt+O` en la PC | El vídeo se pausa; SashaBridge pasa al frente con la última canción de música en pausa, también en el panel de Windows; Spotify no arranca |
+| M10 | Después de M9, reproducir en SashaBridge; después volver a YouTube y reproducir | Suena la música; con el vídeo, la tarjeta y Windows vuelven a seguirlo |
 
 ## 4. Regresión de la versión 2.0
 
@@ -155,3 +170,21 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 | S11 | **Correcto** | Probado en el teléfono con el lápiz simulado: menú hacia arriba, recuadro estirado, nota "Hola" agrandada y deshecha. |
 | S12 | **Correcto** | Probado en el teléfono: inserción centrada y redimensionada; Compartir desde la Galería (SashaBridge aparece en **Más**). El usuario comprobó la llegada a la PC. |
 | S13 | **Correcto** | Spotify se abrió desde su sesión, en su inicio con la barra de "Sonando". |
+
+## 7. Pruebas de la versión 2.3 (música)
+
+- **Fechas:** 2026-10-30 y 2026-10-31.
+- **Pruebas automáticas:** 40 tests de Rust más 5 manuales; 122 tests de Android; clippy y lint sin avisos.
+
+| ID | Resultado | Evidencia |
+|---|---|---|
+| M1 | **Parcial** | Spotify: el corazón muestra y cambia el estado (`canLike` y `liked` en el registro). YouTube Music: falta comprobarlo en el teléfono. |
+| M2 | **Correcto** | Probado por el usuario. La notificación de Windows no se veía con una app a pantalla completa (asistente de concentración); el aviso propio de la esquina sí, comprobado con una captura de pantalla. |
+| M3 | **Correcto** | Probado por el usuario con las dos apps. La cola de Spotify, 42 carátulas, ocupa 476 KB en disco. |
+| M4 | **Correcto** | Probado por el usuario. Una canción guardada tres veces seguidas quedó en una sola entrada. |
+| M5 | **Correcto** | Comprobado con ráfagas de capturas de pantalla en los dos sentidos, y por el usuario. |
+| M6 | **Correcto** | La pantalla funciona a 60 Hz (SurfaceFlinger); en pausa, 316 fotogramas en 20 s. Confirmado por el usuario. |
+| M7 | **Correcto** | Probado por el usuario; el registro muestra `repeat=ALL` y `repeat=ONE`. |
+| M8 | **Pendiente** | Spotify cambia de modo con cada pulsación (comprobado en el registro). Falta ver que la canción se repite al terminar sola. |
+| M9 | **Correcto** | Con el cliente 2.3.0, `Ctrl+Alt+O` pausó `com.google.android.youtube` y SashaBridge pasó al frente con la última canción de YouTube Music en pausa. Probado por el usuario. |
+| M10 | **Correcto** | `PLAY` llegó a YouTube Music y el modo oculto terminó 80 ms después. Al volver al vídeo, todo siguió al vídeo. Probado por el usuario. |

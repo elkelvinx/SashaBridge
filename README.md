@@ -50,7 +50,7 @@ Sin `-InstallApp` no hace falta el teléfono. El proceso completo, incluidos los
 
 ## Uso
 
-En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar los modos aleatorio y repetir, dar "me gusta" (el corazón de Spotify o el pulgar de YouTube Music), mover la posición y ver la cola de la app que suena. Tocar el icono de la app que suena (Spotify, YouTube Music...) la abre. En horizontal muestra el estado y el reproductor en dos columnas. Su botón principal, en vertical, enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
+En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar los modos aleatorio y repetir, dar "me gusta" (el corazón de Spotify o el pulgar de YouTube Music), mover la posición y ver la cola de la app que suena, con la carátula de cada canción. Tocar el icono de la app que suena (Spotify, YouTube Music...) la abre. **Historial** muestra las canciones escuchadas en los últimos 50 días, por día y con su carátula, y permite buscar por canción o artista. Una canción entra después de 30 segundos de escucharla, o de la mitad si dura menos, y tocarla la abre en su app. Los vídeos (YouTube, Netflix...) no entran. En horizontal muestra el estado y el reproductor en dos columnas. Su botón principal, en vertical, enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
 
 En la PC:
 
@@ -72,9 +72,21 @@ cargo run
 - **Carátulas:** se guardan en `%TEMP%\sashabridge\covers\`. Solo se conserva la actual y la carpeta se vacía en cada arranque.
 - **Notificaciones:** al arrancar, el cliente registra su nombre e icono para las notificaciones de Windows en `HKCU\Software\Classes\AppUserModelId\io.github.elkelvinx.SashaBridge`, con el icono en `%LOCALAPPDATA%\SashaBridge\`. Si Windows las rechaza, el aviso es un sonido.
 
-### Me gusta desde la PC
+### Atajos de la PC
 
-Con `Ctrl+Alt+L` la canción que suena en el teléfono pasa a "Tus me gusta" de Spotify o a "Me gusta" de YouTube Music; si ya estaba, se quita. Una notificación silenciosa de Windows lo confirma con la carátula.
+| Atajo | Qué hace |
+|---|---|
+| Teclas multimedia y panel de Windows | Reproducir, pausar, pasar de canción y mover la posición del reproductor del teléfono |
+| `Ctrl+Alt+L` | La canción que suena pasa a "Tus me gusta" de Spotify o a "Me gusta" de YouTube Music; si ya estaba, se quita. Un aviso en la esquina inferior derecha de la pantalla lo confirma |
+| `Ctrl+Alt+O` | Oculta el vídeo del teléfono (ver abajo) |
+| `Ctrl+Alt+A` | Abre el recorte de Windows y envía la captura a Anotar (ver [Anotar](#anotar)) |
+
+**Ocultar un vídeo (`Ctrl+Alt+O`):**
+- El vídeo que suena en el teléfono (YouTube, Netflix...) se pausa.
+- SashaBridge pasa al frente con la última canción de música del historial, en pausa. Lo mismo se ve en el panel de Windows.
+- Spotify no arranca solo. Reproducir en SashaBridge pone esa canción: en su app, si sigue abierta, o abriéndola en Spotify o YouTube Music.
+- Todo vuelve a la normalidad en cuanto algo suena: la música desde SashaBridge o el vídeo desde su app.
+- Necesita el cable USB, porque la PC abre SashaBridge con adb. Un vídeo en imagen en imagen se pausa, pero su ventanita sigue a la vista.
 
 ### Anotar
 
