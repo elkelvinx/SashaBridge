@@ -78,6 +78,7 @@ class MusicListenerService : NotificationListenerService() {
             getSystemService(MEDIA_SESSION_SERVICE) as MediaSessionManager,
             listenerComponent(),
             serviceScope,
+            contentResolver,
         )
         commandExecutor = MediaCommandExecutor(tracker, getSystemService(AUDIO_SERVICE) as AudioManager)
         server = BridgeServer(

@@ -8,7 +8,6 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
-import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import io.github.elkelvinx.sashabridge.R
 import kotlin.math.PI
@@ -20,9 +19,10 @@ import kotlin.math.sin
  * a red sound wave that travels while the track plays and flattens when it pauses.
  *
  * The seek bar sets the progress through the drawable's level (0 to 10000). The wave travels
- * in steps at [FRAMES_PER_SECOND], not at the screen's refresh rate (up to 120 Hz): a slow wave
- * looks the same, and the screen, often left on as a display, redraws far less. It only
- * travels while the drawable is visible, so a hidden screen does not keep redrawing.
+ * one step on each [step] of the screen's [FrameTicker], together with Sasha, not at the
+ * screen's refresh rate (up to 120 Hz): a slow wave looks the same, and the screen, often left
+ * on as a display, redraws once per step for both. It only travels while the drawable is
+ * visible, so a hidden screen does not keep redrawing.
  *
  * Main thread only.
  *
@@ -58,18 +58,6 @@ class WavyProgressDrawable(context: Context) : Drawable() {
     /** Whether the track plays, which makes the wave rise and travel. */
     private var playing = false
 
-    /** Whether the wave is travelling, with [travel] scheduled. */
-    private var travelling = false
-
-    /** Moves the wave one step and schedules the next one. */
-    private val travel = object : Runnable {
-        override fun run() {
-            phase = (phase + PHASE_STEP) % FULL_TURN
-            invalidateSelf()
-            scheduleSelf(this, SystemClock.uptimeMillis() + FRAME_MS)
-        }
-    }
-
     private var rise: ValueAnimator? = null
 
     /**
@@ -89,26 +77,13 @@ class WavyProgressDrawable(context: Context) : Drawable() {
             }
             start()
         }
-        updateTravel()
     }
 
-    /** Pauses the animation while the seek bar is not visible. */
-    override fun setVisible(visible: Boolean, restart: Boolean): Boolean {
-        val changed = super.setVisible(visible, restart)
-        updateTravel()
-        return changed
-    }
-
-    /** Runs the travelling animation only while playing and visible. */
-    private fun updateTravel() {
-        val run = playing && isVisible
-        if (run == travelling) return
-        travelling = run
-        if (run) {
-            scheduleSelf(travel, SystemClock.uptimeMillis() + FRAME_MS)
-        } else {
-            unscheduleSelf(travel)
-        }
+    /** Moves the wave one step, if the track plays and the bar can be seen. Call on each [FrameTicker] step. */
+    fun step() {
+        if (!playing || !isVisible) return
+        phase = (phase + PHASE_STEP) % FULL_TURN
+        invalidateSelf()
     }
 
     override fun onLevelChange(level: Int): Boolean {
@@ -168,12 +143,9 @@ class WavyProgressDrawable(context: Context) : Drawable() {
         const val WAVE_PERIOD_MS = 1_400L
         const val RISE_MS = 300L
 
-        /** Steps per second of the travelling wave. */
-        const val FRAMES_PER_SECOND = 20
-        const val FRAME_MS = 1_000L / FRAMES_PER_SECOND
         val FULL_TURN = (2 * PI).toFloat()
 
         /** How far the wave moves each step, to cross a wavelength every [WAVE_PERIOD_MS]. */
-        val PHASE_STEP = FULL_TURN * FRAME_MS / WAVE_PERIOD_MS
+        val PHASE_STEP = FULL_TURN * FrameTicker.STEP_MS / WAVE_PERIOD_MS
     }
 }

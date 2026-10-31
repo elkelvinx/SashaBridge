@@ -23,6 +23,16 @@ class PlayerQueueTest {
         assertEquals(-1, queue.directionBetween("Lights Out", "Slave of Love"))
     }
 
+    /** Jumping to an item of the queue: after the one playing is forward, before is back. */
+    @Test
+    fun jumpDirectionFromTheActiveItem() {
+        assertEquals("Lights Out", queue.activeTitle())
+        assertEquals(1, queue.directionTo(3))
+        assertEquals(-1, queue.directionTo(0))
+        assertNull(queue.directionTo(2))
+        assertNull(queue.directionTo(99))
+    }
+
     /** Without both tracks in the queue there is no answer. */
     @Test
     fun unknownTracksGiveNoDirection() {

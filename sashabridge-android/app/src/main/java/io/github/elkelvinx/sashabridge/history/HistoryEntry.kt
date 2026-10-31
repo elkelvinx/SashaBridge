@@ -27,7 +27,12 @@ data class HistoryEntry(
     val album: String?,
     val mediaId: String?,
     val coverKey: String?,
-)
+) {
+
+    /** Whether this is the same song as [source], [title] and [artist]: same player and names. */
+    fun isSameSong(source: String, title: String?, artist: String?): Boolean =
+        this.source == source && this.title == title && this.artist == artist
+}
 
 /** A row of the history screen: a day heading or a track. */
 sealed interface HistoryRow {
@@ -41,6 +46,16 @@ sealed interface HistoryRow {
 
 /** Builds the rows of the history screen. Pure and thread-safe. */
 object HistoryList {
+
+    /**
+     * The same song listened to several times in a row (forward, then back to it) is one
+     * listening: the ids of all but the newest of each such run.
+     *
+     * @param entries Tracks, newest first.
+     */
+    fun repeats(entries: List<HistoryEntry>): List<Long> =
+        entries.zipWithNext().filter { (newer, older) -> older.isSameSong(newer.source, newer.title, newer.artist) }
+            .map { (_, older) -> older.id }
 
     /**
      * Puts a heading before the tracks of each day.

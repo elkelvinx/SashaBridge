@@ -1,6 +1,7 @@
 package io.github.elkelvinx.sashabridge.media
 
 import android.content.ComponentName
+import android.content.ContentResolver
 import android.media.MediaMetadata
 import android.media.Rating
 import android.media.session.MediaController
@@ -43,11 +44,13 @@ import kotlinx.coroutines.withTimeoutOrNull
  * @param sessionManager System media session service.
  * @param listenerComponent The app's notification listener, which grants access to the sessions.
  * @param scope Scope bound to the service lifetime, with a main-thread dispatcher.
+ * @param contentResolver Reads the album art that players publish as a `content://` address.
  */
 class MediaSessionTracker(
     private val sessionManager: MediaSessionManager,
     private val listenerComponent: ComponentName,
     private val scope: CoroutineScope,
+    contentResolver: ContentResolver,
 ) {
 
     /** Handler for the system callbacks, so that they arrive on the main thread. */
@@ -64,7 +67,7 @@ class MediaSessionTracker(
     private val changes = Channel<Unit>(Channel.CONFLATED)
 
     /** Encoder of the album art, with its cache. */
-    private val artEncoder = AlbumArtEncoder()
+    private val artEncoder = AlbumArtEncoder(contentResolver)
 
     /** Backing state of [media]. */
     private val mutableMedia = MutableStateFlow<MediaSnapshot?>(null)

@@ -10,6 +10,7 @@ Usage, from the repository root:
 """
 
 import argparse
+import math
 from pathlib import Path
 
 # Size of the dog frames, wide enough for the ball to roll ahead and for the bucket. The
@@ -124,38 +125,99 @@ def standing(tail):
     return cv
 
 
-def ball(cv, x, y):
+def ball(cv, x, y, turn=0):
+    """A tennis ball with its top-left at (`x`, `y`); `turn` 0 or 1 tilts the seam the other
+    way, so alternating it makes the ball look like it rolls."""
     cv.rect(x + 1, y, x + 2, y + 3, "y")
     cv.rect(x, y + 1, x + 3, y + 2, "y")
-    cv.dot("w", (x + 1, y + 1), (x + 2, y + 2))
+    if turn:
+        cv.dot("w", (x + 2, y + 1), (x + 1, y + 2))
+    else:
+        cv.dot("w", (x + 1, y + 1), (x + 2, y + 2))
 
 
-def running(stride, ball_x, ball_y):
-    """Gallop in place: `stride` 0 stretches the legs out, 1 gathers them under the body.
+# A gallop in six phases: (front paw offset, front folded, hind paw offset, hind folded,
+# body lift). Offsets are in pixels ahead (+) or behind (-) the hip; a folded leg is a pixel
+# shorter, off the ground. The body rises a pixel while all four feet are in the air.
+GALLOP = [
+    (2, False, -2, False, 0),   # reach: front ahead, hind behind, all on the ground
+    (0, False, -2, True, 0),    # the front feet land under the shoulders, the hind lift
+    (-2, False, 2, False, 0),   # gather: the feet cross under the body
+    (-1, True, 0, False, -1),   # push off with the hind feet, the front fold
+    (1, True, -1, True, -1),    # flight: every foot tucked
+    (2, True, -2, False, -1),   # the front reach out again
+]
 
-    The ball is at (`ball_x`, `ball_y`). She stays put on purpose: moving a pixel sprite a
-    pixel at a time reads as stutter, not as running.
+# Hips of the near and far legs; the far legs are shaded and a phase behind the near ones.
+FRONT_NEAR, FRONT_FAR, HIND_NEAR, HIND_FAR = 27, 24, 9, 12
+
+# Ball path, in frames per loop: it rolls ahead and back once while bouncing twice, on the
+# same ground as her paws. Its x never brings the outline past the frame's right edge.
+RUN_FRAMES = 24
+BALL_X_MID, BALL_X_SWING = 50, 5
+BALL_GROUND, BALL_BOUNCE = 13, 6
+
+
+def gallop_leg(cv, color, hip, base, offset, folded):
+    """One leg from the hip at (`hip`, `base`) to its paw `offset` pixels ahead, in steps."""
+    if folded:
+        leg(cv, color, (hip, base), (hip + offset, base + 1))
+    else:
+        leg(cv, color, (hip, base), (hip + offset // 2, base + 1), (hip + offset, base + 2))
+
+
+def running(frame):
+    """Frame `frame` of the gallop after the ball, out of RUN_FRAMES.
+
+    She gallops in place: moving a pixel sprite a pixel at a time reads as stutter, not as
+    running. The legs go through the six GALLOP phases, the far pair a phase behind, while
+    the ball rolls ahead and back in one-pixel steps.
     """
     cv = Canvas(DOG_W, DOG_H)
-    lift = -1 if stride == 0 else 0
+    phase = frame % len(GALLOP)
+    front, front_folded, hind, hind_folded, lift = GALLOP[phase]
+    far_front, far_front_folded, far_hind, far_hind_folded, _ = GALLOP[phase - 1]
     body(cv, dy=lift)
-    cv.dot("b", (7, 9 + lift), (6, 9 + lift), (5, 8 + lift), (4, 8 + lift), (3, 8 + lift))
     base = 14 + lift
-    if stride == 0:
-        # Stretched: back legs kick out behind, front legs reach ahead, ear flies back.
-        leg(cv, "s", (11, base), (9, base + 1), (7, base + 2))
-        leg(cv, "b", (8, base), (6, base + 1), (4, base + 2))
-        leg(cv, "s", (25, base), (27, base + 1), (29, base + 2))
-        leg(cv, "b", (28, base), (30, base + 1), (32, base + 2))
+    gallop_leg(cv, "s", FRONT_FAR, base, far_front, far_front_folded)
+    gallop_leg(cv, "s", HIND_FAR, base, far_hind, far_hind_folded)
+    gallop_leg(cv, "b", HIND_NEAR, base, hind, hind_folded)
+    gallop_leg(cv, "b", FRONT_NEAR, base, front, front_folded)
+    if lift:
+        # In the air the tail streams up and the ear flies back.
+        cv.dot("b", (7, 9 + lift), (6, 8 + lift), (5, 8 + lift), (4, 7 + lift), (3, 7 + lift))
         cv.rect(29, 3 + lift, 30, 6 + lift, "s")
     else:
-        # Gathered: all four legs under the body.
-        leg(cv, "s", (13, base), (15, base + 1), (17, base + 2))
-        leg(cv, "b", (10, base), (12, base + 1), (14, base + 2))
-        leg(cv, "s", (24, base), (22, base + 1), (20, base + 2))
-        leg(cv, "b", (27, base), (25, base + 1), (23, base + 2))
-    ball(cv, ball_x, ball_y)
+        cv.dot("b", (7, 9), (6, 9), (5, 8), (4, 8), (3, 8))
+    angle = 2 * math.pi * frame / RUN_FRAMES
+    bounce = math.pi * (frame % (RUN_FRAMES // 2)) / (RUN_FRAMES // 2)
+    # The seam turns every two frames: the ball spins as it rolls.
+    turn = (frame // 2) % 2
+    ball(cv, BALL_X_MID + round(BALL_X_SWING * math.sin(angle)), BALL_GROUND - round(BALL_BOUNCE * math.sin(bounce)), turn)
     return cv
+
+
+# Milliseconds per gallop frame: two refreshes at 30 Hz, four at 60 Hz, eight at 120 Hz, so
+# every frame stays on screen the same time.
+RUN_FRAME_MS = 66
+
+
+def running_list():
+    """The animation-list that plays the gallop frames in a loop."""
+    items = "\n".join(
+        f'    <item android:drawable="@drawable/sasha_run_{i + 1}" android:duration="{RUN_FRAME_MS}" />'
+        for i in range(RUN_FRAMES)
+    )
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        "<!-- Generated by tools/sasha_sprite.py; edit the script, not this file. Sasha chases a\n"
+        "     tennis ball while a PC is connected: she gallops in place while it bounces ahead\n"
+        "     and comes back. -->\n"
+        '<animation-list xmlns:android="http://schemas.android.com/apk/res/android"\n'
+        '    android:oneshot="false">\n'
+        f"{items}\n"
+        "</animation-list>\n"
+    )
 
 
 def drinking(lap):
@@ -258,15 +320,7 @@ def hourglass(moved, sideways=False):
 FRAMES = {
     "sasha_awake": standing("up"),
     "sasha_wag": standing("side"),
-    # The legs alternate every frame while the ball bounces twice, rolling ahead and back.
-    "sasha_run_1": running(0, 46, 9),
-    "sasha_run_2": running(1, 47, 12),
-    "sasha_run_3": running(0, 49, 15),
-    "sasha_run_4": running(1, 50, 12),
-    "sasha_run_5": running(0, 51, 9),
-    "sasha_run_6": running(1, 50, 12),
-    "sasha_run_7": running(0, 49, 15),
-    "sasha_run_8": running(1, 47, 12),
+    **{f"sasha_run_{i + 1}": running(i) for i in range(RUN_FRAMES)},
     "sasha_drink_1": drinking(False),
     "sasha_drink_2": drinking(True),
     "sasha_sleep_1": sleeping(1),
@@ -349,5 +403,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     for name, cv in FRAMES.items():
         (RES_DIR / f"{name}.xml").write_text(vector(cv), encoding="utf-8", newline="\n")
+    (RES_DIR / "sasha_running.xml").write_text(running_list(), encoding="utf-8", newline="\n")
     if args.preview:
         preview(args.preview)

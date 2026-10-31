@@ -105,6 +105,13 @@ class PlayerCard(
     /** Play queue of the active player, or `null`. */
     private var queue: PlayerQueue? = null
 
+    /**
+     * The queue as it was while the track on screen played. YouTube Music rebuilds its queue
+     * when the user jumps back to a track that already played, and the new queue may no
+     * longer hold the track that was playing; this one still does.
+     */
+    private var queueOfShownTrack: PlayerQueue? = null
+
     /** The art floating while the next track loads, until the change ends. */
     private var waitFloat: Animator? = null
 
@@ -139,13 +146,29 @@ class PlayerCard(
     /** Shows the new track even without art, if none arrives in time. */
     private val showWithoutArt = Runnable { latest?.let(::finishSwipe) }
 
+    /** Shows the latest state again, once the queue had a moment to tell a change's way. */
+    private val retryShow = Runnable { show(latest) }
+
+    /** Track whose direction is awaited from the queue, and until when, in [clock] time. */
+    private var queueWaitFor: String? = null
+    private var queueWaitUntil = 0L
+
+    /**
+     * Whether the art is sliding into place (a new track, or back after a skip that changed
+     * nothing). A new image then replaces the old one at once: fading it would stop the slide
+     * half way and leave the art out of place.
+     */
+    private var settling = false
+
     /** Brings the old card back if a skip did not change the track. */
     private val cancelSwipe = Runnable { returnSwipe() }
 
     init {
         previousButton.setOnClickListener {
             nudge(it, -1)
-            beginSwipe(BACKWARD, byUser = true)
+            // Past the first seconds, players start the track over instead of going back.
+            val position = displayed?.positionAt(clock()) ?: 0L
+            if (position > RESTART_MS) rewind() else beginSwipe(BACKWARD, byUser = true)
             send(CommandAction.PREVIOUS)
         }
         nextButton.setOnClickListener {
@@ -211,22 +234,16 @@ class PlayerCard(
                 stopSwipe()
                 render(snapshot)
             }
-            snapshot.trackId == current.trackId -> {
-                val activeSwipe = swipe
-                if (activeSwipe != null && activeSwipe.byUser && restarted(snapshot, activeSwipe)) {
-                    // "Previous" late in a track restarts it instead of changing it: the art
-                    // just comes back to its place.
-                    cover.removeCallbacks(cancelSwipe)
-                    returnSwipe()
-                    render(snapshot)
-                } else {
-                    render(snapshot)
-                }
-            }
+            snapshot.trackId == current.trackId -> render(snapshot)
             else -> {
                 if (swipe == null) {
-                    // A change made elsewhere (the PC, the player): the queue tells its way.
-                    beginSwipe(queue?.directionBetween(current.title, snapshot.title) ?: FORWARD, byUser = false)
+                    // A change made elsewhere (the PC, the player): the queue tells its way,
+                    // best the one from before the change. The new queue may come a moment
+                    // after the track, so a change it cannot place yet waits for it briefly.
+                    val direction = queueOfShownTrack?.directionBetween(current.title, snapshot.title)
+                        ?: queue?.directionBetween(current.title, snapshot.title)
+                    if (direction == null && waitForQueue(snapshot.trackId)) return
+                    beginSwipe(direction ?: FORWARD, byUser = false)
                 }
                 cover.removeCallbacks(cancelSwipe)
                 if (snapshot.art != null) {
@@ -248,15 +265,61 @@ class PlayerCard(
     fun setQueue(queue: PlayerQueue?) {
         this.queue = queue
         queueButton.isVisible = queue != null
+        rememberQueueOfShownTrack()
     }
 
-    /** Moves the seek bar and the elapsed time to the current position. Call periodically. */
+    /**
+     * Starts the track change at once, before the player answers, when the user picks a track
+     * of the queue: the way it goes is already known.
+     *
+     * @param direction 1 for a later track, -1 for an earlier one.
+     */
+    fun skipTo(direction: Int) {
+        beginSwipe(if (direction < 0) BACKWARD else FORWARD, byUser = true)
+    }
+
+    /**
+     * Whether to wait a moment for the queue before animating the change to [trackId]: true
+     * the first [QUEUE_WAIT_MS] after the track appears, false afterwards.
+     */
+    private fun waitForQueue(trackId: String): Boolean {
+        val now = clock()
+        if (queueWaitFor != trackId) {
+            queueWaitFor = trackId
+            queueWaitUntil = now + QUEUE_WAIT_MS
+        }
+        if (now >= queueWaitUntil) return false
+        cover.removeCallbacks(retryShow)
+        cover.postDelayed(retryShow, queueWaitUntil - now)
+        return true
+    }
+
+    /** Keeps [queue] as [queueOfShownTrack] when it is the queue of the track on screen. */
+    private fun rememberQueueOfShownTrack() {
+        val current = queue ?: return
+        val title = current.activeTitle() ?: return
+        if (title == displayed?.title) queueOfShownTrack = current
+    }
+
+    /**
+     * One step of the screen's [FrameTicker]: the wave travels and the seek bar follows the
+     * position, on the same display frame as Sasha.
+     */
+    fun step() {
+        wave.step()
+        tick()
+    }
+
+    /**
+     * Moves the seek bar and the elapsed time to the current position. The text is only set
+     * when the second changes, so it does not ask for a redraw on every step.
+     */
     fun tick() {
         if (dragging) return
         val current = displayed
         if (current?.durationMs == null) {
             seekBar.progress = 0
-            elapsedTime.text = context.getString(R.string.unknown_time)
+            setElapsed(context.getString(R.string.unknown_time))
             return
         }
         val now = clock()
@@ -264,14 +327,20 @@ class PlayerCard(
             if (now - requestedAt < SEEK_HOLD_MS) target else null
         } ?: current.positionAt(now)
         seekBar.progress = position.toInt()
-        elapsedTime.text = TrackTime.format(position)
+        setElapsed(TrackTime.format(position))
+    }
+
+    /** Shows [text] as the elapsed time, unless it already does. */
+    private fun setElapsed(text: String) {
+        if (elapsedTime.text.toString() != text) elapsedTime.text = text
     }
 
     /** Puts [snapshot] on screen at once. */
     private fun render(snapshot: MediaSnapshot?) {
         val first = displayed == null && shownArtId == null
         displayed = snapshot
-        showArt(snapshot?.art, crossFade = !first && swipe == null)
+        rememberQueueOfShownTrack()
+        showArt(snapshot?.art, crossFade = !first && swipe == null && !settling)
         showTrack(snapshot)
         showSource(snapshot?.source)
         val playing = snapshot?.isPlaying == true
@@ -309,11 +378,12 @@ class PlayerCard(
             if (byUser) restartCancelTimer()
             return
         }
-        swipe = Swipe(direction, byUser, clock())
+        swipe = Swipe(direction, byUser)
         stopFloating()
+        settling = false
         cover.animate().cancel()
         cover.animate()
-            .translationY(cover.height * DIP_DROP).scaleX(DIP_SCALE).scaleY(DIP_SCALE)
+            .translationX(0f).translationY(cover.height * DIP_DROP).scaleX(DIP_SCALE).scaleY(DIP_SCALE).alpha(1f)
             .setDuration(DIP_MS).setInterpolator(DecelerateInterpolator())
             .withEndAction {
                 cover.animate()
@@ -375,8 +445,7 @@ class PlayerCard(
                 cover.translationY = cover.height * IN_DROP
                 cover.scaleX = IN_SCALE
                 cover.scaleY = IN_SCALE
-                cover.animate().translationX(0f).translationY(0f).alpha(1f).scaleX(1f).scaleY(1f)
-                    .setDuration(IN_MS).setInterpolator(DecelerateInterpolator(2f)).start()
+                settleCover()
                 trackInfo.translationX = direction * density * SLIDE_DP
                 trackInfo.animate().alpha(1f).translationX(0f).setDuration(IN_MS).start()
             }.start()
@@ -387,9 +456,31 @@ class PlayerCard(
         swipe = null
         stopFloating()
         cover.animate().cancel()
-        cover.animate().translationX(0f).translationY(0f).alpha(1f).scaleX(1f).scaleY(1f)
-            .setDuration(IN_MS).setInterpolator(DecelerateInterpolator(2f)).start()
+        settleCover()
         trackInfo.animate().alpha(1f).setDuration(IN_MS).start()
+    }
+
+    /** Slides the art into its place, whatever state it is in, and marks it [settling] meanwhile. */
+    private fun settleCover() {
+        settling = true
+        cover.animate().translationX(0f).translationY(0f).alpha(1f).scaleX(1f).scaleY(1f)
+            .setDuration(IN_MS).setInterpolator(DecelerateInterpolator(2f))
+            .withEndAction { settling = false }
+            .start()
+    }
+
+    /**
+     * Answers "previous" late in a track, which only starts it over: the art nudges towards the
+     * past and comes back, with no track change.
+     */
+    private fun rewind() {
+        if (swipe != null || settling) return
+        cover.animate().cancel()
+        cover.animate().translationX(cover.width * REWIND_SHIFT).setDuration(REWIND_MS)
+            .setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                cover.animate().translationX(0f).setDuration(REWIND_MS * 2).setInterpolator(OvershootInterpolator()).start()
+            }.start()
     }
 
     /** Ends any track change at once, putting the card back in place. */
@@ -399,12 +490,6 @@ class PlayerCard(
         cover.removeCallbacks(cancelSwipe)
         returnSwipe()
     }
-
-    /** Whether [snapshot] shows the same track starting over after "previous" was pressed. */
-    private fun restarted(snapshot: MediaSnapshot, swipe: Swipe): Boolean =
-        swipe.direction == BACKWARD &&
-            snapshot.positionUpdateTimeMs >= swipe.startedAt &&
-            snapshot.reportedPositionMs in 0 until RESTART_MS
 
     /** Sends a protocol command to the player. */
     private fun send(action: CommandAction, positionMs: Long? = null) {
@@ -591,13 +676,11 @@ class PlayerCard(
      *
      * @property direction [FORWARD] when the art leaves to the left, [BACKWARD] to the right.
      * @property byUser Whether a skip button started it, so it may have to be undone.
-     * @property startedAt [clock] time it started.
      * @property waitingForArt Whether the new track arrived and only its art is missing.
      */
     private class Swipe(
         val direction: Int,
         val byUser: Boolean,
-        val startedAt: Long,
         var waitingForArt: Boolean = false,
     )
 
@@ -621,8 +704,18 @@ class PlayerCard(
         /** Time after which a skip that changed nothing is undone. */
         const val CANCEL_MS = 3_000L
 
-        /** Position below which the same track after "previous" counts as restarted. */
-        const val RESTART_MS = 2_000L
+        /**
+         * Position after which "previous" starts the track over instead of going back, as
+         * Spotify and YouTube Music do.
+         */
+        const val RESTART_MS = 3_000L
+
+        /** The nudge of a restart: time and distance, in art widths. */
+        const val REWIND_MS = 110L
+        const val REWIND_SHIFT = 0.06f
+
+        /** How long a change made elsewhere waits for the queue to tell its way. */
+        const val QUEUE_WAIT_MS = 150L
 
         /** The dip that answers the tap: time, drop and scale, in art heights. */
         const val DIP_MS = 140L

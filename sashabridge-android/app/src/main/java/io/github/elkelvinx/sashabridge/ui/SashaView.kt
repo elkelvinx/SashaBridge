@@ -1,15 +1,18 @@
 package io.github.elkelvinx.sashabridge.ui
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.drawable.AnimationDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.util.AttributeSet
-import android.view.Gravity
 import android.view.View
-import android.widget.FrameLayout
-import android.widget.ImageView
 import androidx.annotation.DrawableRes
-import androidx.core.view.isVisible
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
 import io.github.elkelvinx.sashabridge.R
 import kotlin.random.Random
 
@@ -18,19 +21,24 @@ import kotlin.random.Random
  *
  * Everything about her lives here, so a new sprite only needs `tools/sasha_sprite.py` and this
  * class: the poses ([pose]), their animations, the hourglass she waits next to, and the drinks
- * she takes now and then while she plays. The view keeps the sprite's proportions (60 x 20
- * sprite pixels) in whatever size the layout gives it.
+ * she takes now and then while she plays.
  *
- * Nothing runs while the view is not visible, and on Android 15 and later the animation asks
- * for a low screen refresh rate: she moves a few times a second, so the screen, often left on
- * as a display, can slow down instead of redrawing at 120 Hz.
+ * She is drawn as pixel art: each frame is turned into a bitmap of its own size once (60 x 20
+ * sprite pixels), then drawn enlarged by a whole number of screen pixels per sprite pixel,
+ * without smoothing. Every sprite pixel then covers the same screen pixels wherever it is, so
+ * the ball keeps its shape as it rolls (scaled vectors gave its edges 7 or 8 screen pixels
+ * depending on where it was). The view keeps the sprite's proportions in whatever size the
+ * layout gives it.
+ *
+ * Her frames advance with the screen's [FrameTicker], together with the rest of its
+ * animations, and nothing moves while the view is not visible.
  *
  * Main thread only.
  */
 class SashaView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-) : FrameLayout(context, attrs) {
+) : View(context, attrs) {
 
     /** What Sasha is doing. */
     enum class Pose(@param:DrawableRes internal val drawable: Int) {
@@ -57,20 +65,34 @@ class SashaView @JvmOverloads constructor(
             scheduleDrink()
         }
 
+    /**
+     * Clock of the screen's animations. Without one, she keeps her own while she can be seen.
+     */
+    var ticker: FrameTicker? = null
+        set(value) {
+            field = value
+            value?.add(::step)
+            ownTicker?.stop()
+            ownTicker = null
+        }
+
+    /** Her own clock, used only when no [ticker] is given. */
+    private var ownTicker: FrameTicker? = null
+
     /** Whether she is taking one of her drinks, which she only does while [Pose.PLAYING]. */
     private var drinking = false
 
-    private val sprite = ImageView(context).apply {
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        scaleType = ImageView.ScaleType.FIT_CENTER
-    }
+    /** The animation shown and its position. */
+    private val sprite = Playback()
 
-    private val hourglass = ImageView(context).apply {
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        scaleType = ImageView.ScaleType.FIT_CENTER
-        setImageResource(R.drawable.hourglass)
-        isVisible = false
+    /** The hourglass, shown while she waits. */
+    private val hourglass = Playback()
+
+    private val pixels = Paint().apply {
+        isFilterBitmap = false
+        isAntiAlias = false
     }
+    private val target = Rect()
 
     private val startDrink = Runnable {
         drinking = true
@@ -85,26 +107,18 @@ class SashaView @JvmOverloads constructor(
     }
 
     init {
-        addView(sprite, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        addView(hourglass, LayoutParams(0, 0, Gravity.END or Gravity.BOTTOM))
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-            sprite.requestedFrameRate = View.REQUESTED_FRAME_RATE_CATEGORY_LOW
-            hourglass.requestedFrameRate = View.REQUESTED_FRAME_RATE_CATEGORY_LOW
+            requestedFrameRate = REQUESTED_FRAME_RATE_CATEGORY_LOW
         }
         show()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val fittedWidth = fittedWidthSpec(widthMeasureSpec, heightMeasureSpec)
-        super.onMeasure(fittedWidth, heightMeasureSpec)
-        // The hourglass is drawn on the sprite's grid, in its bottom-right corner.
-        val side = minOf(measuredWidth * HOURGLASS_PX / SPRITE_WIDTH_PX, measuredHeight * HOURGLASS_PX / SPRITE_HEIGHT_PX)
-        val params = hourglass.layoutParams
-        if (params.width != side) {
-            params.width = side
-            params.height = side
-            super.onMeasure(fittedWidth, heightMeasureSpec)
-        }
+        setMeasuredDimension(
+            getDefaultSize(suggestedMinimumWidth, fittedWidthSpec(widthMeasureSpec, heightMeasureSpec)),
+            getDefaultSize(suggestedMinimumHeight, heightMeasureSpec),
+        )
     }
 
     /**
@@ -121,11 +135,35 @@ class SashaView @JvmOverloads constructor(
         return MeasureSpec.makeMeasureSpec(minOf(MeasureSpec.getSize(widthMeasureSpec), byHeight), MeasureSpec.EXACTLY)
     }
 
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val frame = sprite.frame() ?: return
+        // A whole number of screen pixels per sprite pixel, at whole-pixel offsets.
+        val scale = maxOf(1, minOf(width / SPRITE_WIDTH_PX, height / SPRITE_HEIGHT_PX))
+        val left = (width - SPRITE_WIDTH_PX * scale) / 2
+        val top = (height - SPRITE_HEIGHT_PX * scale) / 2
+        target.set(left, top, left + SPRITE_WIDTH_PX * scale, top + SPRITE_HEIGHT_PX * scale)
+        canvas.drawBitmap(frame, null, target, pixels)
+        if (pose == Pose.WAITING) {
+            val glass = hourglass.frame() ?: return
+            // Drawn on the sprite's grid, in its bottom-right corner.
+            val glassLeft = left + (SPRITE_WIDTH_PX - HOURGLASS_PX) * scale
+            val glassTop = top + (SPRITE_HEIGHT_PX - HOURGLASS_PX) * scale
+            target.set(glassLeft, glassTop, glassLeft + HOURGLASS_PX * scale, glassTop + HOURGLASS_PX * scale)
+            canvas.drawBitmap(glass, null, target, pixels)
+        }
+    }
+
     override fun onVisibilityAggregated(isVisible: Boolean) {
         super.onVisibilityAggregated(isVisible)
         if (isVisible) {
+            if (ticker == null) {
+                ownTicker = ownTicker ?: FrameTicker().also { it.add(::step) }
+                ownTicker?.start()
+            }
             scheduleDrink()
         } else {
+            ownTicker?.stop()
             removeCallbacks(startDrink)
             removeCallbacks(endDrink)
             if (drinking) {
@@ -135,20 +173,20 @@ class SashaView @JvmOverloads constructor(
         }
     }
 
-    /** Shows the current pose, or the drink, and starts its animations. */
+    /** Moves her animations one [FrameTicker] step, redrawing only if a frame changed. */
+    private fun step() {
+        if (!isShown) return
+        var changed = sprite.advance()
+        if (pose == Pose.WAITING) changed = hourglass.advance() || changed
+        if (changed) invalidate()
+    }
+
+    /** Shows the current pose, or the drink, from its first frame. */
     private fun show() {
-        sprite.setImageResource(if (drinking) R.drawable.sasha_drinking else pose.drawable)
-        (sprite.drawable as? AnimationDrawable)?.start()
-        val waiting = pose == Pose.WAITING
-        hourglass.isVisible = waiting
-        (hourglass.drawable as? AnimationDrawable)?.let { animation ->
-            animation.stop()
-            if (waiting) {
-                // Every wait starts with the sand at the top.
-                animation.selectDrawable(0)
-                animation.start()
-            }
-        }
+        sprite.play(framesOf(if (drinking) R.drawable.sasha_drinking else pose.drawable, SPRITE_WIDTH_PX, SPRITE_HEIGHT_PX))
+        // Every wait starts with the sand at the top.
+        if (pose == Pose.WAITING) hourglass.play(framesOf(R.drawable.hourglass, HOURGLASS_PX, HOURGLASS_PX))
+        invalidate()
     }
 
     /** While she plays and can be seen, plans her next drink in one or two minutes. */
@@ -157,6 +195,61 @@ class SashaView @JvmOverloads constructor(
         removeCallbacks(endDrink)
         if (pose == Pose.PLAYING && isShown) {
             postDelayed(startDrink, Random.nextLong(DRINK_INTERVAL_MIN_MS, DRINK_INTERVAL_MAX_MS))
+        }
+    }
+
+    /** The frames of the drawable [res], a single image or an animation-list, as bitmaps of [width] x [height]. */
+    private fun framesOf(@DrawableRes res: Int, width: Int, height: Int): Frames = FRAMES.getOrPut(res) {
+        val drawable = ContextCompat.getDrawable(context, res) ?: return@getOrPut Frames(emptyList(), emptyList())
+        if (drawable is AnimationDrawable) {
+            Frames(
+                (0 until drawable.numberOfFrames).map { rasterize(drawable.getFrame(it), width, height) },
+                (0 until drawable.numberOfFrames).map { drawable.getDuration(it).toLong() },
+            )
+        } else {
+            Frames(listOf(rasterize(drawable, width, height)), listOf(Long.MAX_VALUE))
+        }
+    }
+
+    /** Draws [drawable] at one bitmap pixel per sprite pixel. */
+    private fun rasterize(drawable: Drawable, width: Int, height: Int): Bitmap = createBitmap(width, height).also { bitmap ->
+        drawable.setBounds(0, 0, width, height)
+        drawable.draw(Canvas(bitmap))
+    }
+
+    /** The bitmaps of an animation and how long each one shows, in milliseconds. */
+    private class Frames(val bitmaps: List<Bitmap>, val durationsMs: List<Long>)
+
+    /** An animation being played: its frames, the one shown, and the time it has shown. */
+    private class Playback {
+        private var frames: Frames? = null
+        private var index = 0
+        private var shownMs = 0L
+
+        /** Starts [frames] from the first one. */
+        fun play(frames: Frames) {
+            this.frames = frames
+            index = 0
+            shownMs = 0L
+        }
+
+        /** The bitmap to show now, or `null` without frames. */
+        fun frame(): Bitmap? = frames?.bitmaps?.getOrNull(index)
+
+        /** Adds one [FrameTicker] step of time; returns whether the frame changed. */
+        fun advance(): Boolean {
+            val current = frames ?: return false
+            if (current.bitmaps.size < 2) return false
+            shownMs += FrameTicker.STEP_MS
+            var changed = false
+            // Half a step of slack, so a 66 ms frame lasts exactly one step.
+            while (shownMs + FrameTicker.STEP_MS / 2 >= current.durationsMs[index]) {
+                shownMs -= current.durationsMs[index]
+                index = (index + 1) % current.bitmaps.size
+                changed = true
+            }
+            shownMs = shownMs.coerceAtLeast(0L)
+            return changed
         }
     }
 
@@ -170,5 +263,8 @@ class SashaView @JvmOverloads constructor(
         const val DRINK_INTERVAL_MIN_MS = 60_000L
         const val DRINK_INTERVAL_MAX_MS = 120_000L
         const val DRINK_MS = 4_000L
+
+        /** Frames already turned into bitmaps, by drawable; they never change while the app runs. */
+        val FRAMES = HashMap<Int, Frames>()
     }
 }

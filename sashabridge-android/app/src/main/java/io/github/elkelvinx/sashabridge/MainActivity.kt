@@ -47,9 +47,11 @@ import io.github.elkelvinx.sashabridge.pen.AnnotateActivity
 import io.github.elkelvinx.sashabridge.pen.TabletActivity
 import io.github.elkelvinx.sashabridge.protocol.ProtocolCodec
 import io.github.elkelvinx.sashabridge.ui.BridgePhase
+import io.github.elkelvinx.sashabridge.ui.FrameTicker
 import io.github.elkelvinx.sashabridge.ui.PlayerCard
 import io.github.elkelvinx.sashabridge.ui.QueueSheet
 import io.github.elkelvinx.sashabridge.ui.SashaView
+import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -102,6 +104,12 @@ class MainActivity : AppCompatActivity() {
     /** Launcher icons of player packages, resolved once each; `null` when not visible. */
     private val appIcons = HashMap<String, Drawable?>()
 
+    /** The player card. Set in [onCreate]. */
+    private lateinit var player: PlayerCard
+
+    /** One clock for Sasha, the wave and the seek bar, so they redraw together. */
+    private val ticker = FrameTicker()
+
     private lateinit var statusDot: View
     private lateinit var statusTitle: TextView
     private lateinit var statusDetail: TextView
@@ -115,6 +123,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
+        preferDisplayRate()
         if (landscape) {
             WindowCompat.getInsetsController(window, window.decorView).apply {
                 // A swipe from the top shows the status bar for a moment.
@@ -160,7 +169,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.batteryButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         }
-        val player = PlayerCard(
+        player = PlayerCard(
             root = findViewById(R.id.main),
             onCommand = repository::sendCommand,
             onOpenQueue = ::openQueue,
@@ -169,6 +178,8 @@ class MainActivity : AppCompatActivity() {
             appLabel = ::appLabel,
             appIcon = ::appIcon,
         )
+        sasha.ticker = ticker
+        ticker.add(player::step)
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -188,12 +199,6 @@ class MainActivity : AppCompatActivity() {
                 }
                 launch { repository.media.collect(player::show) }
                 launch { repository.queue.collect { player.setQueue(it) } }
-                launch {
-                    while (true) {
-                        player.tick()
-                        delay(PROGRESS_TICK_MS)
-                    }
-                }
                 if (landscape) launch { shiftNowAndThen() }
             }
         }
@@ -201,6 +206,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        ticker.start()
         // The battery broadcast is sticky: registering returns the current state at once.
         ContextCompat.registerReceiver(
             this,
@@ -211,6 +217,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        ticker.stop()
         unregisterReceiver(batteryReceiver)
         super.onStop()
     }
@@ -341,6 +348,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * Asks for the display mode of [DISPLAY_HZ] at the current resolution, if the screen has
+     * one. Android may still choose otherwise, for example in power saving.
+     */
+    private fun preferDisplayRate() {
+        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            display
+        } else {
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay
+        } ?: return
+        val current = display.mode
+        val mode = display.supportedModes
+            .filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
+            .minByOrNull { abs(it.refreshRate - DISPLAY_HZ) } ?: return
+        window.attributes = window.attributes.apply { preferredDisplayModeId = mode.modeId }
+    }
+
+    /**
      * Opens a player app on the screen its media session names, usually the one of the track
      * playing; failing that, on its launcher screen.
      *
@@ -391,6 +416,8 @@ class MainActivity : AppCompatActivity() {
     private fun openQueue() {
         val queue = repository.queue.value ?: return
         QueueSheet.show(this, queue, appLabel(queue.source), ThumbnailStore.get(this), lifecycleScope) { queueId ->
+            // The card answers the touch right away, the right way round.
+            queue.directionTo(queueId)?.let(player::skipTo)
             repository.sendCommand(PlayerCommand.SkipToQueueItem(queueId))
         }
     }
@@ -400,8 +427,11 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
 
-        /** Interval between seek bar updates while the screen is visible. */
-        const val PROGRESS_TICK_MS = 500L
+        /**
+         * Refresh rate this screen asks for: 66 ms steps of its animations are exactly 4
+         * frames, and a frame has 16.6 ms to be drawn instead of the 8.3 ms of 120 Hz.
+         */
+        const val DISPLAY_HZ = 60f
 
         /** Battery levels are shown in percent. */
         const val PERCENT = 100

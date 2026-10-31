@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import androidx.core.database.sqlite.transaction
 
 /**
  * The history's SQLite database: one row per track listened to, indexed by time, so that
@@ -80,6 +81,28 @@ internal class HistoryDatabase(context: Context) : SQLiteOpenHelper(context, NAM
         }
         return readableDatabase.query(TABLE, null, where.toString(), args.toTypedArray(), null, null, "$PLAYED_AT DESC")
             .use { cursor -> buildList { while (cursor.moveToNext()) add(entryOf(cursor)) } }
+    }
+
+    /** The newest track, or `null` if the history is empty. */
+    fun latest(): HistoryEntry? =
+        readableDatabase.query(TABLE, null, null, null, null, null, "$PLAYED_AT DESC", "1")
+            .use { cursor -> if (cursor.moveToFirst()) entryOf(cursor) else null }
+
+    /** Moves the track [id] to [playedAtMs], and gives it [coverKey] when there is one. */
+    fun touch(id: Long, playedAtMs: Long, coverKey: String?) {
+        val values = ContentValues().apply {
+            put(PLAYED_AT, playedAtMs)
+            if (coverKey != null) put(COVER_KEY, coverKey)
+        }
+        writableDatabase.update(TABLE, values, "$ID = ?", arrayOf(id.toString()))
+    }
+
+    /** Deletes the tracks [ids]. */
+    fun delete(ids: List<Long>) {
+        if (ids.isEmpty()) return
+        writableDatabase.transaction {
+            ids.forEach { delete(TABLE, "$ID = ?", arrayOf(it.toString())) }
+        }
     }
 
     /** Deletes the tracks listened to before [cutoffMs]; returns how many. */

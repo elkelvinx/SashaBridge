@@ -31,13 +31,20 @@ class HistoryRepository private constructor(context: Context) {
     val changes: StateFlow<Long> = mutableChanges.asStateFlow()
 
     /**
-     * Adds [snapshot], a track just listened to, with its cover.
+     * Adds [snapshot], a track just listened to, with its cover. If the newest track of the
+     * history is the same song (forward, then back to it), that one moves to [nowMs] instead:
+     * a song played again right away is one listening, not several.
      *
      * @param nowMs When it was listened to, in milliseconds since the epoch.
      */
     suspend fun record(snapshot: MediaSnapshot, nowMs: Long = System.currentTimeMillis()) = withContext(Dispatchers.IO) {
         val coverKey = snapshot.art?.let { art -> (COVER_KEY_PREFIX + art.artId).also { thumbnails.keep(it, art.jpeg) } }
-        database.insert(nowMs, snapshot.source, snapshot.title, snapshot.artist, snapshot.album, snapshot.mediaId, coverKey)
+        val latest = database.latest()
+        if (latest != null && latest.isSameSong(snapshot.source, snapshot.title, snapshot.artist)) {
+            database.touch(latest.id, nowMs, coverKey)
+        } else {
+            database.insert(nowMs, snapshot.source, snapshot.title, snapshot.artist, snapshot.album, snapshot.mediaId, coverKey)
+        }
         mutableChanges.update { it + 1 }
     }
 
@@ -50,9 +57,13 @@ class HistoryRepository private constructor(context: Context) {
         database.since(cutoff(System.currentTimeMillis()), search)
     }
 
-    /** Deletes the tracks older than [KEEP_DAYS] days and the covers no track names. */
+    /**
+     * Deletes the tracks older than [KEEP_DAYS] days, the repeats of a song listened to
+     * several times in a row ([HistoryList.repeats]), and the covers no track names.
+     */
     suspend fun prune(nowMs: Long = System.currentTimeMillis()) = withContext(Dispatchers.IO) {
         database.deleteBefore(cutoff(nowMs))
+        database.delete(HistoryList.repeats(database.since(cutoff(nowMs), null)))
         thumbnails.pruneKept(database.coverKeys())
     }
 

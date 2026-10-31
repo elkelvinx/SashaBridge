@@ -1,12 +1,20 @@
 package io.github.elkelvinx.sashabridge.media
 
+import android.content.ContentResolver
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaMetadata
+import android.util.Log
 import androidx.core.graphics.scale
+import androidx.core.net.toUri
+import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Turns the album art bitmap of a player into an [AlbumArt].
@@ -21,10 +29,21 @@ import kotlinx.coroutines.withContext
  * The last result is cached by `Bitmap.generationId`, so updates that only change the
  * playback state do not encode the same bitmap again.
  *
+ * Players that name their art with a `content://` address get it read from there instead
+ * ([resolver]). Spotify announces a new track with that address but no bitmap, and sends the
+ * bitmap 0.5 to 1.4 s later; read from the address, the art arrives with the title, in about
+ * 40 ms. The art read is cached by its address, so the bitmap that follows changes nothing.
+ *
  * Not thread-safe: [encode] must not run concurrently. [MediaSessionTracker] calls it from the
  * main thread only.
  */
-class AlbumArtEncoder {
+class AlbumArtEncoder(private val resolver: ContentResolver? = null) {
+
+    /** `content://` address behind [cachedUriArt]. */
+    private var cachedUri: String? = null
+
+    /** Art read from [cachedUri]. */
+    private var cachedUriArt: AlbumArt? = null
 
     /** Generation id of the bitmap behind [cachedArt]. */
     private var cachedGenerationId: Int? = null
@@ -45,6 +64,7 @@ class AlbumArtEncoder {
      * @return The encoded art, or `null` if the metadata has no usable bitmap.
      */
     suspend fun encode(metadata: MediaMetadata): AlbumArt? {
+        artUriOf(metadata)?.let { uri -> fromUri(uri)?.let { return it } }
         val bitmap = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
@@ -57,6 +77,41 @@ class AlbumArtEncoder {
         cachedGenerationId = bitmap.generationId
         cachedArt = art
         return art
+    }
+
+    /**
+     * The art at [uri], read once and then cached; `null` if it cannot be read in time, and
+     * the bitmap of the metadata is used instead.
+     */
+    private suspend fun fromUri(uri: String): AlbumArt? {
+        if (uri == cachedUri) return cachedUriArt
+        val resolver = resolver ?: return null
+        val art = withTimeoutOrNull(URI_TIMEOUT_MS) {
+            runInterruptible(Dispatchers.IO) { readUri(resolver, uri) }
+        } ?: return null
+        cachedUri = uri
+        cachedUriArt = art
+        return art
+    }
+
+    /** Reads, scales and encodes the image at [uri]. IO thread. */
+    private fun readUri(resolver: ContentResolver, uri: String): AlbumArt? = try {
+        resolver.openInputStream(uri.toUri())?.use { it.readBytes() }?.let { bytes ->
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            var sample = 1
+            while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_SIDE_PX) sample *= 2
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+        }?.let { bitmap ->
+            val jpeg = compress(bitmap)
+            AlbumArt(artIdOf(jpeg), jpeg)
+        }
+    } catch (e: IOException) {
+        Log.d(LOG_TAG, "Cannot read the art at $uri: $e")
+        null
+    } catch (e: SecurityException) {
+        Log.d(LOG_TAG, "No access to the art at $uri: $e")
+        null
     }
 
     /**
@@ -90,6 +145,21 @@ class AlbumArtEncoder {
 
         /** JPEG quality, from 0 to 100. */
         const val JPEG_QUALITY: Int = 80
+
+        /** Longest wait for art read from its address before using the bitmap instead. */
+        private const val URI_TIMEOUT_MS = 400L
+
+        /** Metadata keys that may hold the address of the art, in order of preference. */
+        private val ART_URI_KEYS = listOf(
+            MediaMetadata.METADATA_KEY_ALBUM_ART_URI,
+            MediaMetadata.METADATA_KEY_ART_URI,
+            MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI,
+        )
+
+        /** The `content://` address of the art in [metadata], or `null`. */
+        private fun artUriOf(metadata: MediaMetadata): String? = ART_URI_KEYS.firstNotNullOfOrNull { key ->
+            metadata.getString(key)?.takeIf { it.startsWith(ContentResolver.SCHEME_CONTENT + "://") }
+        }
 
         /**
          * Computes the size that fits within a square of [maxSide] keeping the proportions.
