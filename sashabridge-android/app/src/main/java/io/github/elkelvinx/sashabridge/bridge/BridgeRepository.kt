@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
 import io.github.elkelvinx.sashabridge.media.PlayerCommand
+import io.github.elkelvinx.sashabridge.media.PlayerNotice
 import io.github.elkelvinx.sashabridge.media.PlayerQueue
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -55,6 +56,12 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
+    /** Backing flow of [notices]; a notice nobody shows is dropped. */
+    private val mutableNotices = MutableSharedFlow<PlayerNotice>(
+        extraBufferCapacity = NOTICE_BUFFER,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
     /** Whether the user wants the bridge on. Persisted; `true` on the first run. */
     val enabled: StateFlow<Boolean> = mutableEnabled.asStateFlow()
 
@@ -84,6 +91,12 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
      * the same way as the PC's, while the listener is connected.
      */
     val commands: SharedFlow<PlayerCommand> = mutableCommands.asSharedFlow()
+
+    /**
+     * What a player could not do, such as Spotify refusing to take a song out of "Tus me
+     * gusta": the screen shows each one while visible, and the PC those its commands caused.
+     */
+    val notices: SharedFlow<PlayerNotice> = mutableNotices.asSharedFlow()
 
     /**
      * Turns the bridge on or off and remembers the choice. Any thread.
@@ -149,10 +162,18 @@ class BridgeRepository private constructor(private val preferences: SharedPrefer
         mutableCommands.tryEmit(command)
     }
 
+    /** Tells the screen and the PC what a player could not do. Any thread. */
+    fun postNotice(notice: PlayerNotice) {
+        mutableNotices.tryEmit(notice)
+    }
+
     companion object {
 
         /** Commands buffered for the service; see [mutableCommands]. */
         private const val COMMAND_BUFFER = 8
+
+        /** Notices buffered for their readers; see [mutableNotices]. */
+        private const val NOTICE_BUFFER = 4
 
         /** Name of the preferences file. */
         private const val PREFERENCES = "bridge"

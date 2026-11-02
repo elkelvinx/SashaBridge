@@ -94,6 +94,8 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | M8 | Spotify con "repetir una"; dejar que la canción termine sola | La misma canción vuelve a empezar |
 | M9 | Un vídeo de YouTube sonando; `Ctrl+Alt+O` en la PC | El vídeo se pausa; SashaBridge pasa al frente con la última canción de música en pausa, también en el panel de Windows; Spotify no arranca |
 | M10 | Después de M9, reproducir en SashaBridge; después volver a YouTube y reproducir | Suena la música; con el vídeo, la tarjeta y Windows vuelven a seguirlo |
+| M11 | Una canción de Spotify en "Tus me gusta"; el corazón de la tarjeta | A los 2 s, aviso inferior: "No se quitó de Me gusta. Spotify no deja hacerlo desde fuera. Hazlo en Spotify." El corazón sigue lleno |
+| M12 | Igual que M11 con `Ctrl+Alt+L`; y con un vídeo de YouTube | El mismo aviso en la esquina de la PC, con el icono ⓘ. Con YouTube: "YouTube no ofrece este botón a otras apps" |
 
 ### Ocultar y ajustes (2.4)
 
@@ -276,7 +278,7 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 ## 10. Pruebas de la iteración de carátulas y ocultar (2.4)
 
 - **Fecha:** 2026-11-02.
-- **Pruebas automáticas:** 155 tests de Android; lint sin avisos.
+- **Pruebas automáticas:** 159 tests de Android y 41 de Rust; lint y clippy sin avisos.
 
 | ID | Resultado | Evidencia |
 |---|---|---|
@@ -287,4 +289,6 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 | C5 | **Correcto** | La primera versión estiraba la tarjeta horizontal fuera de la pantalla con la carátula de 1000 px: `SquareImageView` medía el tamaño de la imagen. Corregido; con 1080 x 1080 la tarjeta cabe entera |
 | C6 | **Correcto** | Captura en vertical con Spotify: todo en una línea, nada cortado |
 | H18, H19 | **Pendiente** | Las prueba el usuario con un vídeo |
+| M11 | **Correcto** | Con "Punkrocker" en "Tus me gusta": `Pressing CHECK_FILL`, a los 2 s `com.spotify.music ignored CHECK_FILL` y el aviso inferior con el texto esperado; el corazón siguió lleno |
+| M12 | **Pendiente** | La PC necesita el cliente nuevo (`cargo run`) |
 

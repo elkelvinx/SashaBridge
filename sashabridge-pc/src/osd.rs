@@ -70,11 +70,36 @@ const HEART: &str = "\u{2665}";
 /// Glyph of an empty heart.
 const EMPTY_HEART: &str = "\u{2661}";
 
+/// Glyph of a notice: a circled "i".
+const NOTICE: &str = "\u{24D8}";
+
+/// The icon beside the text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Icon {
+    /// The track is liked now.
+    Heart,
+    /// The track is not liked any more.
+    EmptyHeart,
+    /// Something the phone's player could not do.
+    Notice,
+}
+
+impl Icon {
+    /// The glyph drawn for the icon.
+    fn glyph(self) -> &'static str {
+        match self {
+            Self::Heart => HEART,
+            Self::EmptyHeart => EMPTY_HEART,
+            Self::Notice => NOTICE,
+        }
+    }
+}
+
 /// What the box says.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Announcement {
-    /// Whether the icon is a filled heart; otherwise an empty one.
-    pub filled: bool,
+    /// The icon beside the text.
+    pub icon: Icon,
     /// First line, in bold.
     pub heading: String,
     /// Second line, shortened with "..." when it does not fit.
@@ -167,7 +192,7 @@ fn create() -> io::Result<Osd> {
     let scale = unsafe { GetDpiForSystem() } as f32 / 96.0;
     Ok(Osd {
         hwnd,
-        announcement: Announcement { filled: false, heading: String::new(), detail: String::new() },
+        announcement: Announcement { icon: Icon::Notice, heading: String::new(), detail: String::new() },
         scale,
     })
 }
@@ -245,11 +270,10 @@ fn paint(hwnd: HWND) {
                 DeleteObject(background);
                 SetBkMode(hdc, TRANSPARENT as i32);
 
-                let glyph = if osd.announcement.filled { HEART } else { EMPTY_HEART };
-                let heart_font = font("Segoe UI Symbol", scaled(30, s), false);
-                let previous = SelectObject(hdc, heart_font);
+                let icon_font = font("Segoe UI Symbol", scaled(30, s), false);
+                let previous = SelectObject(hdc, icon_font);
                 SetTextColor(hdc, ACCENT);
-                draw(hdc, glyph, RECT { left: pad, top: 0, right: pad + icon, bottom: height });
+                draw(hdc, osd.announcement.icon.glyph(), RECT { left: pad, top: 0, right: pad + icon, bottom: height });
 
                 let text_left = pad + icon + scaled(12, s);
                 let heading_font = font("Segoe UI", scaled(19, s), true);
@@ -271,7 +295,7 @@ fn paint(hwnd: HWND) {
                 );
 
                 SelectObject(hdc, previous);
-                DeleteObject(heart_font);
+                DeleteObject(icon_font);
                 DeleteObject(heading_font);
                 DeleteObject(detail_font);
             }
@@ -356,7 +380,7 @@ mod tests {
     #[test]
     #[ignore = "shows the confirmation box on the desktop for a few seconds"]
     fn box_appears() {
-        show(Announcement { filled: true, heading: "Te gusta".to_owned(), detail: "Lights Out \u{b7} VK Blanka".to_owned() });
+        show(Announcement { icon: Icon::Heart, heading: "Te gusta".to_owned(), detail: "Lights Out \u{b7} VK Blanka".to_owned() });
         // Pump this thread's messages so that the box paints and fades out.
         let until = std::time::Instant::now() + std::time::Duration::from_secs(4);
         while std::time::Instant::now() < until {

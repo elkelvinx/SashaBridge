@@ -124,7 +124,8 @@ impl NowPlaying {
             | PhoneMessage::AnnotateShared(_)
             | PhoneMessage::TabletStatus(_)
             | PhoneMessage::TabletSelect(_)
-            | PhoneMessage::TabletPing(_) => Ok(None),
+            | PhoneMessage::TabletPing(_)
+            | PhoneMessage::Notice(_) => Ok(None),
             PhoneMessage::HideStatus(status) => {
                 self.hidden = status.hidden;
                 Ok(None)

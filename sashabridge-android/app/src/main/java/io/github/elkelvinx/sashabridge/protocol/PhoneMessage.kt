@@ -217,6 +217,23 @@ sealed interface PhoneMessage {
     @Serializable
     @SerialName("hide.status")
     data class HideStatus(val hidden: Boolean) : PhoneMessage
+
+    /**
+     * Something the player could not do for a command of the PC, for the PC to tell the user:
+     * Spotify, for one, ignores taking a song out of "Tus me gusta" from outside its app. The
+     * texts come in the phone's language. Since version 2.4.
+     *
+     * @property title First line, such as "No se quitó de Me gusta".
+     * @property detail Second line: why, and where to do it instead.
+     * @throws IllegalArgumentException if [title] is blank.
+     */
+    @Serializable
+    @SerialName("notice")
+    data class Notice(val title: String, val detail: String) : PhoneMessage {
+        init {
+            require(title.isNotBlank()) { "title must not be blank" }
+        }
+    }
 }
 
 /**

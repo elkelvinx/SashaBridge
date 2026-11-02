@@ -40,6 +40,7 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.snackbar.Snackbar
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
 import io.github.elkelvinx.sashabridge.history.HistoryActivity
@@ -239,6 +240,12 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 launch { repository.media.collect(player::show) }
+                launch {
+                    repository.notices.collect { notice ->
+                        val text = getString(R.string.notice_snackbar, notice.title, notice.detail)
+                        Snackbar.make(findViewById(R.id.main), text, Snackbar.LENGTH_LONG).show()
+                    }
+                }
                 launch { repository.queue.collect { player.setQueue(it) } }
                 launch {
                     combine(

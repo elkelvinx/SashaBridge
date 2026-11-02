@@ -3,6 +3,7 @@ package io.github.elkelvinx.sashabridge.server
 import android.util.Log
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
+import io.github.elkelvinx.sashabridge.media.PlayerNotice
 import io.github.elkelvinx.sashabridge.protocol.MediaStateEncoder
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import io.github.elkelvinx.sashabridge.protocol.PhoneMessage
@@ -36,6 +37,7 @@ import kotlinx.coroutines.launch
  * @param onCommand Runs a command from the PC. Called on Ktor's dispatcher.
  * @param hidden Whether a video is hidden that the phone can go back to; see
  *   [PhoneMessage.HideStatus].
+ * @param notices What the player could not do for this PC's commands; see [PhoneMessage.Notice].
  */
 internal class ClientSession(
     private val socket: WebSocketSession,
@@ -44,6 +46,7 @@ internal class ClientSession(
     private val clock: () -> Long,
     private val onCommand: (PcMessage.Command) -> Unit,
     private val hidden: Flow<Boolean>,
+    private val notices: Flow<PlayerNotice>,
 ) {
 
     /** Serves the session until the PC disconnects or the socket is closed. */
@@ -52,6 +55,7 @@ internal class ClientSession(
             try {
                 send(PhoneMessage.Hello(ProtocolCodec.PROTOCOL_VERSION, deviceName))
                 launch { sendHideStatus() }
+                launch { sendNotices() }
                 val encoder = MediaStateEncoder()
                 media.collect { snapshot ->
                     encoder.encode(snapshot, clock()).forEach { send(it) }
@@ -78,6 +82,15 @@ internal class ClientSession(
             hidden.withIndex()
                 .filter { (index, value) -> index > 0 || value }
                 .collect { send(PhoneMessage.HideStatus(it.value)) }
+        } catch (_: ClosedSendChannelException) {
+            // The PC went away; the receive loop ends the session.
+        }
+    }
+
+    /** Tells the PC what the player could not do, for its own on-screen notice. */
+    private suspend fun sendNotices() {
+        try {
+            notices.collect { send(PhoneMessage.Notice(it.title, it.detail)) }
         } catch (_: ClosedSendChannelException) {
             // The PC went away; the receive loop ends the session.
         }

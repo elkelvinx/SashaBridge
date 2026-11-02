@@ -6,6 +6,7 @@ import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.bridge.BridgeStatus
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
+import io.github.elkelvinx.sashabridge.media.PlayerNotice
 import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
 import io.github.elkelvinx.sashabridge.pen.TabletRepository
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
@@ -36,6 +37,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -82,6 +84,7 @@ class BridgeServer(
     private val annotations: AnnotationRepository = AnnotationRepository(),
     private val tablet: TabletRepository = TabletRepository(),
     private val hidden: Flow<Boolean> = flowOf(false),
+    private val notices: Flow<PlayerNotice> = emptyFlow(),
 ) {
 
     /** Running engine, or `null` while stopped. Guarded by [portLock]. */
@@ -205,7 +208,7 @@ class BridgeServer(
                 Log.i(LOG_TAG, "PC connected")
                 reportSessions()
                 try {
-                    ClientSession(this, media, deviceName, clock, onCommand, hidden).run()
+                    ClientSession(this, media, deviceName, clock, onCommand, hidden, notices).run()
                 } finally {
                     synchronized(sessions) { sessions -= this }
                     Log.i(LOG_TAG, "PC disconnected")

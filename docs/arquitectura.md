@@ -51,7 +51,8 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `media/AlbumArtEncoder` | Prepara dos copias de la carátula fuera del hilo principal: un JPEG de 300 px como máximo para la PC, del que sale su `artId`, y la imagen tal como la da el reproductor (hasta 1080 px) para la pantalla del teléfono, que nunca viaja. |
 | `media/MetadataNormalizer`, `ShuffleControl` | Separan el contexto que Spotify añade al artista y leen o cambian el modo aleatorio mediante las acciones propias del reproductor. |
 | `media/RepeatControl`, `LikeControl`, `ActionNames` | Leen y pulsan "repetir" y "me gusta" con las acciones propias del reproductor, enviando los datos extra de cada acción como el panel multimedia de Android. YouTube Music no cambia el identificador de sus acciones: indica el modo en el nombre, en el idioma del teléfono, y `ActionNames` lo interpreta en español y en inglés. Spotify ignora la acción de quitar de "Tus me gusta" desde fuera de su app, también desde el panel de Android: solo se puede añadir. |
-| `media/MediaCommandExecutor` | Ejecuta las órdenes de la PC y de la pantalla sobre el reproductor elegido. Sin reproductor, envía la tecla multimedia equivalente. `HIDE` oculta el vídeo y `UNHIDE` vuelve a él (ver la sección 4). |
+| `media/MediaCommandExecutor` | Ejecuta las órdenes de la PC y de la pantalla sobre el reproductor elegido. Sin reproductor, envía la tecla multimedia equivalente. `HIDE` oculta el vídeo y `UNHIDE` vuelve a él (ver la sección 4). Si el reproductor no tiene el botón de me gusta, aleatorio o repetir, o lo ignora, lo avisa (`PlayerNotice`). |
+| `media/PlayerToggle` | Los botones propios del reproductor que SashaBridge pulsa (me gusta, aleatorio, repetir) y la regla que dice si el reproductor los ignoró: 2 s después, misma canción y mismo estado. `CommandOrigin` dice si la orden vino de la PC o de la pantalla, y con eso quién recibe el aviso. Lógica pura. |
 | `media/SharpArtLoader` | Con Wi-Fi, descarga una carátula más grande que la del reproductor para la pantalla: Spotify da 640 px por la sesión y tiene 2000 px en su servidor; YouTube Music da 506 px y Google sirve hasta el original. `ThumbnailSources.sharpUrl` cambia el tamaño en la dirección, y `MediaSessionTracker` vuelve a publicar el estado con la imagen nueva, con el mismo `artId`. |
 | `media/PlayerScreen` | Abre una app de música o de vídeo en la pantalla que publica su sesión, con el permiso que Android 14+ exige para hacerlo mientras SashaBridge está delante. La usan el icono de la tarjeta y la vuelta al vídeo. |
 | `settings/SettingsRepository`, `SettingsActivity` | Ajustes del usuario (apariencia, forma de ocultar y si la pantalla negra cubre también el vertical, volver al vídeo, pantalla encendida en horizontal, guardar el historial) como `StateFlow` persistidos, y su pantalla, solo en vertical. |
@@ -238,7 +239,14 @@ Crate `sashabridge_pc`, en `sashabridge-pc/src/`.
 
 **Orden desde Windows.** Un botón del flyout produce un `PcCommand`, que viaja como `cmd` (`PLAY` y `PAUSE` son órdenes explícitas, no un interruptor). `MediaCommandExecutor` la aplica al mismo reproductor cuyo estado se ve en Windows, y el resultado vuelve con el siguiente `media.state`.
 
-**Me gusta desde la PC.** `Ctrl+Alt+L` envía `TOGGLE_LIKE` y el teléfono pulsa la acción de "me gusta" del reproductor. Cuando el siguiente `media.state` trae el `liked` cambiado, la PC lo confirma con el aviso de `osd`. Si el reproductor no tiene esa acción, la PC solo lo registra.
+**Me gusta desde la PC.** `Ctrl+Alt+L` envía `TOGGLE_LIKE` y el teléfono pulsa la acción de "me gusta" del reproductor. Cuando el siguiente `media.state` trae el `liked` cambiado, la PC lo confirma con el aviso de `osd`.
+
+**Lo que el reproductor no puede hacer.** Si no tiene el botón de me gusta, aleatorio o repetir, o si 2 s después de pulsarlo su estado sigue igual en la misma canción, el ejecutor lo cuenta con un `PlayerNotice` en lugar de no hacer nada. Spotify, por ejemplo, ignora quitar una canción de "Tus me gusta" desde fuera de su app:
+1. `BridgeRepository.notices` lo publica.
+2. La pantalla lo muestra como un aviso inferior (`Snackbar`) mientras está visible.
+3. Si la orden vino de la PC, `ClientSession` lo envía como `notice`, y la PC lo muestra en su aviso de la esquina con el icono ⓘ.
+
+Los textos se arman en el teléfono, en su idioma, así que la PC muestra el mismo.
 
 **Ocultar un vídeo.**
 1. `Ctrl+Alt+O` envía `HIDE` y, a continuación, la PC ejecuta `adb shell am start` para traer SashaBridge al frente. Con la forma "Pantalla negra", `MainActivity` cubre todo de negro, oculta las barras y baja el brillo al mínimo; tocar dos veces descubre SashaBridge.
@@ -317,6 +325,7 @@ El recorte de Windows escribe el portapapeles más de una vez por captura. La PC
 | Lista de 30 días; estadísticas para siempre | Lo decidió el usuario. La lista sirve para encontrar algo escuchado hace poco, y los resúmenes por mes y por día crecen muy despacio. |
 | De las apps de vídeo, solo el tiempo | Los títulos de los vídeos no son canciones y llenarían el historial; el tiempo sí sirve para comparar cuánto suena cada app. Lo decidió el usuario. |
 | La pantalla usa la imagen del reproductor, no el JPEG de la PC | La carátula de la tarjeta mide unos 760 px en horizontal, y el JPEG de 300 px ampliado se veía borroso y con bloques. La PC sigue recibiendo 300 px, que bastan para el panel de Windows, así que el protocolo no cambia. |
+| Avisar lo que el reproductor no hace, comprobándolo por su estado | Un botón que no hace nada parece un fallo de SashaBridge. La regla es la misma para cualquier app y no depende de saber qué acepta cada una: si Spotify llega a permitir quitar un me gusta, el aviso deja de salir solo. |
 | La carátula grande, solo con Wi-Fi y con el mismo `artId` | La de Spotify ocupa medio megabyte por canción. Con el mismo `artId`, la PC no recibe nada nuevo; la tarjeta cambia la imagen en el sitio, sin animación. |
 | `SquareImageView` no se mide por la imagen | La pantalla horizontal se desplaza: primero se mide sin alto, y la carátula pedía el tamaño de su imagen. Con la de 1000 px la tarjeta se salía de la pantalla. Ahora, sin alto ni ancho dados, no pide espacio, y el `ScrollView` la mide otra vez con el que queda. |
 | `VACUUM` solo con 256 KB libres o más | `VACUUM` reescribe el archivo entero. Hacerlo en cada limpieza gastaría escrituras para devolver unos pocos KB. |

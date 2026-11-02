@@ -100,6 +100,13 @@
     <string name="history_open_failed">No se pudo abrir %1$s.</string>
     <string name="history_count">×%1$d</string>
     <string name="history_day_open">Desplegado</string>
+    <string name="notice_like_add">No se añadió a Me gusta</string>
+    <string name="notice_like_remove">No se quitó de Me gusta</string>
+    <string name="notice_shuffle">El modo aleatorio no cambió</string>
+    <string name="notice_repeat">Repetir no cambió</string>
+    <string name="notice_ignored">%1$s no deja hacerlo desde fuera. Hazlo en %1$s.</string>
+    <string name="notice_missing">%1$s no ofrece este botón a otras apps.</string>
+    <string name="notice_snackbar">%1$s. %2$s</string>
     <string name="history_day_folded">Plegado</string>
     <string name="history_tab_list">Historial</string>
     <string name="history_tab_stats">Estadísticas</string>

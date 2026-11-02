@@ -19,6 +19,7 @@ import io.github.elkelvinx.sashabridge.history.HistoryRepository
 import io.github.elkelvinx.sashabridge.history.UsageMeter
 import io.github.elkelvinx.sashabridge.media.MediaCommandExecutor
 import io.github.elkelvinx.sashabridge.media.MediaSessionTracker
+import io.github.elkelvinx.sashabridge.media.CommandOrigin
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
 import io.github.elkelvinx.sashabridge.media.SharpArtLoader
 import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
@@ -36,6 +37,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 /**
@@ -108,12 +110,14 @@ class MusicListenerService : NotificationListenerService() {
             this,
             HistoryRepository.get(this),
             serviceScope,
+            repository::postNotice,
         )
         server = BridgeServer(
             media = repository.media,
             deviceName = Build.MODEL,
             onStatus = repository::reportStatus,
-            onCommand = commandExecutor::execute,
+            onCommand = { commandExecutor.execute(it, CommandOrigin.PC) },
+            notices = repository.notices.filter { it.origin == CommandOrigin.PC },
             annotations = AnnotationRepository.shared,
             tablet = TabletRepository.shared,
             // The next press of the PC's shortcut goes back to the video only if the user wants it.
@@ -144,7 +148,7 @@ class MusicListenerService : NotificationListenerService() {
             launch { tracker.media.collect(repository::updateMedia) }
             launch { tracker.queue.collect(repository::updateQueue) }
             launch { tracker.hiddenSince.collect(repository::updateHiddenSince) }
-            launch { repository.commands.collect { commandExecutor.execute(it) } }
+            launch { repository.commands.collect(commandExecutor::execute) }
             launch { offerCaptures() }
             launch { recordHistory() }
             repository.enabled.collectLatest { enabled ->

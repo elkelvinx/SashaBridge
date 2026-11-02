@@ -26,7 +26,7 @@ use crate::config::{AUDIO_WATCHDOG_PERIOD, BACKOFF_INITIAL, BACKOFF_MAX, CONNECT
 use crate::media_controls::MediaControls;
 use crate::hidden_window::Announcer;
 use crate::now_playing::{Display, NowPlaying};
-use crate::osd::Announcement;
+use crate::osd::{Announcement, Icon};
 use crate::process::DeviceLink;
 use crate::protocol::v2::{PROTOCOL_VERSION, PhoneMessage};
 use crate::protocol::{PcCommand, decode_phone_frame, pc_hello};
@@ -169,6 +169,11 @@ fn handle_frame(text: &str, controls: &mut MediaControls, now_playing: &mut NowP
             }
             return;
         }
+        Ok(PhoneMessage::Notice(notice)) => {
+            info!(title = %notice.title, detail = %notice.detail, "the phone's player could not do it");
+            announcer.announce(Announcement { icon: Icon::Notice, heading: notice.title, detail: notice.detail });
+            return;
+        }
         Ok(message) => now_playing.apply(message),
         Err(error) => {
             warn!("ignoring a message from the phone: {error:#}");
@@ -187,7 +192,7 @@ fn handle_frame(text: &str, controls: &mut MediaControls, now_playing: &mut NowP
     if let Some(notice) = now_playing.take_like_notice() {
         info!(liked = notice.liked, track = %notice.track, "the phone confirmed the like");
         announcer.announce(Announcement {
-            filled: notice.liked,
+            icon: if notice.liked { Icon::Heart } else { Icon::EmptyHeart },
             heading: if notice.liked { "Te gusta" } else { "Quitada de Me gusta" }.to_owned(),
             detail: notice.track,
         });

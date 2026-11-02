@@ -99,6 +99,24 @@ Si hay un vídeo oculto (`HIDE`) al que el teléfono puede volver con `UNHIDE`. 
 {"type":"hide.status","hidden":true}
 ```
 
+### `notice`
+
+Algo que el reproductor del teléfono no pudo hacer por una orden de la PC, para que la PC lo cuente. Desde la versión 2.4.
+
+| Campo | Tipo | Anulable | Restricciones |
+|---|---|---|---|
+| `title` | texto | No | Primera línea; no puede estar en blanco. |
+| `detail` | texto | No | Segunda línea: por qué, y dónde hacerlo. |
+
+- El teléfono lo envía cuando el reproductor no tiene el botón de `TOGGLE_LIKE` o `TOGGLE_SHUFFLE`, o cuando, 2 s después de pulsarlo, su estado sigue igual en la misma canción. Spotify, por ejemplo, ignora quitar una canción de "Tus me gusta" desde fuera de su app.
+- Solo por las órdenes de esa PC; las de la pantalla del teléfono se avisan en la propia pantalla.
+- Los textos vienen en el idioma del teléfono. La PC los muestra tal cual, en su aviso de la esquina inferior derecha.
+- Un cliente anterior lo ignora como tipo desconocido.
+
+```json
+{"type":"notice","title":"No se quitó de Me gusta","detail":"Spotify no deja hacerlo desde fuera. Hazlo en Spotify."}
+```
+
 ## 4. Mensajes de la PC al teléfono
 
 ### `hello`

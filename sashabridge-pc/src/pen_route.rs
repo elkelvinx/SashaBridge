@@ -157,7 +157,8 @@ fn handle(message: PhoneMessage, armed: &mut bool, owner: ClipboardOwner, tablet
         | PhoneMessage::MediaArt(_)
         | PhoneMessage::MediaState(_)
         | PhoneMessage::MediaCleared
-        | PhoneMessage::HideStatus(_) => None,
+        | PhoneMessage::HideStatus(_)
+        | PhoneMessage::Notice(_) => None,
     }
 }
 

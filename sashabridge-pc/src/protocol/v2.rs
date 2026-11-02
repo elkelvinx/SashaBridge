@@ -54,6 +54,49 @@ pub enum PhoneMessage {
     /// Whether a video is hidden on the phone that [`Command::Unhide`] can bring back.
     #[serde(rename = "hide.status")]
     HideStatus(HideStatus),
+    /// Something the player on the phone could not do for a command of this PC.
+    #[serde(rename = "notice")]
+    Notice(Notice),
+}
+
+/// Something the player on the phone could not do for a command of this PC, for the PC to
+/// tell the user: Spotify, for one, ignores taking a song out of "Tus me gusta" from outside
+/// its app. The texts come in the phone's language.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "WireNotice", into = "WireNotice")]
+pub struct Notice {
+    /// First line, such as "No se quitó de Me gusta"; never blank.
+    pub title: String,
+    /// Second line: why, and where to do it instead.
+    pub detail: String,
+}
+
+/// [`Notice`] as it travels, before its title is checked.
+#[derive(Serialize, Deserialize)]
+struct WireNotice {
+    /// [`Notice::title`], possibly blank.
+    title: String,
+    /// [`Notice::detail`].
+    detail: String,
+}
+
+impl TryFrom<WireNotice> for Notice {
+    type Error = &'static str;
+
+    /// Accepts any notice whose title is not blank.
+    fn try_from(wire: WireNotice) -> Result<Self, Self::Error> {
+        if wire.title.trim().is_empty() {
+            Err("title must not be blank")
+        } else {
+            Ok(Self { title: wire.title, detail: wire.detail })
+        }
+    }
+}
+
+impl From<Notice> for WireNotice {
+    fn from(notice: Notice) -> Self {
+        Self { title: notice.title, detail: notice.detail }
+    }
 }
 
 /// Whether the phone hides a video ([`Command::Hide`]).

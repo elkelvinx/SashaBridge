@@ -8,10 +8,12 @@ import android.media.session.PlaybackState
 import android.os.PowerManager
 import android.util.Log
 import android.view.KeyEvent
+import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.history.HistoryEntry
 import io.github.elkelvinx.sashabridge.history.AppKind
 import io.github.elkelvinx.sashabridge.history.AppKinds
+import io.github.elkelvinx.sashabridge.history.AppNames
 import io.github.elkelvinx.sashabridge.history.HistoryRepository
 import io.github.elkelvinx.sashabridge.history.PlayerLinks
 import io.github.elkelvinx.sashabridge.protocol.CommandAction
@@ -34,6 +36,11 @@ import kotlinx.coroutines.launch
  * in it and the other commands are ignored: a media key would go to the video.
  * [CommandAction.UNHIDE] goes back: it opens the video's app where it was and resumes it.
  *
+ * Like, shuffle and repeat are the player's own buttons ([PlayerToggle]). When the player has
+ * no such button, or ignores the press, the user hears about it ([onNotice]) instead of
+ * nothing happening: Spotify, for one, does not let other apps take a song out of
+ * "Tus me gusta".
+ *
  * Callable from any thread: the controller is read through a volatile field and
  * `TransportControls` are binder calls.
  *
@@ -42,6 +49,7 @@ import kotlinx.coroutines.launch
  * @param context Opens the hidden track in its player, and the video when going back.
  * @param history Gives the track to show while a video is hidden.
  * @param scope Scope of the service, with a main-thread dispatcher.
+ * @param onNotice Tells the user what a player could not do. Main thread.
  */
 class MediaCommandExecutor(
     private val tracker: MediaSessionTracker,
@@ -49,7 +57,11 @@ class MediaCommandExecutor(
     private val context: Context,
     private val history: HistoryRepository,
     private val scope: CoroutineScope,
+    private val onNotice: (PlayerNotice) -> Unit = {},
 ) {
+
+    /** Names of the players for the notices. Main thread. */
+    private val apps = AppNames(context.packageManager)
 
     /** The track shown by the latest [CommandAction.HIDE], or `null`. */
     @Volatile
@@ -68,8 +80,8 @@ class MediaCommandExecutor(
      */
     fun execute(command: PlayerCommand) {
         when (command) {
-            is PlayerCommand.Transport -> execute(command.command)
-            PlayerCommand.ToggleRepeat -> sendCustomAction("repeat", RepeatControl::findToggleAction)
+            is PlayerCommand.Transport -> execute(command.command, CommandOrigin.SCREEN)
+            PlayerCommand.ToggleRepeat -> press(PlayerToggle.REPEAT, RepeatControl::findToggleAction, CommandOrigin.SCREEN)
             is PlayerCommand.SkipToQueueItem -> {
                 val controller = tracker.currentController() ?: return
                 Log.d(LOG_TAG, "Skipping to queue item ${command.queueId} of ${controller.packageName}")
@@ -82,8 +94,9 @@ class MediaCommandExecutor(
      * Executes [command].
      *
      * @param command Command from the PC or from the screen.
+     * @param origin Where it came from, which decides who hears if the player refuses it.
      */
-    fun execute(command: PcMessage.Command) {
+    fun execute(command: PcMessage.Command, origin: CommandOrigin) {
         when (command.action) {
             CommandAction.HIDE -> return hide()
             CommandAction.UNHIDE -> return unhide()
@@ -108,8 +121,8 @@ class MediaCommandExecutor(
             CommandAction.NEXT -> controls.skipToNext()
             CommandAction.PREVIOUS -> controls.skipToPrevious()
             CommandAction.SEEK -> command.positionMs?.let(controls::seekTo)
-            CommandAction.TOGGLE_SHUFFLE -> sendCustomAction("shuffle", ShuffleControl::findToggleAction)
-            CommandAction.TOGGLE_LIKE -> sendCustomAction("like", LikeControl::findToggleAction)
+            CommandAction.TOGGLE_SHUFFLE -> press(PlayerToggle.SHUFFLE, ShuffleControl::findToggleAction, origin)
+            CommandAction.TOGGLE_LIKE -> press(PlayerToggle.LIKE, LikeControl::findToggleAction, origin)
             CommandAction.HIDE, CommandAction.UNHIDE -> Unit
         }
     }
@@ -197,24 +210,53 @@ class MediaCommandExecutor(
     }
 
     /**
-     * Presses one of the active player's own buttons, found among its custom actions.
+     * Presses one of the active player's own buttons, found among its custom actions, and
+     * tells the user if the player has none, or if [PlayerToggle.CHECK_MS] later its state
+     * shows it ignored the press.
      *
-     * @param name What the button does, for the log.
+     * @param toggle The button.
      * @param find Picks the button's action identifier from the player's custom actions.
+     * @param origin Where the command came from.
      */
-    private fun sendCustomAction(name: String, find: (List<String>) -> String?) {
+    private fun press(toggle: PlayerToggle, find: (List<String>) -> String?, origin: CommandOrigin) {
         val controller = tracker.currentController() ?: return
+        val source = controller.packageName
         val actions = controller.playbackState?.customActions.orEmpty()
         val action = find(actions.map { it.action })
         if (action == null) {
-            Log.w(LOG_TAG, "${controller.packageName} has no $name action; ignored")
+            Log.w(LOG_TAG, "$source has no $toggle action")
+            scope.launch { onNotice(notice(toggle, source, before = null, missing = true, origin)) }
             return
         }
+        val before = tracker.media.value
         // With the action's own extras, as Android's media panel presses it: a player may
         // expect them back (Spotify's carry CUSTOM_ACTION_SHOW_ON_WEAR).
         val extras = actions.firstOrNull { it.action == action }?.extras
-        Log.d(LOG_TAG, "Pressing $action of ${controller.packageName} with ${extras?.keySet()?.sorted() ?: "no extras"}")
+        Log.d(LOG_TAG, "Pressing $action of $source with ${extras?.keySet()?.sorted() ?: "no extras"}")
         controller.transportControls.sendCustomAction(action, extras)
+        if (before == null) return
+        scope.launch {
+            delay(PlayerToggle.CHECK_MS)
+            if (!toggle.ignored(before, tracker.media.value)) return@launch
+            Log.i(LOG_TAG, "$source ignored $action")
+            onNotice(notice(toggle, source, before, missing = false, origin))
+        }
+    }
+
+    /**
+     * The notice of a [toggle] that [source] lacks ([missing]) or ignored. Main thread.
+     *
+     * @param before The state when it was pressed: taking a like back reads differently.
+     */
+    private fun notice(toggle: PlayerToggle, source: String, before: MediaSnapshot?, missing: Boolean, origin: CommandOrigin): PlayerNotice {
+        val title = when (toggle) {
+            PlayerToggle.LIKE -> if (before?.liked == true) R.string.notice_like_remove else R.string.notice_like_add
+            PlayerToggle.SHUFFLE -> R.string.notice_shuffle
+            PlayerToggle.REPEAT -> R.string.notice_repeat
+        }
+        val detail = if (missing) R.string.notice_missing else R.string.notice_ignored
+        val app = apps.label(source)
+        return PlayerNotice(context.getString(title), context.getString(detail, app), origin)
     }
 
     /**
