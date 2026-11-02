@@ -116,22 +116,25 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | H15 | Cambiar el color primario con la vista previa abierta | La marca y los colores cambian al instante, en el mismo punto de la lista; la vista previa ya muestra el color nuevo |
 | H16 | Mover los dos deslizadores del fondo con su vista previa abierta y una canción sonando | La tarjeta de ejemplo, con la carátula de esa canción, cambia mientras se arrastra; al volver, la tarjeta del reproductor se ve igual |
 | H17 | Plegar las dos vistas previas, salir y volver | Siguen plegadas, sin dibujarse |
+| H18 | Un vídeo en pausa, puesto en pausa por ti; `Ctrl+Alt+O` dos veces | La primera muestra SashaBridge; la segunda abre el vídeo donde estaba, en pausa |
+| H19 | Un vídeo sonando; `Ctrl+Alt+O` tres veces, la tercera menos de 2 s después de la segunda | La tercera oculta el vídeo y queda en pausa; no sigue sonando detrás de SashaBridge |
 
 ### Historial y estadísticas (2.4)
 
 | ID | Escenario | Resultado esperado |
 |---|---|---|
-| E1 | Instalar la versión nueva sobre una con historial; abrir Historial | La app no se cierra; están las mismas escuchas que antes, salvo las que no tenían título (un navegador). Las repeticiones seguidas salen en una fila con "×N" |
-| E2 | Una canción con "repetir una" que vuelve a empezar y suena otros 30 s | Dos escuchas: la fila muestra "×2" |
-| E3 | Estadísticas → 7 días, 30 días, Este mes y Todo | Cada periodo cambia los totales y las listas; "Todo" cuenta también lo anterior a los 30 días |
-| E4 | Ver un vídeo de YouTube unos minutos; Estadísticas → Por app | YouTube aparece como "YouTube · vídeo", con su tiempo y la barra en gris. El vídeo no entra en el historial ni en "Más escuchadas" |
-| E5 | Un vídeo en YouTube Music (sin álbum) | Entra en el historial; en "Más escuchadas" lleva "· vídeo" junto al artista |
-| E6 | "Más escuchadas" con canciones de Spotify y de YouTube Music | Cada una con su carátula; tocar una la abre en su app |
-| E7 | Por día | 30 barras, la última es hoy, con el total de los 30 días |
-| E8 | Ajustes de Android → SashaBridge → Almacenamiento → Borrar caché; abrir Historial con conexión | Las carátulas vuelven: se descargan otra vez de su dirección |
-| E9 | Ajustes → "Borrar el historial" | La lista y las estadísticas quedan vacías |
-| E10 | Como H7, viendo también un vídeo | Tampoco suma tiempo en Estadísticas |
-| E11 | Tocar una barra de "Por día"; deslizar el dedo de lado; tocar otra vez la misma barra; deslizar en vertical desde el gráfico | Una burbuja con el día ("Hoy", "Ayer" o la fecha) y el tiempo exacto sobre la barra, que se resalta; al deslizar pasa de día en día con un toque de vibración; el segundo toque la cierra; en vertical se mueve la página |
+| HS1 | Instalar la versión nueva sobre una con historial; abrir Historial | La app no se cierra; están las mismas escuchas que antes, salvo las que no tenían título (un navegador). Las repeticiones seguidas salen en una fila con "×N" |
+| HS2 | Una canción con "repetir una" que vuelve a empezar y suena otros 30 s | Dos escuchas: la fila muestra "×2" |
+| HS3 | Estadísticas → 7 días, 30 días, Este mes y Todo | Cada periodo cambia los totales y las listas; "Todo" cuenta también lo anterior a los 30 días |
+| HS4 | Ver un vídeo de YouTube unos minutos; Estadísticas → Por app | YouTube aparece como "YouTube · vídeo", con su tiempo y la barra en gris. El vídeo no entra en el historial ni en "Más escuchadas" |
+| HS5 | Un vídeo en YouTube Music (sin álbum) | Entra en el historial; en "Más escuchadas" lleva "· vídeo" junto al artista |
+| HS6 | "Más escuchadas" con canciones de Spotify y de YouTube Music | Cada una con su carátula; tocar una la abre en su app |
+| HS7 | Por día | 30 barras, la última es hoy, con el total de los 30 días |
+| HS8 | Ajustes de Android → SashaBridge → Almacenamiento → Borrar caché; abrir Historial con conexión | Las carátulas vuelven: se descargan otra vez de su dirección |
+| HS9 | Ajustes → "Borrar el historial" | La lista y las estadísticas quedan vacías |
+| HS10 | Como H7, viendo también un vídeo | Tampoco suma tiempo en Estadísticas |
+| HS11 | Tocar una barra de "Por día"; deslizar el dedo de lado; tocar otra vez la misma barra; deslizar en vertical desde el gráfico | Una burbuja con el día ("Hoy", "Ayer" o la fecha) y el tiempo exacto sobre la barra, que se resalta; al deslizar pasa de día en día con un toque de vibración; el segundo toque la cierra; en vertical se mueve la página |
+| HS12 | Historial: tocar el encabezado "Ayer"; tocarlo otra vez; buscar algo de ayer con "Ayer" plegado | Se pliega con su número de escuchas a la vista y la flecha hacia abajo; se despliega; durante la búsqueda todos los días se ven abiertos y sin flecha |
 
 ### Carátulas (2.4)
 
@@ -140,6 +143,9 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | C1 | Carátula de la tarjeta con Spotify y con YouTube Music, en vertical y en horizontal | Nítida, sin bloques. El registro de la app dice el tamaño recibido (`Art 640x640 from content://...` en Spotify) |
 | C2 | Ocultar un vídeo cuando la app de música ya no tiene sesión | La carátula de la última canción se ve igual de nítida |
 | C3 | Panel de Windows durante C1 | La carátula sigue llegando a la PC como antes |
+| C4 | Con Wi-Fi, una canción nueva de Spotify y otra de YouTube Music | Al segundo, la carátula de la tarjeta pasa a la versión grande sin animación (`Sharper art 1000x1000` en Spotify). Con datos móviles no se descarga |
+| C5 | La carátula grande en horizontal | La tarjeta cabe entera en la pantalla: controles, barra de progreso y botones de Anotar y Tableta a la vista |
+| C6 | Tarjeta en vertical con Spotify | "Sonando", la pastilla Cola, el reloj del Historial y el icono de la app en la misma línea; reproducir, aleatorio, repetir y el corazón debajo, sin nada cortado |
 
 ## 4. Regresión de la versión 2.0
 
@@ -258,11 +264,27 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 
 | ID | Resultado | Evidencia |
 |---|---|---|
-| E1 | **Correcto** | La migración se ejecutó primero en la PC, con Room, sobre la copia, y después en el teléfono. Las dos dieron lo mismo: 208 escuchas, 161 canciones (140 canciones y 21 vídeos de YouTube Music), 172 resúmenes mensuales que suman 208, y "Castle Vein" con sus 11 escuchas; integridad correcta y versión 2. Sin cierres en `logcat -b crash`. La lista se ve con sus carátulas |
-| E3 | **Correcto** | En el teléfono: con 7 días y con Todo, 208 escuchas, 161 canciones y 142 artistas; con Este mes (noviembre), 25, 21 y 17. Son los mismos números que da la base |
-| E6 | **Parcial** | "Más escuchadas" muestra las carátulas migradas y "11 veces" en Castle Vein. Falta tocar una, que la abriría y la pondría a sonar |
-| E7 | **Correcto** | 30 barras hasta hoy; con 18 min de Spotify, "Últimos 30 días: 18 min en total". La versión 1 no medía el tiempo, así que todo empieza el 2 de noviembre |
-| E11 | **Correcto** | En el teléfono: "Hoy, 18 min" sobre la barra de hoy, junto al borde y con la flecha en la barra; "Vie 23 oct, Sin música" sobre un día vacío; el segundo toque la cierra; al deslizar de lado termina en el día bajo el dedo; en vertical se mueve la página |
+| HS1 | **Correcto** | La migración se ejecutó primero en la PC, con Room, sobre la copia, y después en el teléfono. Las dos dieron lo mismo: 208 escuchas, 161 canciones (140 canciones y 21 vídeos de YouTube Music), 172 resúmenes mensuales que suman 208, y "Castle Vein" con sus 11 escuchas; integridad correcta y versión 2. Sin cierres en `logcat -b crash`. La lista se ve con sus carátulas |
+| HS3 | **Correcto** | En el teléfono: con 7 días y con Todo, 208 escuchas, 161 canciones y 142 artistas; con Este mes (noviembre), 25, 21 y 17. Son los mismos números que da la base |
+| HS6 | **Parcial** | "Más escuchadas" muestra las carátulas migradas y "11 veces" en Castle Vein. Falta tocar una, que la abriría y la pondría a sonar |
+| HS7 | **Correcto** | 30 barras hasta hoy; con 18 min de Spotify, "Últimos 30 días: 18 min en total". La versión 1 no medía el tiempo, así que todo empieza el 2 de noviembre |
+| HS11 | **Correcto** | En el teléfono: "Hoy, 18 min" sobre la barra de hoy, junto al borde y con la flecha en la barra; "Vie 23 oct, Sin música" sobre un día vacío; el segundo toque la cierra; al deslizar de lado termina en el día bajo el dedo; en vertical se mueve la página |
 | C1 | **Parcial** | Spotify da la carátula a 640 x 640 (`Art 640x640 from content://...`). Ampliada, la de antes se veía borrosa y con bloques de JPEG, y la de ahora deja ver la malla del velo y las piedras de los aretes. Falta YouTube Music |
-| E4 | **Parcial** | "Por app" muestra Spotify con 18 min. Falta un vídeo de YouTube |
-| E2, E5, E8-E10, C2, C3 | **Pendiente** | Hay que escuchar música en el teléfono |
+| HS4 | **Parcial** | "Por app" muestra Spotify con 18 min. Falta un vídeo de YouTube |
+| HS2, HS5, HS8-HS10, C2, C3 | **Pendiente** | Hay que escuchar música en el teléfono |
+
+## 10. Pruebas de la iteración de carátulas y ocultar (2.4)
+
+- **Fecha:** 2026-11-02.
+- **Pruebas automáticas:** 155 tests de Android; lint sin avisos.
+
+| ID | Resultado | Evidencia |
+|---|---|---|
+| M1 | **Parcial** | YouTube Music: el pulgar pasa de `liked=false` a `true` (registro de las 11:24). Spotify: añadir funciona, pero quitar no. SashaBridge pulsó `CHECK_FILL` siete veces y Spotify lo ignoró, también con los datos extra de la acción; la ✓ del panel multimedia de Android tampoco lo quita. Es una limitación de Spotify (ver "Problemas conocidos" del README) |
+| H1 | **Correcto** | Con el cliente nuevo de la PC: ocultó, la segunda pulsación volvió a YouTube y lo reanudó (11:24:48), y la tercera ocultó otra vez |
+| HS12 | **Correcto** | En el teléfono: "HOY · 35 escuchas" se pliega y "AYER · 14 escuchas" sube debajo; tocarlo otra vez lo despliega |
+| C4 | **Parcial** | Spotify: 640 x 640 de la sesión y, un segundo después, `Sharper art 1000x1000` (y 1080 x 1080 en otra canción). YouTube Music: su servidor da hasta 600 px de esa carátula; falta verlo en el teléfono |
+| C5 | **Correcto** | La primera versión estiraba la tarjeta horizontal fuera de la pantalla con la carátula de 1000 px: `SquareImageView` medía el tamaño de la imagen. Corregido; con 1080 x 1080 la tarjeta cabe entera |
+| C6 | **Correcto** | Captura en vertical con Spotify: todo en una línea, nada cortado |
+| H18, H19 | **Pendiente** | Las prueba el usuario con un vídeo |
+

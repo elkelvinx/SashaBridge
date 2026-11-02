@@ -23,7 +23,8 @@ import kotlinx.coroutines.launch
 /**
  * The list page of the history screen (`page_history`): the plays of the last 30 days, newest
  * first, grouped by day, with the same song in a row folded into one row ("×3"), and a search
- * by title or artist.
+ * by title or artist. Touching the heading of a day folds its plays away, or unfolds them;
+ * folded days stay folded while the screen is open, but a search shows every day open.
  *
  * Main thread.
  *
@@ -51,7 +52,14 @@ internal class HistoryListPage(
         thumbnails = thumbnails,
         scope = scope,
         onOpen = onOpen,
+        onToggleDay = ::toggle,
     )
+
+    /** Days whose plays are folded away. */
+    private val folded = HashSet<LocalDate>()
+
+    /** The plays last read, to fold and unfold days without reading them again. */
+    private var entries: List<HistoryEntry> = emptyList()
 
     /** Words of the search, or `null`. */
     private var search: String? = null
@@ -76,11 +84,22 @@ internal class HistoryListPage(
         reading?.cancel()
         reading = scope.launch {
             delay(delayMs)
-            val entries = history.entries(search)
-            adapter.submitList(HistoryList.rows(entries, zone))
+            entries = history.entries(search)
+            show()
             empty.isVisible = entries.isEmpty()
             empty.setText(if (search.isNullOrBlank()) R.string.history_empty else R.string.history_no_results)
         }
+    }
+
+    /** Shows [entries] with the folded days folded, unless searching. */
+    private fun show() {
+        adapter.submitList(HistoryList.rows(entries, zone, folded, foldable = search.isNullOrBlank()))
+    }
+
+    /** Folds [date] away, or unfolds it. */
+    private fun toggle(date: LocalDate) {
+        if (!folded.add(date)) folded.remove(date)
+        show()
     }
 
     /** "Hoy", "Ayer", or the weekday and date. */

@@ -20,6 +20,16 @@ object ThumbnailSources {
     /** Side, in pixels, of the covers in lists. */
     const val SIZE_PX = 192
 
+    /** Side, in pixels, asked of Google's server for a sharp cover: the short side of the screen. */
+    private const val SHARP_PX = AlbumArtEncoder.SCREEN_MAX_PX
+
+    /**
+     * The size part of a Spotify album cover id after `/image/`, such as `ab67616d0000b273`
+     * (640 px); `ab67616d000082c1` is the 2000 px one.
+     */
+    private val SPOTIFY_ALBUM_IMAGE = Regex("/image/ab67616d[0-9a-f]{8}")
+    private const val SPOTIFY_SHARP_IMAGE = "/image/ab67616d000082c1"
+
     /** Spotify's public image server. */
     private const val SPOTIFY_IMAGE_SERVER = "https://i.scdn.co/image/"
 
@@ -46,9 +56,19 @@ object ThumbnailSources {
      */
     fun candidates(artUri: String): List<String> = when {
         artUri.startsWith(SPOTIFY_CONTENT) -> listOfNotNull(artUri, spotifyServer(artUri))
-        "googleusercontent.com" in artUri -> listOf(googleSized(artUri))
+        "googleusercontent.com" in artUri -> listOf(googleSized(artUri, SIZE_PX))
         artUri.startsWith("content://") || artUri.startsWith("https://") || artUri.startsWith("http://") -> listOf(artUri)
         else -> emptyList()
+    }
+
+    /**
+     * Where a sharper cover than the player's is, given its web address ([MediaSnapshot.artUrl]):
+     * Spotify's 2000 px album cover, or Google's asked for [SHARP_PX]; `null` for any other.
+     */
+    fun sharpUrl(artUrl: String): String? = when {
+        SPOTIFY_ALBUM_IMAGE.containsMatchIn(artUrl) -> SPOTIFY_ALBUM_IMAGE.replaceFirst(artUrl, SPOTIFY_SHARP_IMAGE)
+        "googleusercontent.com" in artUrl -> googleSized(artUrl, SHARP_PX).takeIf { it != artUrl }
+        else -> null
     }
 
     /** The 300 px cover on Spotify's public server, or `null` if [contentUri] has no image id. */
@@ -58,10 +78,10 @@ object ThumbnailSources {
         return SPOTIFY_IMAGE_SERVER + SPOTIFY_300_PREFIX + id.substring(SPOTIFY_PREFIX_LENGTH)
     }
 
-    /** [url] asking Google's image server for a [SIZE_PX] cover. */
-    private fun googleSized(url: String): String = when {
-        GOOGLE_SIZE.containsMatchIn(url) -> GOOGLE_SIZE.replaceFirst(url, "=w$SIZE_PX-h$SIZE_PX")
-        GOOGLE_SQUARE.containsMatchIn(url) -> GOOGLE_SQUARE.replaceFirst(url, "=s$SIZE_PX")
+    /** [url] asking Google's image server for a cover of [size] pixels. */
+    private fun googleSized(url: String, size: Int): String = when {
+        GOOGLE_SIZE.containsMatchIn(url) -> GOOGLE_SIZE.replaceFirst(url, "=w$size-h$size")
+        GOOGLE_SQUARE.containsMatchIn(url) -> GOOGLE_SQUARE.replaceFirst(url, "=s$size")
         else -> url
     }
 }

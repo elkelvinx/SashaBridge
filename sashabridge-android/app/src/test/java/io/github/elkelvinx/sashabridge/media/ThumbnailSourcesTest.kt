@@ -39,6 +39,32 @@ class ThumbnailSourcesTest {
         assertEquals(listOf("content://other/1"), ThumbnailSources.candidates("content://other/1"))
     }
 
+    /** The sharp cover: Spotify's 2000 px id on either of its servers, Google's at the screen size. */
+    @Test
+    fun sharpCovers() {
+        assertEquals(
+            "https://image-cdn.spotifycdn.com/image/ab67616d000082c1c6d81ed73dcd376f5d23cb36",
+            ThumbnailSources.sharpUrl("https://image-cdn.spotifycdn.com/image/ab67616d0000b273c6d81ed73dcd376f5d23cb36"),
+        )
+        assertEquals(
+            "https://i.scdn.co/image/ab67616d000082c17dcaf4cd40b76811e031f38c",
+            ThumbnailSources.sharpUrl("https://i.scdn.co/image/ab67616d00001e027dcaf4cd40b76811e031f38c"),
+        )
+        assertEquals(
+            "https://yt3.googleusercontent.com/kl2c=w1080-h1080-l90-rj",
+            ThumbnailSources.sharpUrl("https://yt3.googleusercontent.com/kl2c=w60-h60-l90-rj"),
+        )
+        assertEquals("https://lh3.googleusercontent.com/abc=s1080", ThumbnailSources.sharpUrl("https://lh3.googleusercontent.com/abc=s60"))
+    }
+
+    /** No sharper cover for an address without a size to change, or a podcast's image. */
+    @Test
+    fun noSharpCoverElsewhere() {
+        assertEquals(null, ThumbnailSources.sharpUrl("https://example.com/a.jpg"))
+        assertEquals(null, ThumbnailSources.sharpUrl("https://lh3.googleusercontent.com/abc"))
+        assertEquals(null, ThumbnailSources.sharpUrl("https://i.scdn.co/image/ab6765630000ba8a7dcaf4cd40b76811e031f38c"))
+    }
+
     /** A key of a cover the history keeps is not fetched from anywhere. */
     @Test
     fun keysAreNotAddresses() {

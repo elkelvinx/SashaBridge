@@ -52,6 +52,9 @@ class AlbumArtEncoder(private val resolver: ContentResolver? = null) {
     /** Generation id of the bitmap behind [cachedArt]. */
     private var cachedGenerationId: Int? = null
 
+    /** The bitmap behind [cachedArt], to recognize the same image sent again as a new bitmap. */
+    private var cachedBitmap: Bitmap? = null
+
     /** Result for the bitmap with [cachedGenerationId]. */
     private var cachedArt: AlbumArt? = null
 
@@ -75,10 +78,19 @@ class AlbumArtEncoder(private val resolver: ContentResolver? = null) {
             ?: return null
         if (bitmap.width <= 0 || bitmap.height <= 0) return null
         if (bitmap.generationId == cachedGenerationId) return cachedArt
+        // YouTube Music sends a new copy of the same image with every update; comparing the
+        // pixels costs far less than encoding them again. Hardware bitmaps keep their pixels
+        // out of reach, so they are encoded again.
+        val previous = cachedBitmap?.takeIf { it.config != Bitmap.Config.HARDWARE && bitmap.config != Bitmap.Config.HARDWARE }
+        if (previous != null && bitmap.sameAs(previous)) {
+            cachedGenerationId = bitmap.generationId
+            return cachedArt
+        }
 
         val art = withContext(Dispatchers.Default) { artOf(bitmap) }
         Log.d(LOG_TAG, "Art ${bitmap.width}x${bitmap.height} from the metadata")
         cachedGenerationId = bitmap.generationId
+        cachedBitmap = bitmap
         cachedArt = art
         return art
     }
@@ -165,7 +177,7 @@ class AlbumArtEncoder(private val resolver: ContentResolver? = null) {
          * [bitmap] as the screen keeps it: no larger than [SCREEN_MAX_PX], and in memory the
          * app can read (a hardware bitmap cannot be blurred for the card's backdrop).
          */
-        private fun forScreen(bitmap: Bitmap): Bitmap {
+        internal fun forScreen(bitmap: Bitmap): Bitmap {
             val readable = if (bitmap.config == Bitmap.Config.HARDWARE) bitmap.copy(Bitmap.Config.ARGB_8888, false) else bitmap
             val (width, height) = fitWithin(readable.width, readable.height, SCREEN_MAX_PX)
             return if (width == readable.width && height == readable.height) readable else readable.scale(width, height)

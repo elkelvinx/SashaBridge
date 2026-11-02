@@ -51,8 +51,14 @@ data class HistoryEntry(
 /** A row of the history screen: a day heading or a play. */
 sealed interface HistoryRow {
 
-    /** Heading of the plays of [date]. */
-    data class Day(val date: LocalDate) : HistoryRow
+    /**
+     * Heading of the plays of [date], which folds them away and unfolds them.
+     *
+     * @property plays How many plays the day has, repeats included.
+     * @property folded Whether its plays are hidden.
+     * @property foldable Whether touching it folds or unfolds it; not while searching.
+     */
+    data class Day(val date: LocalDate, val plays: Int, val folded: Boolean = false, val foldable: Boolean = true) : HistoryRow
 
     /**
      * A play, or several of the same song in a row ("×3"), shown as its newest.
@@ -66,29 +72,52 @@ sealed interface HistoryRow {
 object HistoryList {
 
     /**
-     * Puts a heading before the plays of each day, and folds the same song played several
-     * times in a row (repeat, or back to it) into one row with its count. The database keeps
-     * every play; folding them is only how the screen shows them.
+     * Puts a heading before the plays of each day, with how many it has, and folds the same
+     * song played several times in a row (repeat, or back to it) into one row with its count.
+     * The database keeps every play; folding them is only how the screen shows them.
      *
      * @param entries Plays, newest first.
      * @param zone Time zone that decides where a day starts.
+     * @param folded Days whose plays are hidden, only their heading shown.
+     * @param foldable Whether the days can be folded; while searching they cannot, and
+     *   [folded] is ignored, so no result is hidden.
      */
-    fun rows(entries: List<HistoryEntry>, zone: ZoneId): List<HistoryRow> {
+    fun rows(
+        entries: List<HistoryEntry>,
+        zone: ZoneId,
+        folded: Set<LocalDate> = emptySet(),
+        foldable: Boolean = true,
+    ): List<HistoryRow> {
         val rows = ArrayList<HistoryRow>(entries.size + entries.size / 8 + 1)
         var day: LocalDate? = null
+        var heading = -1
+        var plays = 0
+
+        /** Writes the finished day's heading, now that its plays are counted. */
+        fun closeDay() {
+            val date = day ?: return
+            rows[heading] = HistoryRow.Day(date, plays, folded = foldable && date in folded, foldable = foldable)
+        }
+
         for (entry in entries) {
             val date = Instant.ofEpochMilli(entry.playedAtMs).atZone(zone).toLocalDate()
-            val last = rows.lastOrNull()
-            if (date == day && last is HistoryRow.Play && last.entry.isSameSong(entry)) {
+            if (date != day) {
+                closeDay()
+                rows += HistoryRow.Day(date, plays = 0)
+                heading = rows.lastIndex
+                day = date
+                plays = 0
+            }
+            plays++
+            if (foldable && date in folded) continue
+            val last = rows.last()
+            if (last is HistoryRow.Play && last.entry.isSameSong(entry)) {
                 rows[rows.lastIndex] = last.copy(count = last.count + 1)
                 continue
             }
-            if (date != day) {
-                rows += HistoryRow.Day(date)
-                day = date
-            }
             rows += HistoryRow.Play(entry)
         }
+        closeDay()
         return rows
     }
 }

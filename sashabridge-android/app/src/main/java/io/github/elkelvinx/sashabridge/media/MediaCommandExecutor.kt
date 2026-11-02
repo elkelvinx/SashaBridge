@@ -17,6 +17,7 @@ import io.github.elkelvinx.sashabridge.history.PlayerLinks
 import io.github.elkelvinx.sashabridge.protocol.CommandAction
 import io.github.elkelvinx.sashabridge.protocol.PcMessage
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -53,6 +54,12 @@ class MediaCommandExecutor(
     /** The track shown by the latest [CommandAction.HIDE], or `null`. */
     @Volatile
     private var hiddenTrack: HistoryEntry? = null
+
+    /**
+     * The latest going back, while it may still ask the video to play ([resume]); a new hide
+     * cancels it, or its late "play" would start the video behind SashaBridge. Main thread.
+     */
+    private var goingBack: Job? = null
 
     /**
      * Executes a command of the app's screen.
@@ -113,6 +120,8 @@ class MediaCommandExecutor(
      */
     private fun hide() {
         scope.launch {
+            goingBack?.cancel()
+            goingBack = null
             val entry = history.latest()
             val fallback = entry?.let { HiddenPlayer.snapshotOf(it, history.latestCover(it)?.let { cover -> AlbumArtEncoder.fromImage(cover) }) }
             hiddenTrack = entry
@@ -122,34 +131,45 @@ class MediaCommandExecutor(
     }
 
     /**
-     * Goes back to what [hide] hid: opens the video's screen where it was and resumes every
-     * player the hiding paused. With the screen off or locked nothing changes, so no sound
-     * plays from a phone nobody looks at; once it is unlocked, the shortcut works again.
+     * Goes back to what [hide] hid: opens the video's screen where it was, and resumes the
+     * players the hiding paused. A video the user had paused opens paused. With the screen off
+     * or locked nothing changes, so no sound plays from a phone nobody looks at; once it is
+     * unlocked, the shortcut works again.
      */
     private fun unhide() {
         scope.launch {
-            if (!screenInUse()) {
-                Log.i(LOG_TAG, "The screen is off or locked; the video stays hidden")
-                return@launch
-            }
-            val players = tracker.unhide()
-            Log.i(LOG_TAG, "Back to ${players.map { it.packageName }.ifEmpty { listOf("nothing") }}")
-            val video = players.firstOrNull { AppKinds.of(it.packageName) != AppKind.MUSIC } ?: players.firstOrNull()
-                ?: return@launch
-            if (!PlayerScreen.open(context, video.packageName, video.sessionActivity)) {
-                Log.w(LOG_TAG, "Cannot open ${video.packageName} to go back to the video")
-            }
-            resume(players)
+            goingBack?.cancel()
+            goingBack = launch { goBack() }
         }
+    }
+
+    /** The work of [unhide]. Main thread. */
+    private suspend fun goBack() {
+        if (!screenInUse()) {
+            Log.i(LOG_TAG, "The screen is off or locked; the video stays hidden")
+            return
+        }
+        val hidden = tracker.unhide() ?: return
+        val paused = hidden.paused
+        Log.i(LOG_TAG, "Back to ${hidden.video ?: "no video"}, resuming ${paused.map { it.packageName }.ifEmpty { listOf("nothing") }}")
+        val screen = hidden.video?.let { it to hidden.videoSession?.sessionActivity }
+            ?: (paused.firstOrNull { AppKinds.of(it.packageName) != AppKind.MUSIC } ?: paused.firstOrNull())
+                ?.let { it.packageName to it.sessionActivity }
+        if (screen != null && !PlayerScreen.open(context, screen.first, screen.second)) {
+            Log.w(LOG_TAG, "Cannot open ${screen.first} to go back to the video")
+        }
+        resume(paused)
     }
 
     /**
      * Resumes [players]. A video app may ignore play until its screen is in front, which takes
-     * a moment, so a player that is not playing yet is asked again.
+     * a moment, so a player that is not playing yet is asked again, unless something was
+     * hidden again meanwhile.
      */
     private suspend fun resume(players: List<MediaController>) {
         for (wait in RESUME_WAITS_MS) {
             delay(wait)
+            if (tracker.hiddenSince.value != null) return
             players.filter { it.playbackState?.state != PlaybackState.STATE_PLAYING }
                 .forEach { it.transportControls.play() }
         }
@@ -184,14 +204,17 @@ class MediaCommandExecutor(
      */
     private fun sendCustomAction(name: String, find: (List<String>) -> String?) {
         val controller = tracker.currentController() ?: return
-        val actionIds = controller.playbackState?.customActions?.map { it.action }.orEmpty()
-        val action = find(actionIds)
+        val actions = controller.playbackState?.customActions.orEmpty()
+        val action = find(actions.map { it.action })
         if (action == null) {
             Log.w(LOG_TAG, "${controller.packageName} has no $name action; ignored")
             return
         }
-        Log.d(LOG_TAG, "Pressing $action of ${controller.packageName}")
-        controller.transportControls.sendCustomAction(action, null)
+        // With the action's own extras, as Android's media panel presses it: a player may
+        // expect them back (Spotify's carry CUSTOM_ACTION_SHOW_ON_WEAR).
+        val extras = actions.firstOrNull { it.action == action }?.extras
+        Log.d(LOG_TAG, "Pressing $action of ${controller.packageName} with ${extras?.keySet()?.sorted() ?: "no extras"}")
+        controller.transportControls.sendCustomAction(action, extras)
     }
 
     /**

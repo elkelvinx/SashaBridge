@@ -99,6 +99,8 @@
     <string name="history_subtitle">%1$s · %2$s</string>
     <string name="history_open_failed">No se pudo abrir %1$s.</string>
     <string name="history_count">×%1$d</string>
+    <string name="history_day_open">Desplegado</string>
+    <string name="history_day_folded">Plegado</string>
     <string name="history_tab_list">Historial</string>
     <string name="history_tab_stats">Estadísticas</string>
 
@@ -225,6 +227,11 @@
     <string name="settings_version">SashaBridge %1$s</string>
     <string name="blackout_description">Pantalla negra. Toca dos veces para ver SashaBridge.</string>
 
+    <plurals name="history_day_plays">
+        <item quantity="one">%1$d escucha</item>
+        <item quantity="many">%1$d escuchas</item>
+        <item quantity="other">%1$d escuchas</item>
+    </plurals>
     <plurals name="stats_times">
         <item quantity="one">%1$d vez</item>
         <item quantity="many">%1$d veces</item>

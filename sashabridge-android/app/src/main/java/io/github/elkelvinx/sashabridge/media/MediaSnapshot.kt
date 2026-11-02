@@ -8,8 +8,10 @@ import java.security.MessageDigest
  * Album art of a track, in two sizes: small for the wire, and as sharp as the player gave it
  * for this phone's screen.
  *
- * Two instances are equal when their [artId] is equal. This keeps [MediaSnapshot] comparisons
- * cheap and makes snapshots with the same image compare equal.
+ * Two instances are equal when their [artId] and the size of their [screen] image are equal.
+ * This keeps [MediaSnapshot] comparisons cheap and makes snapshots with the same image compare
+ * equal, while a sharper image of the same art, fetched later, is a change for the screen. The
+ * PC only looks at the [artId], so for it nothing changes.
  *
  * Immutable by contract; can be shared between threads.
  *
@@ -23,11 +25,12 @@ import java.security.MessageDigest
  */
 class AlbumArt(val artId: String, val jpeg: ByteArray, val screen: Bitmap? = null) {
 
-    override fun equals(other: Any?): Boolean = other is AlbumArt && other.artId == artId
+    override fun equals(other: Any?): Boolean =
+        other is AlbumArt && other.artId == artId && other.screen?.width == screen?.width && other.screen?.height == screen?.height
 
     override fun hashCode(): Int = artId.hashCode()
 
-    override fun toString(): String = "AlbumArt(artId=$artId, bytes=${jpeg.size})"
+    override fun toString(): String = "AlbumArt(artId=$artId, bytes=${jpeg.size}, screen=${screen?.let { "${it.width}x${it.height}" }})"
 }
 
 /**

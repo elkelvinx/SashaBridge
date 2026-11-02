@@ -39,12 +39,13 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- "Sonando" or "En pausa", and the icon of the player app. The icon is a
-                 separate view because it has its own size and appears and disappears. -->
+            <!-- "Sonando" or "En pausa"; the queue, when the player publishes one, and the
+                 history; and the icon of the player app, as in landscape. The row of controls
+                 below has no room for them on a phone held upright. -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="32dp"
-                tools:ignore="UseCompoundDrawables"
+                android:layout_height="wrap_content"
+                android:minHeight="36dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -55,6 +56,31 @@
                     android:layout_weight="1"
                     android:text="@string/label_now_playing"
                     android:textAppearance="@style/TextAppearance.SashaBridge.Label" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/queueButton"
+                    style="@style/Widget.Material3.Button.TonalButton.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="2dp"
+                    android:minHeight="0dp"
+                    android:paddingVertical="0dp"
+                    android:text="@string/button_queue"
+                    android:visibility="gone"
+                    app:icon="@drawable/ic_queue_music"
+                    tools:visibility="visible" />
+
+                <ImageButton
+                    android:id="@+id/historyButton"
+                    style="@style/Widget.SashaBridge.ControlButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="6dp"
+                    android:contentDescription="@string/button_history"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_history"
+                    android:tooltipText="@string/button_history" />
 
                 <ImageView
                     android:id="@+id/appIcon"
@@ -136,7 +162,7 @@
                     tools:text="en Spotify" />
             </LinearLayout>
 
-            <!-- Play/pause, shuffle, repeat, queue. -->
+            <!-- Play/pause, shuffle and repeat; the heart at the end. -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -171,36 +197,17 @@
                     android:visibility="gone"
                     tools:visibility="visible" />
 
-                <ImageButton
-                    android:id="@+id/likeButton"
-                    style="@style/Widget.SashaBridge.ControlButton"
-                    android:layout_marginStart="4dp"
-                    android:contentDescription="@string/control_like"
-                    android:src="@drawable/ic_favorite_border"
-                    android:visibility="gone"
-                    tools:visibility="visible" />
-
                 <Space
                     android:layout_width="0dp"
                     android:layout_height="0dp"
                     android:layout_weight="1" />
 
                 <ImageButton
-                    android:id="@+id/historyButton"
+                    android:id="@+id/likeButton"
                     style="@style/Widget.SashaBridge.ControlButton"
-                    android:layout_marginEnd="4dp"
-                    android:contentDescription="@string/button_history"
-                    android:src="@drawable/ic_history"
-                    android:tooltipText="@string/button_history" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/queueButton"
-                    style="@style/Widget.Material3.Button.TonalButton.Icon"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/button_queue"
+                    android:contentDescription="@string/control_like"
+                    android:src="@drawable/ic_favorite_border"
                     android:visibility="gone"
-                    app:icon="@drawable/ic_queue_music"
                     tools:visibility="visible" />
             </LinearLayout>
 

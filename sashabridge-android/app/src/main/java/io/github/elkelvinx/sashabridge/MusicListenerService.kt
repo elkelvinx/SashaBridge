@@ -3,6 +3,7 @@ package io.github.elkelvinx.sashabridge
 import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.media.AudioManager
+import android.net.ConnectivityManager
 import android.media.session.MediaSessionManager
 import android.os.Build
 import android.os.SystemClock
@@ -19,6 +20,7 @@ import io.github.elkelvinx.sashabridge.history.UsageMeter
 import io.github.elkelvinx.sashabridge.media.MediaCommandExecutor
 import io.github.elkelvinx.sashabridge.media.MediaSessionTracker
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
+import io.github.elkelvinx.sashabridge.media.SharpArtLoader
 import io.github.elkelvinx.sashabridge.pen.AnnotationRepository
 import io.github.elkelvinx.sashabridge.pen.TabletRepository
 import io.github.elkelvinx.sashabridge.pen.CaptureNotifier
@@ -98,6 +100,7 @@ class MusicListenerService : NotificationListenerService() {
             listenerComponent(),
             serviceScope,
             contentResolver,
+            SharpArtLoader(getSystemService(ConnectivityManager::class.java)),
         )
         commandExecutor = MediaCommandExecutor(
             tracker,

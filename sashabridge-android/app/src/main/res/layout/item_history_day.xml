@@ -1,11 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Heading of the tracks of one day: "Hoy", "Ayer" or the date. -->
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Heading of the tracks of one day: "Hoy", "Ayer" or the date, how many plays it has, and
+     the arrow of folding it. Touching it folds or unfolds the day. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/historyDay"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingTop="16dp"
-    android:paddingBottom="4dp"
-    android:textAppearance="@style/TextAppearance.SashaBridge.Label"
-    tools:text="Hoy" />
+    android:layout_marginTop="8dp"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="40dp"
+    android:orientation="horizontal">
+
+    <TextView
+        android:id="@+id/historyDay"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textAppearance="@style/TextAppearance.SashaBridge.Label"
+        tools:text="Hoy" />
+
+    <TextView
+        android:id="@+id/historyDayPlays"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="4dp"
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:textColor="@color/on_surface_muted"
+        tools:text="12 escuchas" />
+
+    <ImageView
+        android:id="@+id/historyDayChevron"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_expand_more"
+        app:tint="@color/on_surface_muted" />
+</LinearLayout>

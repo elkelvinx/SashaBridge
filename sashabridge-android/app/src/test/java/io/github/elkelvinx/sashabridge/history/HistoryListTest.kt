@@ -33,10 +33,10 @@ class HistoryListTest {
 
         assertEquals(
             listOf(
-                HistoryRow.Day(LocalDate.of(2026, 10, 30)),
+                HistoryRow.Day(LocalDate.of(2026, 10, 30), plays = 2),
                 HistoryRow.Play(late),
                 HistoryRow.Play(morning),
-                HistoryRow.Day(LocalDate.of(2026, 10, 29)),
+                HistoryRow.Day(LocalDate.of(2026, 10, 29), plays = 1),
                 HistoryRow.Play(yesterday),
             ),
             rows,
@@ -80,6 +80,39 @@ class HistoryListTest {
 
         assertEquals(listOf(2), HistoryList.rows(listOf(newer, older), zone).filterIsInstance<HistoryRow.Play>().map { it.count })
         assertEquals(2, HistoryList.rows(listOf(elsewhere, newer), zone).filterIsInstance<HistoryRow.Play>().size)
+    }
+
+    /** A folded day keeps only its heading, which still counts every play, repeats included. */
+    @Test
+    fun foldedDayKeepsOnlyItsHeading() {
+        val today = entry(4, LocalDateTime.of(2026, 10, 30, 9, 0))
+        fun yesterday(id: Long, title: String) = entry(id, LocalDateTime.of(2026, 10, 29, 20, id.toInt())).copy(title = title)
+        val entries = listOf(today, yesterday(3, "Snake"), yesterday(2, "Snake"), yesterday(1, "Radio"))
+        val folded = setOf(LocalDate.of(2026, 10, 29))
+
+        val rows = HistoryList.rows(entries, zone, folded)
+
+        assertEquals(
+            listOf(
+                HistoryRow.Day(LocalDate.of(2026, 10, 30), plays = 1),
+                HistoryRow.Play(today),
+                HistoryRow.Day(LocalDate.of(2026, 10, 29), plays = 3, folded = true),
+            ),
+            rows,
+        )
+    }
+
+    /** While searching nothing folds, so no result is hidden, and the headings cannot fold. */
+    @Test
+    fun searchResultsIgnoreFoldedDays() {
+        val yesterday = entry(1, LocalDateTime.of(2026, 10, 29, 20, 0))
+
+        val rows = HistoryList.rows(listOf(yesterday), zone, folded = setOf(LocalDate.of(2026, 10, 29)), foldable = false)
+
+        assertEquals(
+            listOf(HistoryRow.Day(LocalDate.of(2026, 10, 29), plays = 1, foldable = false), HistoryRow.Play(yesterday)),
+            rows,
+        )
     }
 
     /** No tracks, no rows. */

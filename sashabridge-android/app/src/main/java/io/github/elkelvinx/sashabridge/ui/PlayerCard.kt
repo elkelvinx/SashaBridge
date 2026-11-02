@@ -539,11 +539,19 @@ class PlayerCard(
      * without art. Art that changes within the same track cross-fades.
      *
      * The cover uses the art's image for the screen, as sharp as the player gave it; only art
-     * without one falls back to the PC's small JPEG.
+     * without one falls back to the PC's small JPEG. A sharper image of the art shown, which
+     * may arrive a moment later, replaces it in place: it looks the same, only finer.
      */
     private fun showArt(art: AlbumArt?, crossFade: Boolean) {
         val artId = art?.artId ?: NO_ART
-        if (artId == shownArtId) return
+        if (artId == shownArtId) {
+            val sharper = art?.screen
+            if (sharper != null && sharper !== shownBitmap) {
+                shownBitmap = sharper
+                cover.setImageBitmap(sharper)
+            }
+            return
+        }
         shownArtId = artId
         val bitmap = art?.let { it.screen ?: BitmapFactory.decodeByteArray(it.jpeg, 0, it.jpeg.size) }
         shownBitmap = bitmap

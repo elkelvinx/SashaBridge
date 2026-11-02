@@ -2,6 +2,7 @@ package io.github.elkelvinx.sashabridge.media
 
 import android.content.ComponentName
 import android.content.ContentResolver
+import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.Rating
 import android.media.session.MediaController
@@ -13,6 +14,8 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
+import io.github.elkelvinx.sashabridge.history.AppKind
+import io.github.elkelvinx.sashabridge.history.AppKinds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -48,12 +51,15 @@ import kotlinx.coroutines.withTimeoutOrNull
  * @param listenerComponent The app's notification listener, which grants access to the sessions.
  * @param scope Scope bound to the service lifetime, with a main-thread dispatcher.
  * @param contentResolver Reads the album art that players publish as a `content://` address.
+ * @param sharpArt Fetches sharper covers for the screen than the players give, or `null` for
+ *   none; see [askSharper].
  */
 class MediaSessionTracker(
     private val sessionManager: MediaSessionManager,
     private val listenerComponent: ComponentName,
     private val scope: CoroutineScope,
     contentResolver: ContentResolver,
+    private val sharpArt: SharpArtLoader? = null,
 ) {
 
     /** Handler for the system callbacks, so that they arrive on the main thread. */
@@ -71,6 +77,12 @@ class MediaSessionTracker(
 
     /** Encoder of the album art, with its cache. */
     private val artEncoder = AlbumArtEncoder(contentResolver)
+
+    /** Sharper images for the screen of the latest arts, by art id ([askSharper]). Main thread. */
+    private val sharpScreens = LinkedHashMap<String, Bitmap>()
+
+    /** Art ids whose sharper image was asked for, found or not, so each is asked once. Main thread. */
+    private val sharpAsked = LinkedHashSet<String>()
 
     /** Backing state of [media]. */
     private val mutableMedia = MutableStateFlow<MediaSnapshot?>(null)
@@ -193,12 +205,16 @@ class MediaSessionTracker(
      * Hides the video: pauses every player that plays and follows only [musicSource], paused,
      * until a player starts playing again ([endHiding]) or [unhide]. If [musicSource] has no
      * session, [fallback] is published instead. The video is never published meanwhile.
-     * Hiding again keeps the players paused the first time, to go back to them. Main thread.
+     *
+     * The video to go back to is the player shown when hiding, if it is not a music app,
+     * whether it played or the user had paused it. Hiding again keeps the first hiding's video
+     * and the players it paused, to go back to them. Main thread.
      *
      * @param musicSource Package of the music player to show, or `null` to show none.
      * @param fallback The track to show if that player has no session, or `null` for none.
      */
     fun hide(musicSource: String?, fallback: MediaSnapshot?) {
+        val shownVideo = activeController?.packageName?.takeIf { AppKinds.of(it) != AppKind.MUSIC }
         val paused = sessions.values
             .filter { it.controller.playbackState?.state.isActiveState() }
             .map { tracked ->
@@ -206,23 +222,45 @@ class MediaSessionTracker(
                 tracked.controller.transportControls.pause()
                 tracked.controller.packageName
             }
-        val earlier = hiding?.paused.orEmpty()
-        setHiding(Hiding(musicSource, fallback, SystemClock.elapsedRealtime(), earlier + paused))
+        val earlier = hiding
+        setHiding(
+            Hiding(
+                musicSource = musicSource,
+                fallback = fallback,
+                sinceMs = SystemClock.elapsedRealtime(),
+                paused = earlier?.paused.orEmpty() + paused,
+                video = earlier?.video ?: shownVideo,
+            ),
+        )
         signalChange()
     }
 
     /**
      * Ends the hiding to go back to what it hid. Main thread.
      *
-     * @return The sessions of the players [hide] paused, for the caller to open and resume;
-     *   empty if nothing is hidden or those players closed.
+     * @return What to go back to, or `null` if nothing is hidden.
      */
-    fun unhide(): List<MediaController> {
-        val current = hiding ?: return emptyList()
+    fun unhide(): Unhidden? {
+        val current = hiding ?: return null
         setHiding(null)
         signalChange()
-        return sessions.values.map { it.controller }.filter { it.packageName in current.paused }
+        val controllers = sessions.values.map { it.controller }
+        return Unhidden(
+            video = current.video,
+            videoSession = controllers.firstOrNull { it.packageName == current.video },
+            paused = controllers.filter { it.packageName in current.paused },
+        )
     }
+
+    /**
+     * What a hiding hid, for [unhide]'s caller to go back to.
+     *
+     * @property video Package of the video shown when hiding, or `null` if a music app was.
+     * @property videoSession Its session, or `null` if it has none any more.
+     * @property paused Sessions of the players the hiding paused, to resume; the user's own
+     *   pauses stay.
+     */
+    class Unhidden(val video: String?, val videoSession: MediaController?, val paused: List<MediaController>)
 
     /**
      * Ends the hiding once a player starts playing, except during the first [HIDE_GRACE_MS],
@@ -340,6 +378,9 @@ class MediaSessionTracker(
         val mediaId = metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID)?.takeIf { it.isNotEmpty() }
         val actionIds = state?.customActions?.map { it.action }.orEmpty()
         val actionNames = state?.customActions?.associate { it.action to it.name.toString() }.orEmpty()
+        val artUrl = artUrlOf(controller, metadata, title)
+        val art = artEncoder.encode(metadata)?.let(::sharpest)
+        art?.let { askSharper(it, artUrl) }
 
         return MediaSnapshot(
             trackId = MediaSnapshot.trackIdOf(
@@ -361,14 +402,42 @@ class MediaSessionTracker(
             positionUpdateTimeMs = state?.lastPositionUpdateTime ?: 0L,
             playbackSpeed = state?.playbackSpeed ?: 0f,
             shuffle = ShuffleControl.modeOf(actionIds, actionNames),
-            art = artEncoder.encode(metadata),
+            art = art,
             canRepeat = RepeatControl.findToggleAction(actionIds) != null,
             repeat = RepeatControl.modeOf(actionIds, actionNames),
             canLike = LikeControl.findToggleAction(actionIds) != null,
             liked = LikeControl.likedOf(actionIds, ratedUp(metadata)),
             mediaId = mediaId,
-            artUrl = artUrlOf(controller, metadata, title),
+            artUrl = artUrl,
         )
+    }
+
+    /** [art] with the sharper image fetched for it, if there is one. Main thread. */
+    private fun sharpest(art: AlbumArt): AlbumArt = sharpScreens[art.artId]?.let { AlbumArt(art.artId, art.jpeg, it) } ?: art
+
+    /**
+     * Fetches a sharper image of [art] for the screen when the player's is smaller than the
+     * card shows it and its server has a larger one ([SharpArtLoader]); once it arrives, the
+     * snapshot is built again with it. The PC keeps the same art. Main thread.
+     *
+     * @param artUrl The web address of the art, or `null` if the player gives none.
+     */
+    private fun askSharper(art: AlbumArt, artUrl: String?) {
+        val loader = sharpArt ?: return
+        val shown = art.screen ?: return
+        if (maxOf(shown.width, shown.height) >= SharpArtLoader.MIN_SIDE_PX) return
+        val url = artUrl?.let(ThumbnailSources::sharpUrl) ?: return
+        if (art.artId in sharpAsked || !loader.allowed()) return
+        sharpAsked += art.artId
+        if (sharpAsked.size > SHARP_ASKED_KEPT) sharpAsked.remove(sharpAsked.first())
+        scope.launch {
+            val sharp = loader.load(url) ?: return@launch
+            if (sharp.width <= shown.width) return@launch
+            Log.d(LOG_TAG, "Sharper art ${sharp.width}x${sharp.height} for ${art.artId}")
+            sharpScreens[art.artId] = sharp
+            if (sharpScreens.size > SHARP_SCREENS_KEPT) sharpScreens.remove(sharpScreens.keys.first())
+            changes.trySend(Unit)
+        }
     }
 
     /**
@@ -512,18 +581,26 @@ class MediaSessionTracker(
      * @property fallback What to publish while that player has no session, or `null`.
      * @property sinceMs `SystemClock.elapsedRealtime()` of the start of the hiding.
      * @property paused Packages of the players the hiding paused, to resume when going back.
+     * @property video Package of the video to go back to, or `null`; see [hide].
      */
     private class Hiding(
         val musicSource: String?,
         val fallback: MediaSnapshot?,
         val sinceMs: Long,
         val paused: Set<String>,
+        val video: String?,
     )
 
     companion object {
 
         /** Time without changes after which a burst of updates is considered finished. */
         const val QUIET_PERIOD_MS: Long = 150L
+
+        /** Sharper images kept: the track playing and the one before, for going back. */
+        private const val SHARP_SCREENS_KEPT = 2
+
+        /** Art ids remembered as asked for a sharper image. */
+        private const val SHARP_ASKED_KEPT = 64
 
         /** Spotify's extra with the web address of the cover (i.scdn.co). */
         private const val SPOTIFY_ART_URI = "com.spotify.music.extra.ART_HTTPS_URI"
