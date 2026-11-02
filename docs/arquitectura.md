@@ -46,6 +46,9 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 |---|---|
 | `MusicListenerService` | Servicio de escucha de notificaciones. Android lo enlaza cuando el usuario concede el acceso a notificaciones, y ese enlace es lo que permite leer las sesiones multimedia de otras apps. Solo coordina: arranca y detiene el resto. |
 | `media/MediaSessionTracker` | Observa todas las sesiones activas (`OnActiveSessionsChangedListener` y un `MediaController.Callback` por reproductor) y publica un `StateFlow<MediaSnapshot?>` con el reproductor elegido. Agrupa las ráfagas de cambios. |
+| `media/SnapshotReader`, `SharpArtCache` | Leen una sesión y arman el `MediaSnapshot` (metadatos, estado, botones del reproductor y carátula), y piden una vez la carátula grande de cada `artId`. |
+| `media/Hiding` | Las reglas de ocultar un vídeo, puras y con tests: qué vídeo recordar aunque estuviera en pausa, qué se pausó, el segundo de gracia y ocultar otra vez sin perder lo anterior. |
+| `media/ImageDecoding`, `Downloads`, `AppNames` | Lo común: decodificar una imagen no más grande de lo necesario, descargar por HTTPS con límites, y el nombre y el icono de cada app. Cada cosa en un solo sitio. |
 | `media/ActiveControllerPolicy` | Elige el reproductor: primero el que suena, después el que cambió de estado más recientemente y por último el orden del sistema. Mientras se oculta un vídeo, solo puede elegir el reproductor de música fijado. Lógica pura. |
 | `media/MediaSnapshot`, `PlaybackPositionCalculator` | Estado inmutable del reproductor y extrapolación de la posición al momento del envío. |
 | `media/AlbumArtEncoder` | Prepara dos copias de la carátula fuera del hilo principal: un JPEG de 300 px como máximo para la PC, del que sale su `artId`, y la imagen tal como la da el reproductor (hasta 1080 px) para la pantalla del teléfono, que nunca viaja. |
@@ -71,7 +74,10 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `server/BridgeServer` | Servidor WebSocket (Ktor 3, motor CIO) en `127.0.0.1:8080`. Arranque y parada serializados, reintento si el puerto está ocupado. |
 | `server/ClientSession` | Conversación con una PC: saludo, estado inicial, cambios y órdenes. |
 | `protocol/` | Tipos del protocolo v2 (`PhoneMessage`, `PcMessage`), su codificación (`ProtocolCodec`) y la traducción de estados a mensajes de una sesión (`MediaStateEncoder`). |
-| `ui/BridgePhase`, `ui/PlayerCard`, `MainActivity` | Pantalla: estado del puente, avisos de permisos y batería, Sasha, la tarjeta del reproductor con sus controles y la barra de progreso, y la pantalla negra de la forma de ocultar "Pantalla negra". |
+| `ui/BridgePhase`, `MainActivity` | Pantalla: estado del puente, avisos de permisos y batería, Sasha, y quién muestra qué. |
+| `ui/PlayerCard` | La tarjeta del reproductor: decide cuándo cambia la canción y coordina sus partes: `CoverArt` (carátula y fondo desenfocado), `CoverMotion` (cómo se mueve la carátula al cambiar), `PlayerControls` (botones y modos), `SeekRow` (barra, tiempos y onda) y `TitleFitter` (tamaño del título horizontal). |
+| `ui/DisplayMode`, `BlackoutOverlay` | Todo lo de la pantalla como adorno junto a la PC (barras, pantalla encendida mientras carga, desplazamiento OLED, 60 Hz), y la cubierta negra de "Pantalla negra". |
+| `ui/DayNames` | "Hoy", "Ayer" o la fecha, igual en el historial y en las estadísticas. |
 | `server/PenSession` | Conversación con una PC en la ruta `/pen`: estado de las dos pantallas del S Pen, capturas, anotaciones, monitor de la tableta, latencia y las muestras del lápiz en frames binarios. |
 | `pen/AnnotationRepository`, `pen/TabletRepository` | Estado compartido entre `PenSession` y cada pantalla del S Pen. |
 | `pen/AnnotateActivity`, `pen/InkCanvasView` | Modo Anotar: la captura (de la PC o compartida desde otra app), las herramientas (lápiz con presión, resaltador, línea, rectángulo, flecha, texto con tamaño, insertar imagen, Mover y Cambiar tamaño), deshacer y rehacer, y el menú "+" para enviar o descartar. |
@@ -117,7 +123,12 @@ La pantalla también ofrece funciones que el protocolo no lleva a la PC: **repet
 
 **Cambio de canción.** La tarjeta no cambia de canción hasta tener la carátula nueva. En cuanto empieza el cambio (un botón, o el primer estado de otra pista), la carátula actual se desliza y se frena mientras espera; cuando llega la imagen, sale del todo y entra la nueva desde el otro lado. Si la pista no trae carátula en 1,5 s, se muestra sin ella; si un salto no cambia nada en 3 s, la tarjeta vuelve a su sitio. La carátula sale hacia el lado de la canción nueva: con un botón, según el botón; si el cambio viene de la propia app o de la cola, según la posición de las dos canciones en la cola. Spotify envía la imagen entre 0,5 y 1,4 s después del título, pero publica su dirección `content://` (`ALBUM_ART_URI`) junto con el título, y `AlbumArtEncoder` la lee de ahí al momento.
 
-**Orientaciones.** `layout/` y `layout-land/` comparten las tarjetas `card_status`, `card_player` y `card_battery`, con los mismos identificadores, así que `PlayerCard` no distingue la orientación. En horizontal la pantalla se divide en dos columnas y el botón de apagar el puente no se muestra, para que girar el teléfono y usarlo como pantalla de "Sonando" no permita apagarlo por accidente.
+**Orientaciones.** El código no pregunta por la orientación; la deciden los recursos, igual que los diseños:
+- `layout/` y `layout-land/` tienen su versión de `activity_main`, `card_player` y `card_status`. Al girar, Android recrea la pantalla y elige la de la orientación. El estado vive fuera de la pantalla (`StateFlow`), así que no se pierde nada.
+- Las dos versiones usan los mismos identificadores, así que `PlayerCard` no distingue la orientación. Una vista que solo existe en una (el engranaje, los grupos de modos) es opcional para el código.
+- Una vista que existe en las dos debe ser de la misma clase: Android restaura el estado guardado de cada vista en la del mismo id, y otra clase cierra la app. `OrientationLayoutsTest` lo comprueba.
+- `R.bool.display_mode` vale `true` en `values-land`: es la única forma en que el código sabe que la pantalla es un adorno, y todo lo que eso cambia está en `DisplayMode`.
+- En horizontal la pantalla se divide en dos columnas y el botón de apagar el puente no se muestra, para que girar el teléfono y usarlo como pantalla de "Sonando" no permita apagarlo por accidente.
 
 **Horizontal como adorno.** En horizontal la pantalla está pensada para quedarse encendida junto a la PC, así que ahorra espacio y energía:
 - **Espacio:** sin barra de estado (la tarjeta de Estado muestra la batería y la hora), sin el pie de conexión, y la carátula ocupa el alto de su fila.
@@ -328,6 +339,8 @@ El recorte de Windows escribe el portapapeles más de una vez por captura. La PC
 | Avisar lo que el reproductor no hace, comprobándolo por su estado | Un botón que no hace nada parece un fallo de SashaBridge. La regla es la misma para cualquier app y no depende de saber qué acepta cada una: si Spotify llega a permitir quitar un me gusta, el aviso deja de salir solo. |
 | La carátula grande, solo con Wi-Fi y con el mismo `artId` | La de Spotify ocupa medio megabyte por canción. Con el mismo `artId`, la PC no recibe nada nuevo; la tarjeta cambia la imagen en el sitio, sin animación. |
 | `SquareImageView` no se mide por la imagen | La pantalla horizontal se desplaza: primero se mide sin alto, y la carátula pedía el tamaño de su imagen. Con la de 1000 px la tarjeta se salía de la pantalla. Ahora, sin alto ni ancho dados, no pide espacio, y el `ScrollView` la mide otra vez con el que queda. |
+| Operaciones de varios pasos, todo o nada | Una escucha, el tiempo por app, borrar el historial y la limpieza (`prune`) son transacciones de Room; en la limpieza, los archivos se borran después de la transacción, así que un corte deja como mucho archivos de más, nunca una canción que nombre uno borrado. Los archivos se escriben aparte y se renombran de un paso; la portada de la última canción es un solo archivo con el id de su canción en el nombre. |
+| Orientación por recursos (`values-land`), no por código | Android ya elige los diseños por orientación; con un `bool` elige también el comportamiento, y la regla vive en un solo sitio (`DisplayMode`). |
 | `VACUUM` solo con 256 KB libres o más | `VACUUM` reescribe el archivo entero. Hacerlo en cada limpieza gastaría escrituras para devolver unos pocos KB. |
 
 ## 6. Defectos corregidos

@@ -292,3 +292,17 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 | M11 | **Correcto** | Con "Punkrocker" en "Tus me gusta": `Pressing CHECK_FILL`, a los 2 s `com.spotify.music ignored CHECK_FILL` y el aviso inferior con el texto esperado; el corazón siguió lleno |
 | M12 | **Correcto** | Probado por el usuario tras reiniciar el cliente de la PC |
 
+## 11. Refactor (2.4)
+
+- **Fecha:** 2026-11-02.
+- **Pruebas automáticas:** 174 tests de Android (14 nuevos: `ImageDecoding`, `DayNames`, `DisplayMode`, `TitleFitter`, `Hiding` y `OrientationLayoutsTest`); lint sin avisos.
+- **Sin cambios de comportamiento**, un commit por paso:
+
+| Paso | Qué cambió | Comprobado en el teléfono |
+|---|---|---|
+| 1 | Un solo decodificador de imágenes, una sola descarga, `DayNames` y `AppNames` comunes | Carátula de la tarjeta e historial con "Hoy" y sus miniaturas |
+| 2 | `DisplayMode` y `R.bool.display_mode` en lugar de los `if (landscape)` | `KEEP_SCREEN_ON` cargando en horizontal, no en vertical, y otra vez al volver; sin cierres al girar |
+| 3 | `PlayerCard` (832 líneas) en `CoverArt`, `CoverMotion`, `PlayerControls`, `SeekRow` y `TitleFitter` (367) | La tarjeta se ve igual. **Pendiente:** la animación al cambiar de canción, con música |
+| 4 | `MediaSessionTracker` (620) en `Hiding`, `SnapshotReader` y `SharpArtCache` (442) | Lee el reproductor y su carátula; la PC se conecta |
+| 5 | Portada de la última canción y `prune`, todo o nada; `BlackoutOverlay` (`MainActivity`: 557 → 414) | La limpieza del arranque corre sin errores. **Pendiente:** la portada nueva tras 30 s de música y "Pantalla negra" (H4) |
+
