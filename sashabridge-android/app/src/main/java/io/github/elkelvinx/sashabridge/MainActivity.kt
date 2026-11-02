@@ -18,11 +18,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
-import android.view.GestureDetector
-import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
@@ -32,7 +28,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
@@ -54,6 +49,7 @@ import io.github.elkelvinx.sashabridge.settings.Appearance
 import io.github.elkelvinx.sashabridge.settings.HideStyle
 import io.github.elkelvinx.sashabridge.settings.SettingsActivity
 import io.github.elkelvinx.sashabridge.settings.SettingsRepository
+import io.github.elkelvinx.sashabridge.ui.BlackoutOverlay
 import io.github.elkelvinx.sashabridge.ui.BridgePhase
 import io.github.elkelvinx.sashabridge.ui.DisplayMode
 import io.github.elkelvinx.sashabridge.ui.FrameTicker
@@ -130,11 +126,8 @@ class MainActivity : AppCompatActivity() {
     /** Whether the phone charges, from the latest battery broadcast. */
     private var charging = false
 
-    /** Black cover of the [HideStyle.BLACKOUT] way of hiding a video; made on first use. */
-    private var blackout: View? = null
-
-    /** Whether [blackout] covers the screen. */
-    private var blackedOut = false
+    /** Black cover of the [HideStyle.BLACKOUT] way of hiding a video. Set in [onCreate]. */
+    private lateinit var blackout: BlackoutOverlay
 
     /** The hiding ([BridgeRepository.hiddenSince]) the user uncovered with a double tap. */
     private val uncovered = MutableStateFlow<Long?>(null)
@@ -156,6 +149,7 @@ class MainActivity : AppCompatActivity() {
         displayMode = DisplayMode(this)
         displayMode.preferRefreshRate()
         displayMode.applyBars()
+        blackout = BlackoutOverlay(this, displayMode) { uncovered.value = repository.hiddenSince.value }
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
@@ -357,62 +351,22 @@ class MainActivity : AppCompatActivity() {
 
     /** Keeps the screen on, or not, as [DisplayMode.keepsScreenOn] says. */
     private fun updateKeepScreenOn() {
-        displayMode.updateKeepScreenOn(charging, settings.keepScreenOn.value, covered = blackedOut)
+        displayMode.updateKeepScreenOn(charging, settings.keepScreenOn.value, covered = blackout.covering)
     }
 
     /** Runs the animations while the screen is started and not covered in black. */
     private fun updateTicker() {
-        if (started && !blackedOut) ticker.start() else ticker.stop()
+        if (started && !blackout.covering) ticker.start() else ticker.stop()
     }
 
     /**
      * Covers the screen in black, or uncovers it, for the [HideStyle.BLACKOUT] way of hiding a
-     * video: black over everything, no system bars and the lowest brightness, as if the phone
-     * were off. The screen still turns off on its own, and the animations stop meanwhile.
+     * video ([BlackoutOverlay]); the animations stop meanwhile, and the screen may turn off.
      */
     private fun showBlackout(on: Boolean) {
-        if (on == blackedOut) return
-        blackedOut = on
-        val cover = blackout ?: createBlackout().also { blackout = it }
-        cover.isVisible = on
-        window.attributes = window.attributes.apply {
-            screenBrightness = if (on) {
-                WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF
-            } else {
-                WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-            }
-        }
-        if (on) {
-            WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.systemBars())
-        } else {
-            displayMode.applyBars()
-        }
+        if (!blackout.show(on)) return
         updateKeepScreenOn()
         updateTicker()
-    }
-
-    /** Makes the black cover, over the whole window; a double tap uncovers SashaBridge. */
-    private fun createBlackout(): View {
-        val doubleTap = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onDown(e: MotionEvent): Boolean = true
-
-            override fun onDoubleTap(e: MotionEvent): Boolean {
-                uncovered.value = repository.hiddenSince.value
-                return true
-            }
-        })
-        return View(this).apply {
-            setBackgroundColor(Color.BLACK)
-            contentDescription = getString(R.string.blackout_description)
-            isVisible = false
-            // Every touch stays on the cover, so nothing underneath reacts.
-            setOnTouchListener { view, event ->
-                doubleTap.onTouchEvent(event)
-                if (event.action == MotionEvent.ACTION_UP) view.performClick()
-                true
-            }
-            addContentView(this, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        }
     }
 
     /**
