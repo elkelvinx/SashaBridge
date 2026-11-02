@@ -45,6 +45,12 @@ android {
     }
 }
 
+// OrientationLayoutsTest reads the layout files themselves, which Gradle does not count as
+// inputs of the unit tests: without this, a change to a layout alone would skip the tests.
+tasks.withType<Test>().configureEach {
+    inputs.dir("src/main/res").withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("resources")
+}
+
 room {
     // One JSON file per version of the history database: the schema to study, and what the
     // migration tests compare against. Kept in git.

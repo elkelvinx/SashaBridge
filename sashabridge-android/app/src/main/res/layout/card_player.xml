@@ -57,20 +57,29 @@
                     android:text="@string/label_now_playing"
                     android:textAppearance="@style/TextAppearance.SashaBridge.Label" />
 
-                <!-- An icon, like the history's, to keep the header light; landscape has room
-                     for the labelled pill. PlayerCard only treats it as a View. -->
-                <ImageButton
+                <!-- Only the icon, like the history's, to keep the header light; landscape has
+                     room for the labelled pill. Both are MaterialButtons on purpose: on rotation
+                     Android restores each view's saved state into the view with the same id,
+                     and a different class there closes the app. -->
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/queueButton"
-                    style="@style/Widget.SashaBridge.ControlButton"
+                    style="@style/Widget.Material3.Button.IconButton"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
                     android:layout_marginEnd="2dp"
                     android:contentDescription="@string/button_queue"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
                     android:padding="6dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_queue_music"
                     android:tooltipText="@string/button_queue"
                     android:visibility="gone"
+                    app:icon="@drawable/ic_queue_music"
+                    app:iconGravity="textStart"
+                    app:iconPadding="0dp"
+                    app:iconSize="24dp"
+                    app:iconTint="@color/on_surface"
                     tools:visibility="visible" />
 
                 <ImageButton
