@@ -288,7 +288,7 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 | C4 | **Parcial** | Spotify: 640 x 640 de la sesión y, un segundo después, `Sharper art 1000x1000` (y 1080 x 1080 en otra canción). YouTube Music: su servidor da hasta 600 px de esa carátula; falta verlo en el teléfono |
 | C5 | **Correcto** | La primera versión estiraba la tarjeta horizontal fuera de la pantalla con la carátula de 1000 px: `SquareImageView` medía el tamaño de la imagen. Corregido; con 1080 x 1080 la tarjeta cabe entera |
 | C6 | **Correcto** | Captura en vertical con Spotify: todo en una línea, nada cortado |
-| H18, H19 | **Pendiente** | Las prueba el usuario con un vídeo |
+| H18, H19 | **Correcto** | Probados por el usuario con el cliente nuevo: "aceptables" |
 | M11 | **Correcto** | Con "Punkrocker" en "Tus me gusta": `Pressing CHECK_FILL`, a los 2 s `com.spotify.music ignored CHECK_FILL` y el aviso inferior con el texto esperado; el corazón siguió lleno |
-| M12 | **Pendiente** | La PC necesita el cliente nuevo (`cargo run`) |
+| M12 | **Correcto** | Probado por el usuario tras reiniciar el cliente de la PC |
 

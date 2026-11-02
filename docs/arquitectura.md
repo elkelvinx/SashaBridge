@@ -361,5 +361,6 @@ Los identificadores vienen del plan de refactorización y de `docs/diagnostico-f
 
 - **Tableta mapeada a una ventana.** Hoy el área de dibujo corresponde a un monitor entero. Mapearla a una sola ventana daría más precisión en apps pequeñas.
 - **Ver la pantalla de la PC en el teléfono** mientras se dibuja en modo Tableta. Exige enviar vídeo de la PC al teléfono.
-- **Idiomas** (2.4): español, inglés y chino mandarín, con un selector en los ajustes.
+- **Refactor** (2.4): sin cambiar el comportamiento, un paso por commit y con los tests en verde: unificar el código repetido (decodificar imágenes, descargas, nombres de días y de apps), reunir lo de la pantalla horizontal en una sola clase, dividir `PlayerCard`, `MediaSessionTracker` y `MainActivity` por responsabilidades, y revisar que las operaciones de varios pasos sean atómicas (todo o nada).
+- **Idiomas** (2.4): español, inglés y chino simplificado, con un selector en los ajustes.
 - **Letras sincronizadas** (2.4), con traducción; antes, una prueba de que la fuente las tiene.
