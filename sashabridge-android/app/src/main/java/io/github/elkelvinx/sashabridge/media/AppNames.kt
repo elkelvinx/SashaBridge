@@ -1,11 +1,12 @@
-package io.github.elkelvinx.sashabridge.history
+package io.github.elkelvinx.sashabridge.media
 
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 
 /**
- * Names and icons of the apps the history and the statistics show, found once per app.
- * An app Android does not let this one see shows its package and no icon.
+ * Names and icons of the players and other apps the screens show (the player card, the
+ * history, the statistics, the notices), found once per app. An app Android does not let this
+ * one see shows its package and no icon.
  *
  * Main thread.
  */

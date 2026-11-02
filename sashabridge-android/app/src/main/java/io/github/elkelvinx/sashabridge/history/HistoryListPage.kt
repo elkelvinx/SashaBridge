@@ -8,7 +8,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
 import io.github.elkelvinx.sashabridge.R
+import io.github.elkelvinx.sashabridge.media.AppNames
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
+import io.github.elkelvinx.sashabridge.ui.DayNames
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -44,6 +46,7 @@ internal class HistoryListPage(
     private val zone: ZoneId = ZoneId.systemDefault()
     private val timeFormat = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
     private val dayFormat = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale.getDefault())
+    private val dayNames = DayNames(context, zone)
 
     private val adapter = HistoryAdapter(
         dayLabel = ::dayLabel,
@@ -103,14 +106,7 @@ internal class HistoryListPage(
     }
 
     /** "Hoy", "Ayer", or the weekday and date. */
-    private fun dayLabel(date: LocalDate): String {
-        val today = LocalDate.now(zone)
-        return when (date) {
-            today -> context.getString(R.string.history_today)
-            today.minusDays(1) -> context.getString(R.string.history_yesterday)
-            else -> dayFormat.format(date).replaceFirstChar { it.titlecase(Locale.getDefault()) }
-        }
-    }
+    private fun dayLabel(date: LocalDate): String = dayNames.of(date, dayFormat)
 
     /** The artist and the player of [entry], such as "VK Blanka · YouTube Music". */
     private fun subtitle(entry: HistoryEntry): String {

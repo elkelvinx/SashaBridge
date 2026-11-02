@@ -14,7 +14,7 @@ import com.google.android.material.color.MaterialColors
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.history.AppKind
-import io.github.elkelvinx.sashabridge.history.AppNames
+import io.github.elkelvinx.sashabridge.media.AppNames
 import io.github.elkelvinx.sashabridge.history.AppUsage
 import io.github.elkelvinx.sashabridge.history.ArtistStat
 import io.github.elkelvinx.sashabridge.history.HistoryEntry
@@ -24,6 +24,7 @@ import io.github.elkelvinx.sashabridge.history.SongKind
 import io.github.elkelvinx.sashabridge.history.SongStat
 import io.github.elkelvinx.sashabridge.history.StatsPeriod
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
+import io.github.elkelvinx.sashabridge.ui.DayNames
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -71,6 +72,7 @@ internal class StatsPage(
 
     /** A day in the bubble of the chart, with its weekday ("sáb 31 oct"). */
     private val bubbleDayFormat = DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault())
+    private val dayNames = DayNames(context)
 
     /** Counts and ranks with the digits and separators of the phone's language ("1,234"). */
     private val numbers = NumberFormat.getIntegerInstance()
@@ -208,14 +210,7 @@ internal class StatsPage(
     }
 
     /** "Hoy", "Ayer", or the weekday and date, for the bubble of the chart. */
-    private fun dayName(date: LocalDate): String {
-        val today = LocalDate.now()
-        return when (date) {
-            today -> context.getString(R.string.history_today)
-            today.minusDays(1) -> context.getString(R.string.history_yesterday)
-            else -> bubbleDayFormat.format(date).replaceFirstChar { it.titlecase(Locale.getDefault()) }
-        }
-    }
+    private fun dayName(date: LocalDate): String = dayNames.of(date, bubbleDayFormat)
 
     /** The music of a day for the bubble of the chart: its time, or that it had none. */
     private fun dayTime(ms: Long): String = when {

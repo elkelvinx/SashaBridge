@@ -13,7 +13,6 @@ import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.history.HistoryEntry
 import io.github.elkelvinx.sashabridge.history.AppKind
 import io.github.elkelvinx.sashabridge.history.AppKinds
-import io.github.elkelvinx.sashabridge.history.AppNames
 import io.github.elkelvinx.sashabridge.history.HistoryRepository
 import io.github.elkelvinx.sashabridge.history.PlayerLinks
 import io.github.elkelvinx.sashabridge.protocol.CommandAction

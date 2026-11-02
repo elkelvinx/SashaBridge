@@ -44,6 +44,7 @@ import com.google.android.material.snackbar.Snackbar
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
 import io.github.elkelvinx.sashabridge.history.HistoryActivity
+import io.github.elkelvinx.sashabridge.media.AppNames
 import io.github.elkelvinx.sashabridge.media.PlayerCommand
 import io.github.elkelvinx.sashabridge.media.PlayerScreen
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
@@ -119,11 +120,8 @@ class MainActivity : AppCompatActivity() {
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { openAnnotate() }
 
-    /** Display names of player packages, resolved once each. */
-    private val appLabels = HashMap<String, String>()
-
-    /** Launcher icons of player packages, resolved once each; `null` when not visible. */
-    private val appIcons = HashMap<String, Drawable?>()
+    /** Names and icons of the players. Set in [onCreate]. */
+    private lateinit var apps: AppNames
 
     /** The player card. Set in [onCreate]. */
     private lateinit var player: PlayerCard
@@ -211,14 +209,15 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.batteryButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         }
+        apps = AppNames(packageManager)
         player = PlayerCard(
             root = findViewById(R.id.main),
             onCommand = repository::sendCommand,
             onOpenQueue = ::openQueue,
             onOpenHistory = { startActivity(Intent(this, HistoryActivity::class.java)) },
             onOpenPlayer = ::openPlayer,
-            appLabel = ::appLabel,
-            appIcon = ::appIcon,
+            appLabel = apps::label,
+            appIcon = apps::icon,
         )
         sasha.ticker = ticker
         ticker.add(player::step)
@@ -460,30 +459,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Returns the name the user knows a player by, such as "Spotify", or the package name if
-     * Android does not let this app see it.
-     */
-    private fun appLabel(packageName: String): String = appLabels.getOrPut(packageName) {
-        try {
-            packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
-        } catch (_: PackageManager.NameNotFoundException) {
-            packageName
-        }
-    }
-
-    /**
-     * Returns the launcher icon of a player, such as Spotify's, or `null` if Android does not
-     * let this app see it, in which case the screen shows no icon.
-     */
-    private fun appIcon(packageName: String): Drawable? = appIcons.getOrPut(packageName) {
-        try {
-            packageManager.getApplicationIcon(packageName)
-        } catch (_: PackageManager.NameNotFoundException) {
-            null
-        }
-    }
-
-    /**
      * Asks for the display mode of [DISPLAY_HZ] at the current resolution, if the screen has
      * one. Android may still choose otherwise, for example in power saving.
      */
@@ -528,7 +503,7 @@ class MainActivity : AppCompatActivity() {
     /** Opens the play queue of the active player; touching a track jumps to it. */
     private fun openQueue() {
         val queue = repository.queue.value ?: return
-        QueueSheet.show(this, queue, appLabel(queue.source), ThumbnailStore.get(this), lifecycleScope) { queueId ->
+        QueueSheet.show(this, queue, apps.label(queue.source), ThumbnailStore.get(this), lifecycleScope) { queueId ->
             // The card answers the touch right away, the right way round.
             queue.directionTo(queueId)?.let(player::skipTo)
             repository.sendCommand(PlayerCommand.SkipToQueueItem(queueId))

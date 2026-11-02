@@ -12,9 +12,6 @@ import androidx.core.net.toUri
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import java.io.File
 import java.io.IOException
-import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
@@ -150,7 +147,7 @@ class ThumbnailStore private constructor(context: Context) {
 
     /** Downloads or reads [source] and makes it a square cover, or `null` on any failure. */
     private fun download(source: String): Bitmap? = try {
-        open(source)?.use { it.readBytes() }?.let(::squareCover)
+        read(source)?.let(::squareCover)
     } catch (e: IOException) {
         Log.d(LOG_TAG, "Cannot fetch the cover $source: $e")
         null
@@ -159,27 +156,17 @@ class ThumbnailStore private constructor(context: Context) {
         null
     }
 
-    /** Opens [source], a `content://` or `https://` address. */
-    private fun open(source: String): InputStream? {
-        if (source.startsWith(ContentResolver.SCHEME_CONTENT)) return resolver.openInputStream(source.toUri())
-        val connection = URL(source).openConnection() as HttpURLConnection
-        connection.connectTimeout = TIMEOUT_MS
-        connection.readTimeout = TIMEOUT_MS
-        if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-            connection.disconnect()
-            return null
+    /** The bytes of [source], a `content://` or `https://` address, or `null` if there are none. */
+    private fun read(source: String): ByteArray? =
+        if (source.startsWith(ContentResolver.SCHEME_CONTENT)) {
+            resolver.openInputStream(source.toUri())?.use { it.readBytes() }
+        } else {
+            Downloads.bytes(source)
         }
-        return connection.inputStream
-    }
 
     /** Decodes [bytes] small, crops the middle square and scales it to the list size. */
     private fun squareCover(bytes: ByteArray): Bitmap? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-        var sample = 1
-        while (min(bounds.outWidth, bounds.outHeight) / (sample * 2) >= ThumbnailSources.SIZE_PX) sample *= 2
-        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
-            ?: return null
+        val decoded = ImageDecoding.decode(bytes, ThumbnailSources.SIZE_PX, ImageDecoding.Side.SHORTEST) ?: return null
         val side = min(decoded.width, decoded.height)
         val square = Bitmap.createBitmap(decoded, (decoded.width - side) / 2, (decoded.height - side) / 2, side, side)
         return square.scale(ThumbnailSources.SIZE_PX, ThumbnailSources.SIZE_PX)
@@ -241,9 +228,6 @@ class ThumbnailStore private constructor(context: Context) {
         /** Kept covers before trimming, and how many stay after it: a few MB in all. */
         private const val MAX_FILES = 600
         private const val KEEP_FILES = 500
-
-        /** Connection and read timeout of a download. */
-        private const val TIMEOUT_MS = 8_000
 
         /** Quality of the kept WebP files. */
         private const val WEBP_QUALITY = 85

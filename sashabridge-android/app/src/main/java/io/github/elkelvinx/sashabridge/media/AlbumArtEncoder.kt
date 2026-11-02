@@ -2,7 +2,6 @@ package io.github.elkelvinx.sashabridge.media
 
 import android.content.ContentResolver
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.media.MediaMetadata
 import android.util.Log
 import androidx.core.graphics.scale
@@ -183,18 +182,8 @@ class AlbumArtEncoder(private val resolver: ContentResolver? = null) {
             return if (width == readable.width && height == readable.height) readable else readable.scale(width, height)
         }
 
-        /**
-         * Decodes [bytes], skipping whole halvings that would still leave more than
-         * [SCREEN_MAX_PX]; `null` if they are no image.
-         */
-        private fun decode(bytes: ByteArray): Bitmap? {
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-            var sample = 1
-            while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= SCREEN_MAX_PX) sample *= 2
-            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
-        }
+        /** Decodes [bytes] no smaller than the screen needs; `null` if they are no image. */
+        private fun decode(bytes: ByteArray): Bitmap? = ImageDecoding.decode(bytes, SCREEN_MAX_PX)
 
         /**
          * Scales [bitmap] to fit within [maxSide] and compresses it as JPEG at [quality].

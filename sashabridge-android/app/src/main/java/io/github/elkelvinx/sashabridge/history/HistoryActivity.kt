@@ -20,6 +20,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import io.github.elkelvinx.sashabridge.R
+import io.github.elkelvinx.sashabridge.media.AppNames
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
 import io.github.elkelvinx.sashabridge.settings.Appearance
 import io.github.elkelvinx.sashabridge.stats.StatsPage
