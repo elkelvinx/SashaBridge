@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Whether the main screen is a display left on next to the PC (DisplayMode). Android
+         picks the value with the layouts: this one in portrait, values-land's in landscape. -->
+    <bool name="display_mode">false</bool>
+</resources>

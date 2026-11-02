@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- In landscape the main screen is a display left on next to the PC (DisplayMode). -->
+    <bool name="display_mode">true</bool>
+</resources>

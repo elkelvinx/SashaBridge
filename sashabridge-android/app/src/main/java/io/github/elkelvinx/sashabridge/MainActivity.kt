@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
-import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.media.session.MediaSessionManager
@@ -35,7 +34,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -57,12 +55,11 @@ import io.github.elkelvinx.sashabridge.settings.HideStyle
 import io.github.elkelvinx.sashabridge.settings.SettingsActivity
 import io.github.elkelvinx.sashabridge.settings.SettingsRepository
 import io.github.elkelvinx.sashabridge.ui.BridgePhase
+import io.github.elkelvinx.sashabridge.ui.DisplayMode
 import io.github.elkelvinx.sashabridge.ui.FrameTicker
 import io.github.elkelvinx.sashabridge.ui.PlayerCard
 import io.github.elkelvinx.sashabridge.ui.QueueSheet
 import io.github.elkelvinx.sashabridge.ui.SashaView
-import kotlin.math.abs
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -78,10 +75,9 @@ import kotlinx.coroutines.launch
  *
  * Sasha, the dachshund the app is named after, shows the state too ([SashaView]).
  *
- * In landscape the screen is meant to stay on as a display next to the PC, so it saves space
- * and power: no status bar (the status card shows the battery and the time instead), the
- * screen stays on only while the phone charges (if the settings allow it), and every minute
- * the content moves a few pixels so no part of the OLED panel shows the same thing for hours.
+ * In landscape the screen is a display left on next to the PC: [DisplayMode] holds every rule
+ * of that (no status bar, on while charging, the OLED shift), and the landscape layouts give it
+ * the room it needs. This class never asks for the orientation itself.
  *
  * In portrait the header opens the settings ([SettingsActivity]). The screen takes the accent
  * chosen there, and is made again when it changes. While a video is hidden in the
@@ -104,11 +100,10 @@ class MainActivity : AppCompatActivity() {
     /** Whether notification access is granted; checked again whenever the screen resumes. */
     private val hasAccess = MutableStateFlow(false)
 
-    /** Whether the screen is in landscape, the display layout. */
-    private val landscape: Boolean
-        get() = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    /** What changes while the screen is a display next to the PC. Set in [onCreate]. */
+    private lateinit var displayMode: DisplayMode
 
-    /** Updates the battery level and keeps the screen on while charging in landscape. */
+    /** Updates the battery level and keeps the screen on while charging, as a display. */
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = showBattery(intent)
     }
@@ -158,14 +153,9 @@ class MainActivity : AppCompatActivity() {
         accent = Appearance.applyAccent(this)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
-        preferDisplayRate()
-        if (landscape) {
-            WindowCompat.getInsetsController(window, window.decorView).apply {
-                // A swipe from the top shows the status bar for a moment.
-                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                hide(WindowInsetsCompat.Type.statusBars())
-            }
-        }
+        displayMode = DisplayMode(this)
+        displayMode.preferRefreshRate()
+        displayMode.applyBars()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
@@ -253,7 +243,7 @@ class MainActivity : AppCompatActivity() {
                         settings.blackoutInPortrait,
                         uncovered,
                     ) { since, style, inPortrait, open ->
-                        since != null && style == HideStyle.BLACKOUT && (landscape || inPortrait) && since != open
+                        since != null && style == HideStyle.BLACKOUT && (displayMode.active || inPortrait) && since != open
                     }.distinctUntilChanged().collect(::showBlackout)
                 }
                 launch { settings.keepScreenOn.collect { updateKeepScreenOn() } }
@@ -266,7 +256,7 @@ class MainActivity : AppCompatActivity() {
                     // A new accent, chosen in the settings, needs the screen made again.
                     settings.accent.collect { if (it != accent) recreate() }
                 }
-                if (landscape) launch { shiftNowAndThen() }
+                launch { displayMode.shiftNowAndThen(findViewById(R.id.mainContent)) }
             }
         }
     }
@@ -346,8 +336,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Shows the battery level in the status card (landscape only, where the status bar is
-     * hidden) and, in landscape, keeps the screen on while the phone charges.
+     * Shows the battery level in the status card, where the layout has it (as a display the
+     * status bar is hidden), and keeps the screen on while the phone charges, as a display.
      *
      * @param battery An [Intent.ACTION_BATTERY_CHANGED] broadcast.
      */
@@ -365,16 +355,9 @@ class MainActivity : AppCompatActivity() {
         updateKeepScreenOn()
     }
 
-    /**
-     * Keeps the screen on in landscape while the phone charges, if the settings allow it; never
-     * under the black cover, which should let the screen turn off as usual.
-     */
+    /** Keeps the screen on, or not, as [DisplayMode.keepsScreenOn] says. */
     private fun updateKeepScreenOn() {
-        if (landscape && charging && settings.keepScreenOn.value && !blackedOut) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        }
+        displayMode.updateKeepScreenOn(charging, settings.keepScreenOn.value, covered = blackedOut)
     }
 
     /** Runs the animations while the screen is started and not covered in black. */
@@ -399,13 +382,10 @@ class MainActivity : AppCompatActivity() {
                 WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
             }
         }
-        WindowCompat.getInsetsController(window, window.decorView).run {
-            if (on) {
-                hide(WindowInsetsCompat.Type.systemBars())
-            } else {
-                show(WindowInsetsCompat.Type.navigationBars())
-                if (landscape) hide(WindowInsetsCompat.Type.statusBars()) else show(WindowInsetsCompat.Type.statusBars())
-            }
+        if (on) {
+            WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            displayMode.applyBars()
         }
         updateKeepScreenOn()
         updateTicker()
@@ -433,47 +413,6 @@ class MainActivity : AppCompatActivity() {
             }
             addContentView(this, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         }
-    }
-
-    /**
-     * Every minute moves the content to the next of a few positions within [SHIFT_DP] of its
-     * place, so a display left on for hours does not wear the same pixels of the OLED panel.
-     * Runs while the screen is visible.
-     */
-    private suspend fun shiftNowAndThen() {
-        // Only the landscape layout has it.
-        val content = findViewById<View?>(R.id.mainContent) ?: return
-        val step = SHIFT_DP * resources.displayMetrics.density
-        var position = 0
-        try {
-            while (true) {
-                delay(SHIFT_INTERVAL_MS)
-                position = (position + 1) % SHIFTS.size
-                content.translationX = SHIFTS[position].first * step
-                content.translationY = SHIFTS[position].second * step
-            }
-        } finally {
-            content.translationX = 0f
-            content.translationY = 0f
-        }
-    }
-
-    /**
-     * Asks for the display mode of [DISPLAY_HZ] at the current resolution, if the screen has
-     * one. Android may still choose otherwise, for example in power saving.
-     */
-    private fun preferDisplayRate() {
-        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            display
-        } else {
-            @Suppress("DEPRECATION")
-            windowManager.defaultDisplay
-        } ?: return
-        val current = display.mode
-        val mode = display.supportedModes
-            .filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
-            .minByOrNull { abs(it.refreshRate - DISPLAY_HZ) } ?: return
-        window.attributes = window.attributes.apply { preferredDisplayModeId = mode.modeId }
     }
 
     /**
@@ -515,18 +454,7 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
 
-        /**
-         * Refresh rate this screen asks for: 66 ms steps of its animations are exactly 4
-         * frames, and a frame has 16.6 ms to be drawn instead of the 8.3 ms of 120 Hz.
-         */
-        const val DISPLAY_HZ = 60f
-
         /** Battery levels are shown in percent. */
         const val PERCENT = 100
-
-        /** The landscape content moves every minute, by up to 3 dp, through these offsets. */
-        const val SHIFT_INTERVAL_MS = 60_000L
-        const val SHIFT_DP = 3f
-        val SHIFTS = listOf(0 to 0, 1 to 0, 1 to 1, 0 to 1, -1 to 1, -1 to 0, -1 to -1, 0 to -1)
     }
 }
