@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The statistics: the period, four totals, the music of each of the last 30 days, the time
+     of each app, and the most played songs and artists. The rows of the lists are made by the
+     code. A note replaces everything while there is nothing to count. -->
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:id="@+id/statsContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="24dp">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/statsPeriods"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:selectionRequired="true"
+            app:singleLine="true"
+            app:singleSelection="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/periodWeek"
+                style="@style/Widget.SashaBridge.PeriodChip"
+                android:text="@string/stats_period_week" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/periodDays30"
+                style="@style/Widget.SashaBridge.PeriodChip"
+                android:text="@string/stats_period_30" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/periodMonth"
+                style="@style/Widget.SashaBridge.PeriodChip"
+                android:text="@string/stats_period_month" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/periodAll"
+                style="@style/Widget.SashaBridge.PeriodChip"
+                android:text="@string/stats_period_all" />
+        </com.google.android.material.chip.ChipGroup>
+
+        <TextView
+            android:id="@+id/statsEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="48dp"
+            android:text="@string/stats_empty"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="@color/on_surface_muted"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/statsBody"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Four totals, two by two. -->
+            <LinearLayout style="@style/Widget.SashaBridge.StatTileRow">
+
+                <com.google.android.material.card.MaterialCardView style="@style/Widget.SashaBridge.StatTile">
+
+                    <LinearLayout style="@style/Widget.SashaBridge.StatTileContent">
+
+                        <TextView
+                            android:id="@+id/statListened"
+                            style="@style/Widget.SashaBridge.StatValue"
+                            tools:text="12 h 40 min" />
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.StatLabel"
+                            android:text="@string/stats_listened" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.SashaBridge.StatTile"
+                    android:layout_marginStart="12dp">
+
+                    <LinearLayout style="@style/Widget.SashaBridge.StatTileContent">
+
+                        <TextView
+                            android:id="@+id/statPlays"
+                            style="@style/Widget.SashaBridge.StatValue"
+                            tools:text="311" />
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.StatLabel"
+                            android:text="@string/stats_plays" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <LinearLayout style="@style/Widget.SashaBridge.StatTileRow">
+
+                <com.google.android.material.card.MaterialCardView style="@style/Widget.SashaBridge.StatTile">
+
+                    <LinearLayout style="@style/Widget.SashaBridge.StatTileContent">
+
+                        <TextView
+                            android:id="@+id/statSongs"
+                            style="@style/Widget.SashaBridge.StatValue"
+                            tools:text="184" />
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.StatLabel"
+                            android:text="@string/stats_songs" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.SashaBridge.StatTile"
+                    android:layout_marginStart="12dp">
+
+                    <LinearLayout style="@style/Widget.SashaBridge.StatTileContent">
+
+                        <TextView
+                            android:id="@+id/statArtists"
+                            style="@style/Widget.SashaBridge.StatValue"
+                            tools:text="97" />
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.StatLabel"
+                            android:text="@string/stats_artists" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Music of each of the last 30 days. -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SashaBridge.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsHeading"
+                        android:text="@string/stats_days_title" />
+
+                    <TextView
+                        android:id="@+id/statsDaysTotal"
+                        style="@style/Widget.SashaBridge.SettingsDetail"
+                        android:layout_marginStart="0dp"
+                        tools:text="38 h 12 min en total" />
+
+                    <io.github.elkelvinx.sashabridge.stats.DayBarsView
+                        android:id="@+id/statsDays"
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp"
+                        android:layout_marginTop="12dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/statsDaysFirst"
+                            style="@style/Widget.SashaBridge.SliderEnd"
+                            tools:text="2 oct" />
+
+                        <TextView
+                            style="@style/Widget.SashaBridge.SliderEnd"
+                            android:gravity="end"
+                            android:text="@string/history_today" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Time of each app. -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SashaBridge.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsHeading"
+                        android:text="@string/stats_apps_title" />
+
+                    <LinearLayout
+                        android:id="@+id/statsApps"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Most played songs. -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SashaBridge.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsHeading"
+                        android:text="@string/stats_songs_title" />
+
+                    <LinearLayout
+                        android:id="@+id/statsSongs"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Most played artists. -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SashaBridge.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsHeading"
+                        android:text="@string/stats_artists_title" />
+
+                    <LinearLayout
+                        android:id="@+id/statsArtists"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

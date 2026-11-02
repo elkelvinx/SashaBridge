@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- An artist of the ranking: their place, name, and how many times their songs played. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="44dp"
+    android:orientation="horizontal">
+
+    <TextView
+        android:id="@+id/statArtistRank"
+        style="@style/Widget.SashaBridge.StatRank"
+        tools:text="1" />
+
+    <TextView
+        android:id="@+id/statArtistName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="12dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="?attr/textAppearanceBodyLarge"
+        android:textColor="@color/on_surface"
+        tools:text="Heaven Pierce Her" />
+
+    <TextView
+        android:id="@+id/statArtistPlays"
+        style="@style/Widget.SashaBridge.CountBadge"
+        tools:text="14 veces" />
+</LinearLayout>

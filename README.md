@@ -50,7 +50,7 @@ Sin `-InstallApp` no hace falta el teléfono. El proceso completo, incluidos los
 
 ## Uso
 
-En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar los modos aleatorio y repetir, dar "me gusta" (el corazón de Spotify o el pulgar de YouTube Music), mover la posición y ver la cola de la app que suena, con la carátula de cada canción. Tocar el icono de la app que suena (Spotify, YouTube Music...) la abre. **Historial** muestra las canciones escuchadas en los últimos 50 días, por día y con su carátula, y permite buscar por canción o artista. Una canción entra después de 30 segundos de escucharla, o de la mitad si dura menos, y tocarla la abre en su app. Los vídeos (YouTube, Netflix...) no entran. En horizontal muestra el estado y el reproductor en dos columnas. Su botón principal, en vertical, enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
+En el teléfono, la app SashaBridge muestra si el puente está encendido, si hay una PC conectada y qué canción suena, con controles para pasar de canción, pausar, cambiar los modos aleatorio y repetir, dar "me gusta" (el corazón de Spotify o el pulgar de YouTube Music), mover la posición y ver la cola de la app que suena, con la carátula de cada canción. Tocar el icono de la app que suena (Spotify, YouTube Music...) la abre. **Historial** tiene dos pestañas. La primera muestra las canciones escuchadas en los últimos 30 días, por día y con su carátula, y permite buscar por canción o artista; una canción que suena varias veces seguidas ocupa una fila con "×N". Una canción entra después de 30 segundos de escucharla, o de la mitad si dura menos, y tocarla la abre en su app. Los vídeos (YouTube, Netflix...) no entran. La segunda, **Estadísticas**, muestra por periodo (7 días, 30 días, este mes o todo) el tiempo con música, las escuchas, las canciones y los artistas, la música de cada uno de los últimos 30 días, el tiempo de cada app (también el de los vídeos, sin sus títulos) y lo más escuchado. Las estadísticas se conservan aunque la lista solo guarde 30 días. En horizontal muestra el estado y el reproductor en dos columnas. Su botón principal, en vertical, enciende o apaga el puente. Si falta el acceso a notificaciones, o si Android puede congelar la app en segundo plano, la pantalla lo indica con un acceso directo al ajuste correspondiente.
 
 En la PC:
 
@@ -101,7 +101,7 @@ En vertical, el engranaje de la pantalla principal abre los ajustes:
 - **Ocultar un vídeo:** "Mostrar la música en pausa" (lo descrito arriba) o "Pantalla negra", en la que el teléfono parece apagado: negro, sin barras y con el brillo al mínimo. Tocar dos veces la pantalla negra muestra SashaBridge. Con la pantalla negra aparece "También en vertical": si se apaga, la pantalla negra solo sale en horizontal y en vertical se ve la música en pausa.
 - **Volver al vídeo con otra pulsación:** si se desactiva, `Ctrl+Alt+O` siempre oculta.
 - **Pantalla horizontal:** mantenerla encendida mientras carga, o dejar que se apague como siempre.
-- **Historial:** dejar de guardar las canciones, o borrarlo entero con sus carátulas.
+- **Historial:** dejar de guardar las canciones y el tiempo de cada app, o borrarlo entero, con sus carátulas y las estadísticas.
 
 ### Anotar
 

@@ -10,7 +10,8 @@ import android.util.Log
 import android.view.KeyEvent
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.history.HistoryEntry
-import io.github.elkelvinx.sashabridge.history.HistoryRecorder
+import io.github.elkelvinx.sashabridge.history.AppKind
+import io.github.elkelvinx.sashabridge.history.AppKinds
 import io.github.elkelvinx.sashabridge.history.HistoryRepository
 import io.github.elkelvinx.sashabridge.history.PlayerLinks
 import io.github.elkelvinx.sashabridge.protocol.CommandAction
@@ -133,7 +134,7 @@ class MediaCommandExecutor(
             }
             val players = tracker.unhide()
             Log.i(LOG_TAG, "Back to ${players.map { it.packageName }.ifEmpty { listOf("nothing") }}")
-            val video = players.firstOrNull { !HistoryRecorder.isMusic(it.packageName) } ?: players.firstOrNull()
+            val video = players.firstOrNull { AppKinds.of(it.packageName) != AppKind.MUSIC } ?: players.firstOrNull()
                 ?: return@launch
             if (!PlayerScreen.open(context, video.packageName, video.sessionActivity)) {
                 Log.w(LOG_TAG, "Cannot open ${video.packageName} to go back to the video")

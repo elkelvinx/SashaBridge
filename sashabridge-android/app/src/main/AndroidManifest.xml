@@ -13,6 +13,21 @@
         <intent>
             <action android:name="android.intent.action.MEDIA_BUTTON" />
         </intent>
+        <!-- Video apps and browsers, whose names and icons the statistics show next to their time. -->
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.google.android.apps.youtube.kids" />
+        <package android:name="com.netflix.mediaclient" />
+        <package android:name="com.amazon.avod.thirdpartyclient" />
+        <package android:name="com.disney.disneyplus" />
+        <package android:name="com.wbd.stream" />
+        <package android:name="tv.twitch.android.app" />
+        <package android:name="com.crunchyroll.crunchyroid" />
+        <package android:name="com.android.chrome" />
+        <package android:name="com.sec.android.app.sbrowser" />
+        <package android:name="org.mozilla.firefox" />
+        <package android:name="com.microsoft.emmx" />
+        <package android:name="com.opera.browser" />
+        <package android:name="com.brave.browser" />
     </queries>
 
     <application

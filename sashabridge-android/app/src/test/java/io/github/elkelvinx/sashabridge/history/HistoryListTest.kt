@@ -43,9 +43,9 @@ class HistoryListTest {
         )
     }
 
-    /** Runs of the same song keep only the newest; the same song later on is kept. */
+    /** The same song several times in a row is one row with its count; later on, another row. */
     @Test
-    fun repeatsInARowAreOneListening() {
+    fun repeatsInARowFoldIntoOneRow() {
         fun song(id: Long, title: String) = entry(id, LocalDateTime.of(2026, 10, 30, 12, id.toInt())).copy(title = title)
         val entries = listOf(
             song(6, "Run Rabbit"),
@@ -53,19 +53,33 @@ class HistoryListTest {
             song(4, "Run Rabbit"),
             song(3, "Snake"),
             song(2, "Run Rabbit"),
-            song(1, "Snake"),
         )
 
-        assertEquals(listOf(5L, 4L), HistoryList.repeats(entries))
+        val plays = HistoryList.rows(entries, zone).filterIsInstance<HistoryRow.Play>()
+
+        assertEquals(listOf(6L to 3, 3L to 1, 2L to 1), plays.map { it.entry.id to it.count })
     }
 
-    /** The same title by another artist or in another player is another song. */
+    /** Plays of the same song on two days are two rows, one under each day. */
     @Test
-    fun sameTitleElsewhereIsAnotherSong() {
-        val spotify = entry(2, LocalDateTime.of(2026, 10, 30, 12, 2))
-        val youTubeMusic = entry(1, LocalDateTime.of(2026, 10, 30, 12, 1)).copy(source = "com.google.android.apps.youtube.music")
+    fun repeatsDoNotFoldAcrossDays() {
+        val today = entry(2, LocalDateTime.of(2026, 10, 30, 0, 5))
+        val yesterday = entry(1, LocalDateTime.of(2026, 10, 29, 23, 55)).copy(title = today.title)
 
-        assertEquals(emptyList<Long>(), HistoryList.repeats(listOf(spotify, youTubeMusic)))
+        val rows = HistoryList.rows(listOf(today, yesterday), zone)
+
+        assertEquals(4, rows.size)
+    }
+
+    /** The same song row folds even if its texts changed; another title by another player does not. */
+    @Test
+    fun foldingFollowsTheSong() {
+        val newer = entry(2, LocalDateTime.of(2026, 10, 30, 12, 2)).copy(songId = 9, title = "Radio (Remastered)")
+        val older = entry(1, LocalDateTime.of(2026, 10, 30, 12, 1)).copy(songId = 9, title = "Radio")
+        val elsewhere = entry(3, LocalDateTime.of(2026, 10, 30, 12, 3)).copy(source = "com.google.android.apps.youtube.music", title = "Radio (Remastered)")
+
+        assertEquals(listOf(2), HistoryList.rows(listOf(newer, older), zone).filterIsInstance<HistoryRow.Play>().map { it.count })
+        assertEquals(2, HistoryList.rows(listOf(elsewhere, newer), zone).filterIsInstance<HistoryRow.Play>().size)
     }
 
     /** No tracks, no rows. */

@@ -98,6 +98,33 @@
     <string name="history_no_results">Ninguna canción coincide con la búsqueda.</string>
     <string name="history_subtitle">%1$s · %2$s</string>
     <string name="history_open_failed">No se pudo abrir %1$s.</string>
+    <string name="history_count">×%1$d</string>
+    <string name="history_tab_list">Historial</string>
+    <string name="history_tab_stats">Estadísticas</string>
+
+    <!-- Statistics. -->
+    <string name="stats_period_week">7 días</string>
+    <string name="stats_period_30">30 días</string>
+    <string name="stats_period_month">Este mes</string>
+    <string name="stats_period_all">Todo</string>
+    <string name="stats_empty">Aún no hay nada que contar en este periodo. Cada canción cuenta después de 30 segundos, y el tiempo de cada app, mientras suena.</string>
+    <string name="stats_listened">Tiempo con música</string>
+    <string name="stats_plays">Escuchas</string>
+    <string name="stats_songs">Canciones</string>
+    <string name="stats_artists">Artistas</string>
+    <string name="stats_days_title">Por día</string>
+    <string name="stats_days_total">Últimos 30 días: %1$s en total</string>
+    <string name="stats_days_description">Música de los últimos 30 días, %1$s en total; el día con más, %2$s.</string>
+    <string name="stats_apps_title">Por app</string>
+    <string name="stats_app_video">%1$s · vídeo</string>
+    <string name="stats_app_other">%1$s · otra</string>
+    <string name="stats_songs_title">Más escuchadas</string>
+    <string name="stats_artists_title">Artistas</string>
+    <string name="stats_video_artist">%1$s · vídeo</string>
+    <string name="stats_none">Nada en este periodo.</string>
+    <string name="stats_minutes">%1$d min</string>
+    <string name="stats_hours">%1$d h</string>
+    <string name="stats_hours_minutes">%1$d h %2$d min</string>
     <!-- Tag of a title that shrinks to fit two lines; not shown. -->
     <string name="tag_fit_title" translatable="false">fit-title</string>
     <string name="control_liked">Te gusta; tocar para quitarlo</string>
@@ -186,15 +213,21 @@
     <string name="settings_keep_on_detail">Para dejar el teléfono como adorno junto a la PC. Sin cargar, se apaga como siempre.</string>
     <string name="settings_history_title">Historial</string>
     <string name="settings_record">Guardar las canciones que escuchas</string>
-    <string name="settings_record_detail">Cada canción entra después de 30 segundos y se guarda 50 días. Los vídeos no entran.</string>
+    <string name="settings_record_detail">Cada canción entra después de 30 segundos y la lista guarda 30 días; las estadísticas, siempre. Del tiempo en apps de vídeo solo se cuenta el total.</string>
     <string name="settings_clear">Borrar el historial</string>
     <string name="settings_clear_title">¿Borrar el historial?</string>
-    <string name="settings_clear_message">Se borran todas las canciones y sus carátulas. No se puede deshacer.</string>
+    <string name="settings_clear_message">Se borran todas las canciones, sus carátulas y las estadísticas. No se puede deshacer.</string>
     <string name="settings_clear_confirm">Borrar</string>
     <string name="settings_clear_cancel">Cancelar</string>
     <string name="settings_cleared">Historial borrado</string>
     <string name="settings_version">SashaBridge %1$s</string>
     <string name="blackout_description">Pantalla negra. Toca dos veces para ver SashaBridge.</string>
+
+    <plurals name="stats_times">
+        <item quantity="one">%1$d vez</item>
+        <item quantity="many">%1$d veces</item>
+        <item quantity="other">%1$d veces</item>
+    </plurals>
 
     <string name="footer">USB · 127.0.0.1:%1$d · protocolo v%2$d</string>
 </resources>

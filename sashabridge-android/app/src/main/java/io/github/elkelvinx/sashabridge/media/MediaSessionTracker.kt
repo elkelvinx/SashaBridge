@@ -367,7 +367,26 @@ class MediaSessionTracker(
             canLike = LikeControl.findToggleAction(actionIds) != null,
             liked = LikeControl.likedOf(actionIds, ratedUp(metadata)),
             mediaId = mediaId,
+            artUrl = artUrlOf(controller, metadata, title),
         )
+    }
+
+    /**
+     * The web address of the cover, if the player gives one: Spotify's own extra, a standard
+     * art address that is on the web, or else the icon of the queue item playing, which is how
+     * YouTube Music gives it. The queue item must have the track's [title], since the queue
+     * may still point at the previous track. Main thread.
+     */
+    private fun artUrlOf(controller: MediaController, metadata: MediaMetadata, title: String?): String? {
+        val fromMetadata = sequenceOf(SPOTIFY_ART_URI, MediaMetadata.METADATA_KEY_ART_URI, MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
+            .mapNotNull { metadata.getString(it) }
+            .firstOrNull { it.startsWith(HTTPS) }
+        if (fromMetadata != null) return fromMetadata
+        val activeId = controller.playbackState?.activeQueueItemId ?: return null
+        return controller.queue
+            ?.firstOrNull { it.queueId == activeId && it.description.title?.toString() == title }
+            ?.description?.iconUri?.toString()
+            ?.takeIf { it.startsWith(HTTPS) }
     }
 
     /**
@@ -505,6 +524,11 @@ class MediaSessionTracker(
 
         /** Time without changes after which a burst of updates is considered finished. */
         const val QUIET_PERIOD_MS: Long = 150L
+
+        /** Spotify's extra with the web address of the cover (i.scdn.co). */
+        private const val SPOTIFY_ART_URI = "com.spotify.music.extra.ART_HTTPS_URI"
+
+        private const val HTTPS = "https://"
 
         /**
          * Time after [hide] in which a player that starts playing does not end the hiding: a

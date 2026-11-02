@@ -102,6 +102,21 @@ class ThumbnailStore private constructor(context: Context) {
     }
 
     /**
+     * Puts [image], the cover at [artUri], in the cache as if it had been fetched, so it shows
+     * at once and without the network. The cache may be emptied, and [load] then fetches it
+     * from [artUri] again. Any coroutine; the work runs on [Dispatchers.IO].
+     *
+     * @param image The cover as an encoded image, such as the JPEG of [AlbumArt].
+     */
+    suspend fun remember(artUri: String, image: ByteArray) = withContext(Dispatchers.IO) {
+        val file = File(dir, fileName(artUri))
+        if (file.exists() || memory.get(artUri) != null) return@withContext
+        val cover = squareCover(image) ?: return@withContext
+        save(file, cover)
+        memory.put(artUri, cover)
+    }
+
+    /**
      * Deletes the kept covers whose key is not in [keys]. IO thread.
      *
      * @param keys Keys of the covers still named by the history.

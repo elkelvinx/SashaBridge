@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A song of the ranking: its place, cover, title and artist (with "vídeo" for videos), and
+     how many times it played. Touching it opens it in its player. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="60dp"
+    android:orientation="horizontal"
+    android:paddingVertical="6dp"
+    tools:ignore="Overdraw">
+
+    <TextView
+        android:id="@+id/statSongRank"
+        style="@style/Widget.SashaBridge.StatRank"
+        tools:text="1" />
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/statSongCover"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:src="@drawable/cover_placeholder"
+        app:shapeAppearanceOverlay="@style/ShapeAppearance.SashaBridge.Thumb" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/statSongTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="@color/on_surface"
+            tools:text="Castle Vein" />
+
+        <TextView
+            android:id="@+id/statSongArtist"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/on_surface_muted"
+            tools:text="Heaven Pierce Her" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/statSongPlays"
+        style="@style/Widget.SashaBridge.CountBadge"
+        tools:text="8 veces" />
+</LinearLayout>

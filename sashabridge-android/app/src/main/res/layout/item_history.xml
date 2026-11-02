@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One track of the history: its cover, title, artist and app, and the time it played. The
-     background is only the touch ripple. -->
+<!-- One play of the history: its cover, title, artist and app, how many times in a row ("×3")
+     and the time it played. The background is only the touch ripple. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -50,6 +50,14 @@
             android:textColor="@color/on_surface_muted"
             tools:text="VK Blanka · YouTube Music" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/historyCount"
+        style="@style/Widget.SashaBridge.CountBadge"
+        android:layout_marginEnd="8dp"
+        android:visibility="gone"
+        tools:text="×3"
+        tools:visibility="visible" />
 
     <TextView
         android:id="@+id/historyTime"

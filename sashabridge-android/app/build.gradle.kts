@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
 }
 
 android {
@@ -43,7 +45,17 @@ android {
     }
 }
 
+room {
+    // One JSON file per version of the history database: the schema to study, and what the
+    // migration tests compare against. Kept in git.
+    schemaDirectory("$projectDir/schemas")
+}
+
 dependencies {
+    implementation(libs.androidx.room.runtime)
+    // The phone's own SQLite, through the driver API that Room's migrations and tests share.
+    implementation(libs.androidx.sqlite.framework)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
@@ -57,4 +69,8 @@ dependencies {
     // The server tests connect to it as the PC does.
     testImplementation(libs.ktor.client.cio)
     testImplementation(libs.ktor.client.websockets)
+    // SQLite for the JVM, to test the history database and its migration without a phone: the
+    // JVM build of the driver, which carries the native library for Windows, macOS and Linux.
+    // Only the driver itself; the SQLite interfaces it implements come from the app's own.
+    testImplementation(libs.androidx.sqlite.bundled.jvm) { isTransitive = false }
 }

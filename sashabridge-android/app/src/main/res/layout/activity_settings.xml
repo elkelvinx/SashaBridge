@@ -124,9 +124,11 @@
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
                     <!-- Unfolds the player's controls in the chosen color. -->
+                    <!-- An ImageView, not a compound drawable: PreviewSection turns the arrow. -->
                     <LinearLayout
                         android:id="@+id/accentPreviewHeader"
-                        style="@style/Widget.SashaBridge.PreviewHeader">
+                        style="@style/Widget.SashaBridge.PreviewHeader"
+                        tools:ignore="UseCompoundDrawables">
 
                         <TextView
                             style="@style/Widget.SashaBridge.PreviewTitle"
@@ -212,9 +214,11 @@
                     </LinearLayout>
 
                     <!-- Unfolds a small player card with these settings. -->
+                    <!-- An ImageView, not a compound drawable: PreviewSection turns the arrow. -->
                     <LinearLayout
                         android:id="@+id/backdropPreviewHeader"
-                        style="@style/Widget.SashaBridge.PreviewHeader">
+                        style="@style/Widget.SashaBridge.PreviewHeader"
+                        tools:ignore="UseCompoundDrawables">
 
                         <TextView
                             style="@style/Widget.SashaBridge.PreviewTitle"

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The history: a bar with the way back, a search field, and the tracks listened to, grouped
-     by day. A note replaces the list while it is empty. -->
+<!-- The history: a bar with the way back, two tabs, and their pages side by side, swiped or
+     chosen from the tabs: the plays (page_history) and the statistics (page_stats). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -19,49 +19,19 @@
         app:navigationIconTint="@color/on_surface"
         app:title="@string/history_title" />
 
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/historySearchLayout"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/historyTabs"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginBottom="8dp"
-        android:hint="@string/history_search_hint"
-        app:endIconMode="clear_text"
-        app:startIconDrawable="@drawable/ic_search">
+        android:background="@android:color/transparent"
+        app:tabIndicatorColor="?attr/colorPrimary"
+        app:tabSelectedTextColor="?attr/colorPrimary"
+        app:tabTextAppearance="?attr/textAppearanceTitleSmall"
+        app:tabTextColor="@color/on_surface_muted" />
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/historySearch"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:imeOptions="actionSearch"
-            android:inputType="text"
-            android:maxLines="1" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <FrameLayout
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/historyPager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/historyList"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingHorizontal="16dp"
-            android:paddingBottom="16dp" />
-
-        <TextView
-            android:id="@+id/historyEmpty"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:gravity="center"
-            android:padding="32dp"
-            android:text="@string/history_empty"
-            android:textAppearance="?attr/textAppearanceBodyLarge"
-            android:textColor="@color/on_surface_muted"
-            android:visibility="gone" />
-    </FrameLayout>
+        android:layout_weight="1" />
 </LinearLayout>

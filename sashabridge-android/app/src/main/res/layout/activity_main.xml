@@ -45,11 +45,14 @@
                     android:textColor="@color/on_surface_muted" />
             </LinearLayout>
 
+            <!-- Only in portrait on purpose: the settings are a portrait screen, and landscape
+                 is the player's display. MainActivity finds it as optional. -->
             <ImageButton
                 android:id="@+id/settingsButton"
                 style="@style/Widget.SashaBridge.ControlButton"
                 android:contentDescription="@string/settings_open"
-                android:src="@drawable/ic_settings" />
+                android:src="@drawable/ic_settings"
+                tools:ignore="InconsistentLayout" />
         </LinearLayout>
 
         <!-- Status, with Sasha showing it too. -->

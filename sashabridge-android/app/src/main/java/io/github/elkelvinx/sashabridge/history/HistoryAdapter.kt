@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -52,29 +53,32 @@ internal class HistoryAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val row = getItem(position)) {
             is HistoryRow.Day -> (holder as DayHolder).label.text = dayLabel(row.date)
-            is HistoryRow.Play -> (holder as PlayHolder).bind(row.entry)
+            is HistoryRow.Play -> (holder as PlayHolder).bind(row.entry, row.count)
         }
     }
 
     /** A day heading. */
     private class DayHolder(val label: TextView) : RecyclerView.ViewHolder(label)
 
-    /** A track. */
+    /** A play, or several in a row. */
     private inner class PlayHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val cover: ImageView = view.findViewById(R.id.historyCover)
         private val title: TextView = view.findViewById(R.id.historyTitle)
         private val subtitleView: TextView = view.findViewById(R.id.historySubtitle)
         private val timeView: TextView = view.findViewById(R.id.historyTime)
+        private val countView: TextView = view.findViewById(R.id.historyCount)
 
         /** Cover this row shows, so a cover arriving late does not land on a reused row. */
         private var coverKey: String? = null
 
-        fun bind(entry: HistoryEntry) {
+        fun bind(entry: HistoryEntry, count: Int) {
             title.text = entry.title ?: itemView.context.getString(R.string.nothing_playing)
             subtitleView.text = subtitle(entry)
             timeView.text = time(entry)
+            countView.isVisible = count > 1
+            countView.text = itemView.context.getString(R.string.history_count, count)
             itemView.setOnClickListener { onOpen(entry) }
-            val key = entry.coverKey
+            val key = entry.coverRef
             coverKey = key
             val cached = key?.let(thumbnails::cached)
             if (cached != null) cover.setImageBitmap(cached) else cover.setImageResource(R.drawable.cover_placeholder)

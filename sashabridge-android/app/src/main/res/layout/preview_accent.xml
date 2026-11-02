@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Example of the primary color: the player's controls and a switch, as they look with it.
-     Only for looking: a cover over it keeps every touch. -->
+     Only for looking: a cover over it keeps every touch.
+     A FrameLayout, not <merge>: the <include> gives this root its id and hides it while folded. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginTop="4dp"
-    tools:ignore="ContentDescription">
+    tools:ignore="ContentDescription,MergeRootFrame">
 
     <LinearLayout
         android:layout_width="match_parent"

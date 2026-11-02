@@ -52,6 +52,8 @@ class AlbumArt(val artId: String, val jpeg: ByteArray) {
  * @property liked Whether the user likes the track, or `null` if the player does not reveal it.
  * @property mediaId The player's own id of the track, such as Spotify's `spotify:track:...`,
  *   or `null` (YouTube Music sets none); the history uses it to open that track again.
+ * @property artUrl Web address of the cover, if the player gives one; the history keeps it
+ *   instead of the image. Not sent to the PC.
  */
 data class MediaSnapshot(
     val trackId: String,
@@ -72,6 +74,7 @@ data class MediaSnapshot(
     val canLike: Boolean = false,
     val liked: Boolean? = null,
     val mediaId: String? = null,
+    val artUrl: String? = null,
 ) {
 
     /**

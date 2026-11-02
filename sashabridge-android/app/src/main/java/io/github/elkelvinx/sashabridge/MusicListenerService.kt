@@ -1,6 +1,7 @@
 package io.github.elkelvinx.sashabridge
 
 import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.session.MediaSessionManager
 import android.os.Build
@@ -10,8 +11,11 @@ import android.util.Log
 import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.bridge.BridgeRepository
 import io.github.elkelvinx.sashabridge.bridge.BridgeStatus
+import io.github.elkelvinx.sashabridge.history.AppKind
+import io.github.elkelvinx.sashabridge.history.AppKinds
 import io.github.elkelvinx.sashabridge.history.HistoryRecorder
 import io.github.elkelvinx.sashabridge.history.HistoryRepository
+import io.github.elkelvinx.sashabridge.history.UsageMeter
 import io.github.elkelvinx.sashabridge.media.MediaCommandExecutor
 import io.github.elkelvinx.sashabridge.media.MediaSessionTracker
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
@@ -43,8 +47,9 @@ import kotlinx.coroutines.launch
  *   PC and runs the PC's commands through [MediaCommandExecutor].
  * - The commands pressed on the app's own screen ([BridgeRepository.commands]) run through
  *   the same executor, whether the bridge is on or off.
- * - The tracks listened to go to the history ([HistoryRecorder], [HistoryRepository]), unless
- *   the user turned it off ([SettingsRepository.recordHistory]).
+ * - The songs listened to go to the history ([HistoryRecorder], [HistoryRepository]), and the
+ *   time every app plays, videos included, to the statistics ([UsageMeter]); neither if the
+ *   user turned the history off ([SettingsRepository.recordHistory]).
  * - A video hidden from the PC shows on the screen ([BridgeRepository.hiddenSince]), and the PC
  *   hears whether the next press goes back to it.
  *
@@ -75,6 +80,9 @@ class MusicListenerService : NotificationListenerService() {
 
     /** Runs the commands of the PC and of the app's screen. Created in [onCreate]. */
     private lateinit var commandExecutor: MediaCommandExecutor
+
+    /** What each app plays, found once per app. Main thread. */
+    private val appKinds = HashMap<String, AppKind>()
 
     /** Work that lives while the listener is connected, or `null` while it is not. Main thread. */
     private var listenerJob: Job? = null
@@ -194,29 +202,49 @@ class MusicListenerService : NotificationListenerService() {
     }
 
     /**
-     * Adds the tracks listened to to the history, until the listener disconnects: each state
-     * of the player goes to [HistoryRecorder], and so does the time every [HISTORY_TICK_MS],
-     * since a track that simply plays on sends no new state. Old tracks are pruned first.
-     * Main thread; the writes run on the IO dispatcher.
+     * Records the history until the listener disconnects: each state of the player goes to
+     * [HistoryRecorder] (the songs) and [UsageMeter] (the time per app), and so does the time
+     * every [HISTORY_TICK_MS], since a song that simply plays on sends no new state. Old plays
+     * are pruned first. Main thread; the database works off it.
      */
     private suspend fun recordHistory() = coroutineScope {
         val history = HistoryRepository.get(this@MusicListenerService)
-        val recorder = HistoryRecorder()
+        val recorder = HistoryRecorder { appKind(it) == AppKind.MUSIC }
+        val meter = UsageMeter()
         history.prune()
         launch {
             tracker.media.collect { snapshot ->
-                recorder.update(snapshot, SystemClock.elapsedRealtime())?.let { recordIfWanted(history, it) }
+                val now = SystemClock.elapsedRealtime()
+                recorder.update(snapshot, now)?.let { recordIfWanted(history, it) }
+                meter.update(snapshot, now)?.let { addTimeIfWanted(history, it) }
             }
         }
         while (true) {
             delay(HISTORY_TICK_MS)
-            recorder.tick(SystemClock.elapsedRealtime())?.let { recordIfWanted(history, it) }
+            val now = SystemClock.elapsedRealtime()
+            recorder.tick(now)?.let { recordIfWanted(history, it) }
+            meter.tick(now)?.let { addTimeIfWanted(history, it) }
         }
     }
 
     /** Adds [snapshot] to [history], unless the user turned the history off. */
     private suspend fun recordIfWanted(history: HistoryRepository, snapshot: MediaSnapshot) {
         if (settings.recordHistory.value) history.record(snapshot)
+    }
+
+    /** Adds the time of [usage] to the statistics, unless the user turned the history off. */
+    private suspend fun addTimeIfWanted(history: HistoryRepository, usage: UsageMeter.Usage) {
+        if (settings.recordHistory.value) history.addAppTime(usage.source, appKind(usage.source), usage.ms)
+    }
+
+    /** What [source] plays, from the known apps or the category it declares to Android. */
+    private fun appKind(source: String): AppKind = appKinds.getOrPut(source) {
+        val category = try {
+            packageManager.getApplicationInfo(source, 0).category
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
+        AppKinds.of(source, category)
     }
 
     /** Component name of this listener. */

@@ -1,149 +1,47 @@
 package io.github.elkelvinx.sashabridge.history
 
-import android.content.ContentValues
 import android.content.Context
-import android.database.Cursor
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
-import androidx.core.database.sqlite.transaction
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.sqlite.driver.AndroidSQLiteDriver
+import kotlinx.coroutines.Dispatchers
 
 /**
- * The history's SQLite database: one row per track listened to, indexed by time, so that
- * the newest tracks, a search and the deletion of old ones stay quick even with the
- * thousands of rows of 50 days.
+ * The history database, `history.db`, through Room.
  *
- * SQLite serializes the calls; any thread except the main one.
+ * Room is a layer over SQLite, not another database: the file, its format and its size are
+ * SQLite's own, plus one internal row (`room_master_table`). What Room adds is in the code:
+ * every query is checked when the app is built, rows become Kotlin objects without copying
+ * columns by hand, each schema version is exported to `app/schemas/` and its migration is
+ * tested, queries can be watched as a `Flow`, and none runs on the main thread.
+ *
+ * Version 1 was a single table, `plays`, written with `SQLiteOpenHelper`; [HistoryMigrations]
+ * turns it into the tables of `HistoryTables.kt`.
+ *
+ * It runs on the phone's own SQLite through Room's driver API ([AndroidSQLiteDriver]); the
+ * tests use the same API with a SQLite for the JVM.
  */
-internal class HistoryDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
+@Database(
+    entities = [SongEntity::class, PlayEntity::class, SongMonthEntity::class, AppDayEntity::class],
+    version = 2,
+    exportSchema = true,
+)
+internal abstract class HistoryDatabase : RoomDatabase() {
 
-    override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL(
-            """
-            CREATE TABLE $TABLE (
-                $ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                $PLAYED_AT INTEGER NOT NULL,
-                $SOURCE TEXT NOT NULL,
-                $TITLE TEXT,
-                $ARTIST TEXT,
-                $ALBUM TEXT,
-                $MEDIA_ID TEXT,
-                $COVER_KEY TEXT
-            )
-            """.trimIndent(),
-        )
-        db.execSQL("CREATE INDEX ${TABLE}_$PLAYED_AT ON $TABLE ($PLAYED_AT)")
-    }
+    abstract fun dao(): HistoryDao
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Version 1 is the first one; later versions migrate here.
-    }
+    companion object {
 
-    /**
-     * Adds a track.
-     *
-     * @return The new row id.
-     */
-    fun insert(
-        playedAtMs: Long,
-        source: String,
-        title: String?,
-        artist: String?,
-        album: String?,
-        mediaId: String?,
-        coverKey: String?,
-    ): Long {
-        val values = ContentValues().apply {
-            put(PLAYED_AT, playedAtMs)
-            put(SOURCE, source)
-            put(TITLE, title)
-            put(ARTIST, artist)
-            put(ALBUM, album)
-            put(MEDIA_ID, mediaId)
-            put(COVER_KEY, coverKey)
-        }
-        return writableDatabase.insert(TABLE, null, values)
-    }
-
-    /**
-     * The tracks listened to since [sinceMs], newest first.
-     *
-     * @param search Words to find in the title or the artist, or `null` for every track.
-     */
-    fun since(sinceMs: Long, search: String?): List<HistoryEntry> {
-        val text = search?.trim()?.takeIf { it.isNotEmpty() }
-        val where = StringBuilder("$PLAYED_AT >= ?")
-        val args = mutableListOf(sinceMs.toString())
-        if (text != null) {
-            val pattern = "%" + text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-            where.append(" AND ($TITLE LIKE ? ESCAPE '\\' OR $ARTIST LIKE ? ESCAPE '\\')")
-            args += pattern
-            args += pattern
-        }
-        return readableDatabase.query(TABLE, null, where.toString(), args.toTypedArray(), null, null, "$PLAYED_AT DESC")
-            .use { cursor -> buildList { while (cursor.moveToNext()) add(entryOf(cursor)) } }
-    }
-
-    /** The newest track, or `null` if the history is empty. */
-    fun latest(): HistoryEntry? =
-        readableDatabase.query(TABLE, null, null, null, null, null, "$PLAYED_AT DESC", "1")
-            .use { cursor -> if (cursor.moveToFirst()) entryOf(cursor) else null }
-
-    /** Moves the track [id] to [playedAtMs], and gives it [coverKey] when there is one. */
-    fun touch(id: Long, playedAtMs: Long, coverKey: String?) {
-        val values = ContentValues().apply {
-            put(PLAYED_AT, playedAtMs)
-            if (coverKey != null) put(COVER_KEY, coverKey)
-        }
-        writableDatabase.update(TABLE, values, "$ID = ?", arrayOf(id.toString()))
-    }
-
-    /** Deletes the tracks [ids]. */
-    fun delete(ids: List<Long>) {
-        if (ids.isEmpty()) return
-        writableDatabase.transaction {
-            ids.forEach { delete(TABLE, "$ID = ?", arrayOf(it.toString())) }
-        }
-    }
-
-    /** Deletes every track. */
-    fun deleteAll() {
-        writableDatabase.delete(TABLE, null, null)
-    }
-
-    /** Deletes the tracks listened to before [cutoffMs]; returns how many. */
-    fun deleteBefore(cutoffMs: Long): Int = writableDatabase.delete(TABLE, "$PLAYED_AT < ?", arrayOf(cutoffMs.toString()))
-
-    /** Keys of the covers the history still names. */
-    fun coverKeys(): Set<String> =
-        readableDatabase.query(true, TABLE, arrayOf(COVER_KEY), "$COVER_KEY IS NOT NULL", null, null, null, null, null)
-            .use { cursor -> buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) } }
-
-    /** The track at the cursor's row. */
-    private fun entryOf(cursor: Cursor): HistoryEntry {
-        fun text(column: String): String? = cursor.getColumnIndexOrThrow(column).let { if (cursor.isNull(it)) null else cursor.getString(it) }
-        return HistoryEntry(
-            id = cursor.getLong(cursor.getColumnIndexOrThrow(ID)),
-            playedAtMs = cursor.getLong(cursor.getColumnIndexOrThrow(PLAYED_AT)),
-            source = cursor.getString(cursor.getColumnIndexOrThrow(SOURCE)),
-            title = text(TITLE),
-            artist = text(ARTIST),
-            album = text(ALBUM),
-            mediaId = text(MEDIA_ID),
-            coverKey = text(COVER_KEY),
-        )
-    }
-
-    private companion object {
+        /** File name, the same as version 1's, so the migration finds it. */
         const val NAME = "history.db"
-        const val VERSION = 1
-        const val TABLE = "plays"
-        const val ID = "id"
-        const val PLAYED_AT = "played_at"
-        const val SOURCE = "source"
-        const val TITLE = "title"
-        const val ARTIST = "artist"
-        const val ALBUM = "album"
-        const val MEDIA_ID = "media_id"
-        const val COVER_KEY = "cover_key"
+
+        /** Opens the database of the app, migrating it if it is older. */
+        fun open(context: Context): HistoryDatabase =
+            Room.databaseBuilder(context.applicationContext, HistoryDatabase::class.java, NAME)
+                .setDriver(AndroidSQLiteDriver())
+                .setQueryCoroutineContext(Dispatchers.IO)
+                .addMigrations(HistoryMigrations.FROM_1_TO_2)
+                .build()
     }
 }

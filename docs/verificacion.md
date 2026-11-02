@@ -1,6 +1,6 @@
 # Verificación de SashaBridge
 
-Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, después las manuales contra Windows y por último los escenarios de aceptación con el teléfono, los de la música y los del S Pen. Al final están los resultados de la regresión de la versión 2.0 y de las pruebas de la 2.1, la 2.2 y la 2.3.
+Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, después las manuales contra Windows y por último los escenarios de aceptación con el teléfono, los de la música y los del S Pen. Al final están los resultados de la regresión de la versión 2.0 y de las pruebas de la 2.1, la 2.2, la 2.3 y la 2.4.
 
 ## 1. Pruebas automáticas
 
@@ -9,7 +9,7 @@ Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, desp
 | PC | `cargo clippy --all-targets -- -D warnings` | Análisis estático sin avisos |
 | PC | `cargo test` | Fixtures del protocolo y de las muestras del lápiz, regla de la carátula (R6), caché de carátulas, espera exponencial, botones de Windows, conversión de imágenes (DIB y PNG), mapeo de la Tableta a un monitor, eventos del lápiz sintético, y el texto de las notificaciones |
 | PC | `cargo doc --no-deps` | Documentación del código |
-| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; aviso de vídeo oculto a la PC; desenfoque y colores del fondo de la tarjeta; elección del reproductor, también con un vídeo oculto; posición; modos aleatorio y repetir, incluidos los nombres de YouTube Music en español e inglés; me gusta; carátulas de la cola; historial; dirección de un cambio de canción según la cola; canción mostrada al ocultar un vídeo; mensajes de una sesión; estado de la pantalla; formato de los tiempos; geometría de las marcas de Anotar (flechas, borrar, mover, recuadro); y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos, y la ruta `/pen` con capturas, monitor, latencia y muestras binarias) |
+| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; aviso de vídeo oculto a la PC; desenfoque y colores del fondo de la tarjeta; elección del reproductor, también con un vídeo oculto; posición; modos aleatorio y repetir, incluidos los nombres de YouTube Music en español e inglés; me gusta; carátulas de la cola; historial con la base de datos Room real en la JVM (lista y búsqueda, clasificaciones y totales, resúmenes mensuales que sobreviven a las escuchas, tiempo por app y día, carátulas que siguen a las escuchas, migración de la versión 1 y tablas iguales al esquema de Room); identidad de las canciones y tipo de cada app; periodos y gráfico de las estadísticas; dirección de un cambio de canción según la cola; canción mostrada al ocultar un vídeo; mensajes de una sesión; estado de la pantalla; formato de los tiempos; geometría de las marcas de Anotar (flechas, borrar, mover, recuadro); y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos, y la ruta `/pen` con capturas, monitor, latencia y muestras binarias) |
 | Android | `.\gradlew.bat :app:lintDebug` | Análisis estático de la app |
 
 Gradle necesita `JAVA_HOME` apuntando al JDK de Android Studio, por ejemplo `C:\Program Files\Android\Android Studio\jbr`.
@@ -116,6 +116,21 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | H15 | Cambiar el color primario con la vista previa abierta | La marca y los colores cambian al instante, en el mismo punto de la lista; la vista previa ya muestra el color nuevo |
 | H16 | Mover los dos deslizadores del fondo con su vista previa abierta y una canción sonando | La tarjeta de ejemplo, con la carátula de esa canción, cambia mientras se arrastra; al volver, la tarjeta del reproductor se ve igual |
 | H17 | Plegar las dos vistas previas, salir y volver | Siguen plegadas, sin dibujarse |
+
+### Historial y estadísticas (2.4)
+
+| ID | Escenario | Resultado esperado |
+|---|---|---|
+| E1 | Instalar la versión nueva sobre una con historial; abrir Historial | La app no se cierra; están las mismas escuchas que antes, salvo las que no tenían título (un navegador). Las repeticiones seguidas salen en una fila con "×N" |
+| E2 | Una canción con "repetir una" que vuelve a empezar y suena otros 30 s | Dos escuchas: la fila muestra "×2" |
+| E3 | Estadísticas → 7 días, 30 días, Este mes y Todo | Cada periodo cambia los totales y las listas; "Todo" cuenta también lo anterior a los 30 días |
+| E4 | Ver un vídeo de YouTube unos minutos; Estadísticas → Por app | YouTube aparece como "YouTube · vídeo", con su tiempo y la barra en gris. El vídeo no entra en el historial ni en "Más escuchadas" |
+| E5 | Un vídeo en YouTube Music (sin álbum) | Entra en el historial; en "Más escuchadas" lleva "· vídeo" junto al artista |
+| E6 | "Más escuchadas" con canciones de Spotify y de YouTube Music | Cada una con su carátula; tocar una la abre en su app |
+| E7 | Por día | 30 barras, la última es hoy, con el total de los 30 días |
+| E8 | Ajustes de Android → SashaBridge → Almacenamiento → Borrar caché; abrir Historial con conexión | Las carátulas vuelven: se descargan otra vez de su dirección |
+| E9 | Ajustes → "Borrar el historial" | La lista y las estadísticas quedan vacías |
+| E10 | Como H7, viendo también un vídeo | Tampoco suma tiempo en Estadísticas |
 
 ## 4. Regresión de la versión 2.0
 
@@ -224,3 +239,18 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 | H15 | **Correcto** | En el teléfono: 0,35 s después de tocar el azul, la marca, los interruptores, los deslizadores y la vista previa ya eran azules |
 | H16 | **Correcto** | En el teléfono: con la intensidad al máximo, la tarjeta de ejemplo (la carátula de "Radio", que sonaba) se vio más viva al momento |
 | H17 | **Correcto** | En el teléfono, las vistas previas plegadas siguen plegadas al volver |
+
+## 9. Pruebas del historial con Room (2.4)
+
+- **Fecha:** 2026-11-02.
+- **Pruebas automáticas:** 151 tests de Android; lint sin avisos.
+- **Copia de seguridad:** antes de instalar se copiaron `history.db` (versión 1: 209 escuchas, una de Chrome sin título) y las carátulas guardadas.
+- **Espacio:** `history.db` pasó de 56 a 100 KB, sin páginas libres. Cada tabla e índice ocupa al menos una página de 4 KB, y ahora hay más. A cambio, una escucha nueva ocupa unos 50 bytes en lugar de unos 200, y de Spotify y YouTube Music ya no se guarda la imagen de la carátula. Las 152 copias migradas (1,58 MB) se borran a medida que su canción vuelve a sonar o pasa 30 días sin sonar.
+
+| ID | Resultado | Evidencia |
+|---|---|---|
+| E1 | **Correcto** | La migración se ejecutó primero en la PC, con Room, sobre la copia, y después en el teléfono. Las dos dieron lo mismo: 208 escuchas, 161 canciones (140 canciones y 21 vídeos de YouTube Music), 172 resúmenes mensuales que suman 208, y "Castle Vein" con sus 11 escuchas; integridad correcta y versión 2. Sin cierres en `logcat -b crash`. La lista se ve con sus carátulas |
+| E3 | **Correcto** | En el teléfono: con 7 días y con Todo, 208 escuchas, 161 canciones y 142 artistas; con Este mes (noviembre), 25, 21 y 17. Son los mismos números que da la base |
+| E6 | **Parcial** | "Más escuchadas" muestra las carátulas migradas y "11 veces" en Castle Vein. Falta tocar una, que la abriría y la pondría a sonar |
+| E4, E7 | **Pendiente** | La versión 1 no medía el tiempo: "Tiempo con música", "Por día" y "Por app" empiezan vacíos y se llenan desde la instalación |
+| E2, E5, E8-E10 | **Pendiente** | Hay que escuchar música en el teléfono |

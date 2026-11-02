@@ -57,8 +57,13 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `settings/PreviewSection`, `BackdropPreview` | Las vistas previas desplegables de los ajustes: una fila que despliega o pliega el ejemplo, que solo se dibuja abierto y recuerda su estado, y la tarjeta de ejemplo del fondo, con la carátula de la canción que suena, de la última escuchada o una dibujada. |
 | `settings/Appearance`, `SashaBridgeApp` | Tema claro u oscuro para toda la app (`AppCompatDelegate.setDefaultNightMode`, aplicado al arrancar el proceso) y color de acento: una superposición de tema (`ThemeOverlay.SashaBridge.Accent.*`) que cada pantalla aplica antes de inflar su diseño. |
 | `media/HiddenPlayer` | La última canción del historial como reproductor en pausa, para mostrarla mientras se oculta un vídeo si su app ya no tiene sesión. Lógica pura. |
-| `media/ThumbnailStore`, `ThumbnailSources` | Carátulas pequeñas (192 px) de la cola y del historial, en memoria y como WebP en la caché. Las del historial van a los archivos de la app y se borran cuando el historial deja de nombrarlas. |
-| `history/` | `HistoryRecorder` decide cuándo una canción cuenta como escuchada: 30 s sonando, o la mitad si es más corta, y nunca un vídeo. `HistoryRepository` la guarda 50 días en SQLite (`history.db`) con su carátula, y una canción repetida seguida cuenta una vez. `HistoryActivity` la muestra por días y con búsqueda, y `PlayerLinks` la abre en su app. |
+| `media/ThumbnailStore`, `ThumbnailSources` | Carátulas pequeñas (192 px) de la cola y del historial, en memoria y como WebP en la caché. Del historial, solo las de las apps que no dan la dirección web de su carátula van a los archivos de la app, y se borran cuando ninguna canción las nombra. |
+| `history/HistoryRecorder`, `UsageMeter` | `HistoryRecorder` decide cuándo una canción cuenta como escuchada: 30 s sonando, o la mitad si es más corta. Si la misma canción vuelve a empezar (repetir una), es otra escucha. Lo que no tiene título no se graba. `UsageMeter` mide cuánto suena cada app, de música o de vídeo; las pausas no cuentan. Lógica pura. |
+| `history/AppKinds`, `SongKeys` | `AppKinds` clasifica cada app como música, vídeo u otra (primero las apps conocidas, después la categoría que la app declara a Android), y una pista de YouTube Music sin álbum como vídeo. `SongKeys` da a cada canción una identidad estable: el identificador de Spotify, o el título y el artista normalizados. Lógica pura. |
+| `history/HistoryDatabase`, `HistoryTables`, `HistoryDao`, `HistoryMigrations` | La base `history.db` con Room, versión 2: tablas `songs`, `plays`, `song_months` y `app_days` (ver la sección 2.4), sus consultas y la migración desde la versión 1. El esquema que exporta Room está en `app/schemas/`. |
+| `history/HistoryRepository` | Guarda cada escucha y el tiempo de cada app. Da la lista de los últimos 30 días, las estadísticas de un periodo y la última canción (para ocultar un vídeo). Borra las escuchas viejas. |
+| `history/HistoryActivity`, `HistoryListPage`, `PlayerLinks` | La pantalla del historial, con dos pestañas: la lista por días, con búsqueda y las repeticiones seguidas en una fila ("×N"), y Estadísticas. Tocar una canción la abre en su app (`PlayerLinks`). |
+| `stats/StatsPage`, `DayBarsView` | La pestaña Estadísticas: periodo (7 días, 30 días, este mes o todo), totales, música de cada uno de los últimos 30 días, tiempo por app y las canciones y artistas más escuchados. |
 | `ui/FrameTicker` | Reloj común de la pantalla (`Choreographer`, un paso cada 66 ms): mueve a Sasha, la onda de la barra y el tiempo transcurrido. |
 | `bridge/BridgeRepository` | Única fuente de verdad del proceso: `enabled` (persistido), `status` del servidor, `media` y `listenerConnected`. La leen el servicio y la pantalla. |
 | `server/BridgeServer` | Servidor WebSocket (Ktor 3, motor CIO) en `127.0.0.1:8080`. Arranque y parada serializados, reintento si el puerto está ocupado. |
@@ -80,7 +85,7 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 |---|---|
 | Ciclo de vida del servicio y de la actividad, callbacks de las sesiones multimedia, construcción de los estados | Hilo principal |
 | Codificación de carátulas, y decodificación y codificación de las capturas de Anotar | `Dispatchers.Default` |
-| Historial (SQLite) y carátulas pequeñas (disco y descargas) | `Dispatchers.IO` |
+| Consultas del historial (Room, con `setQueryCoroutineContext`) y carátulas pequeñas (disco y descargas) | `Dispatchers.IO` |
 | Eventos del S Pen (dibujo, flotar) y su envío a `TabletRepository` | Hilo principal |
 | Arranque y parada del servidor, `bind` del puerto | `Dispatchers.IO` |
 | Sesiones WebSocket y ejecución de las órdenes de la PC | Dispatcher de Ktor |
@@ -135,6 +140,53 @@ Sasha, la perrita salchicha que da nombre a la app, acompaña el estado. Todo lo
 | Sin acceso o error | Quieta, mirando al frente |
 
 El icono de la app, una Sasha en pixel art con más detalle sobre un fondo vino, lo genera `tools/sasha_icon.py` como icono adaptativo con capa monocroma para los iconos temáticos de Android. Los fotogramas son `VectorDrawable` generados por `tools/sasha_sprite.py` a partir de un dibujo en pixel art. Para cambiarlos se edita el script y se vuelve a ejecutar; los XML generados no se editan a mano.
+
+### 2.4 Historial y estadísticas
+
+El historial vive en `history.db`, una base SQLite que la app abre con **Room**. Room no es otra base de datos: es una capa sobre el SQLite del teléfono, con el mismo archivo y el mismo espacio. Lo que aporta está en el código:
+- comprueba cada consulta al compilar;
+- convierte las filas en objetos de Kotlin;
+- exporta cada versión del esquema a `app/schemas/`;
+- y permite observar una consulta como un `Flow`.
+
+| Tabla | Qué guarda | Cuánto tiempo |
+|---|---|---|
+| `songs` | Cada canción una vez: título, artista, álbum, si es canción o vídeo, y dónde está su carátula | Siempre |
+| `plays` | Una fila ligera por escucha: la canción y el momento | 30 días |
+| `song_months` | Escuchas de cada canción por mes, sumadas en cada escucha | Siempre |
+| `app_days` | Tiempo que sonó cada app cada día, vídeos incluidos | Siempre |
+
+- **Quién escribe:**
+  - `MusicListenerService` pasa cada estado del reproductor a `HistoryRecorder` (las canciones) y a `UsageMeter` (el tiempo por app).
+  - Cada 10 s les pasa también el tiempo transcurrido, porque una canción que sigue sonando no envía estados nuevos.
+  - Si el usuario desactiva el historial en los ajustes, no se guarda ninguna de las dos cosas.
+- **Qué es una canción:** la identidad la da `SongKeys`.
+  - En Spotify es el identificador de la pista (`spotify:track:...`).
+  - En las demás apps son el título y el artista normalizados (Unicode NFKC, minúsculas y espacios simples).
+  - Una canción que suena varias veces seguidas suma escuchas, y la lista las muestra en una fila con "×N".
+- **Música o vídeo:** `AppKinds` clasifica cada app.
+  - Primero mira una lista de apps conocidas; si no está, usa la categoría que la app declara a Android.
+  - De una app de vídeo o de un navegador solo se guarda el tiempo, nunca los títulos.
+  - En YouTube Music, una pista sin álbum es un vídeo (una subida de un fan, un videoclip), y la pantalla lo indica.
+- **Carátulas:**
+  - Spotify y YouTube Music dan una dirección web de cada carátula. La canción solo guarda esa dirección (`art_url`).
+  - La imagen pasa a la caché de `ThumbnailStore`. Android puede vaciarla, y entonces se descarga de nuevo cuando hace falta.
+  - Solo de las apps que no dan dirección se guarda una copia de 192 px en los archivos de la app (`cover_key`).
+  - Una canción que ya tiene dirección deja de guardar copia. Las canciones migradas de la versión 1 no tenían dirección, así que sus copias se borran a medida que vuelven a sonar.
+- **Retención:**
+  - Cuando el servicio se conecta, `prune()` borra las escuchas de más de 30 días y las carátulas propias que ya no nombra ninguna canción.
+  - Las canciones, los meses y los días se quedan, así que las estadísticas abarcan todo desde el principio.
+  - SQLite no encoge el archivo al borrar filas: guarda el espacio para las siguientes. Si el espacio libre llega a 256 KB, `VACUUM` lo devuelve al teléfono.
+- **Estadísticas:**
+  - Los periodos de 7 y 30 días se cuentan con las escuchas.
+  - "Este mes" y "Todo" se cuentan con los resúmenes mensuales, porque pueden abarcar más que los 30 días de escuchas.
+  - El tiempo por app y el gráfico de días salen de `app_days`.
+- **Migración de la versión 1 a la 2:**
+  - La versión 1 era una sola tabla, `plays`, escrita con `SQLiteOpenHelper` y con los textos repetidos en cada fila.
+  - `HistoryMigrations` la convierte en Kotlin y no solo en SQL: las claves de las canciones tienen que ser las mismas que `SongKeys` da a las escuchas nuevas, y la función `lower()` de SQLite solo conoce las 26 letras del inglés.
+  - Las escuchas sin título (un navegador) se descartan. Las demás conservan su momento, y cada canción, sus textos más recientes y su carátula.
+  - Room la ejecuta dentro de una transacción: si falla, el archivo queda como estaba.
+  - Un test comprueba que las tablas que crea la migración son idénticas al esquema que exporta Room.
 
 ## 3. Cliente de PC
 
@@ -256,7 +308,13 @@ El recorte de Windows escribe el portapapeles más de una vez por captura. La PC
 | Desenfoque e intensidad del fondo ajustables, de 0 a 100 | El desenfoque elige el radio (`Backdrop.blurRadius`, de 0 a 9 píxeles sobre una copia de 48 px). La intensidad elige la opacidad del velo (`Backdrop.veilAlpha`, del 100 al 50 % del velo más fuerte, que guarda el dibujo). Así se cambia sin rehacer la pantalla. |
 | Un color primario nuevo redibuja los ajustes en el sitio | Rehacer la actividad (`recreate`) tardaba en mostrar la marca del color elegido. Ahora se aplica la superposición al tema y se vuelve a inflar el contenido, conservando el desplazamiento. |
 | Las vistas previas usan carátulas del teléfono | La app no lleva carátulas de discos: tienen derechos de autor. La vista previa usa la de la canción que suena o la de la última escuchada. |
-| Historial en SQLite con la carátula guardada aparte | La carátula de una canción solo se conoce mientras suena; una copia pequeña propia permite mostrarla después, sin red, durante los 50 días. |
+| Room sobre SQLite para el historial | Es el mismo SQLite, con el mismo archivo y el mismo espacio. A cambio, las consultas se comprueban al compilar, las filas llegan como objetos, el esquema de cada versión queda exportado con su migración probada, y la pantalla observa los cambios como un `Flow`. |
+| Canciones y escuchas en tablas separadas | La versión 1 repetía el título, el artista, el álbum y la carátula en cada escucha. Ahora cada canción se guarda una vez y cada escucha es una fila de tres números. |
+| Un resumen mensual en lugar de un archivo comprimido | Comprimir las escuchas viejas (ZIP o RAR) ahorraría espacio, pero no se podrían consultar sin descomprimirlas. Una fila por canción y mes ocupa poco y responde directamente a "este mes" y "todo". |
+| La carátula como dirección web, no como imagen | Guardar cada carátula ocupaba unos 8 KB por canción. Spotify y YouTube Music dan una dirección estable de la imagen; si la caché se vacía, se descarga otra vez. Solo se guarda una copia propia de las apps que no dan dirección. |
+| Lista de 30 días; estadísticas para siempre | Lo decidió el usuario. La lista sirve para encontrar algo escuchado hace poco, y los resúmenes por mes y por día crecen muy despacio. |
+| De las apps de vídeo, solo el tiempo | Los títulos de los vídeos no son canciones y llenarían el historial; el tiempo sí sirve para comparar cuánto suena cada app. Lo decidió el usuario. |
+| `VACUUM` solo con 256 KB libres o más | `VACUUM` reescribe el archivo entero. Hacerlo en cada limpieza gastaría escrituras para devolver unos pocos KB. |
 
 ## 6. Defectos corregidos
 
@@ -289,4 +347,5 @@ Los identificadores vienen del plan de refactorización y de `docs/diagnostico-f
 
 - **Tableta mapeada a una ventana.** Hoy el área de dibujo corresponde a un monitor entero. Mapearla a una sola ventana daría más precisión en apps pequeñas.
 - **Ver la pantalla de la PC en el teléfono** mientras se dibuja en modo Tableta. Exige enviar vídeo de la PC al teléfono.
+- **Idiomas** (2.4): español, inglés y chino mandarín, con un selector en los ajustes.
 - **Letras sincronizadas** (2.4), con traducción; antes, una prueba de que la fuente las tiene.

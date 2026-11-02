@@ -3,18 +3,23 @@ package io.github.elkelvinx.sashabridge.history
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
 
 /**
- * Decides when a track counts as listened to, so it goes to the history once per play:
- * after [LISTEN_MS] of actual playing (pauses do not count), or half the track if it is
- * shorter. Skipped tracks never reach the history, and neither do video apps ([isMusic]).
+ * Decides when a song counts as listened to, so it goes to the history once per play: after
+ * [LISTEN_MS] of actual playing (pauses do not count), or half the song if it is shorter.
+ * Skipped songs never reach the history, and neither do videos nor anything without a title.
+ *
+ * A song that starts over (repeat one, or back to its start) is a new play: the player keeps
+ * the same track, but its position jumps back to the beginning.
  *
  * Fed with every state of the player ([update]) and, while one plays, with the time now and
- * then ([tick]): players send nothing while a track simply plays on.
+ * then ([tick]): players send nothing while a song simply plays on.
  *
  * Plain state with no Android dependency, so it is tested on the JVM. One thread at a time.
+ *
+ * @param isMusic Whether a player plays music; see [AppKinds].
  */
-class HistoryRecorder {
+class HistoryRecorder(private val isMusic: (String) -> Boolean = { AppKinds.of(it) == AppKind.MUSIC }) {
 
-    /** Track being timed, or `null`. */
+    /** Song being timed, or `null`. */
     private var current: MediaSnapshot? = null
 
     /** Playing time of [current] before [playingSince]. */
@@ -30,17 +35,18 @@ class HistoryRecorder {
      * The player changed state.
      *
      * @param snapshot The new state, or `null` when nothing plays.
-     * @param nowMs Milliseconds of a monotonic clock.
-     * @return The track to add to the history now, or `null`.
+     * @param nowMs Milliseconds of a monotonic clock, the one of the snapshots' positions.
+     * @return The song to add to the history now, or `null`.
      */
     fun update(snapshot: MediaSnapshot?, nowMs: Long): MediaSnapshot? {
         settle(nowMs)
-        if (snapshot == null || !isMusic(snapshot.source)) {
+        if (snapshot == null || snapshot.title.isNullOrBlank() || !isMusic(snapshot.source)) {
             current = null
             playingSince = null
             return null
         }
-        if (snapshot.trackId != current?.trackId) {
+        val previous = current
+        if (snapshot.trackId != previous?.trackId || startedOver(previous, snapshot, nowMs)) {
             playedMs = 0L
             recorded = false
         }
@@ -53,11 +59,22 @@ class HistoryRecorder {
      * Time passed with no new state.
      *
      * @param nowMs Milliseconds of a monotonic clock.
-     * @return The track to add to the history now, or `null`.
+     * @return The song to add to the history now, or `null`.
      */
     fun tick(nowMs: Long): MediaSnapshot? {
         settle(nowMs)
         return due()
+    }
+
+    /**
+     * Whether the same song went back to its start after playing a good part: it was past
+     * [STARTED_OVER_AFTER_MS] (or half a shorter song) and is now within [START_MS] of the start.
+     */
+    private fun startedOver(previous: MediaSnapshot, snapshot: MediaSnapshot, nowMs: Long): Boolean {
+        val before = previous.positionAt(nowMs)
+        val after = snapshot.positionAt(nowMs)
+        val farEnough = snapshot.durationMs?.let { minOf(STARTED_OVER_AFTER_MS, it / 2) } ?: STARTED_OVER_AFTER_MS
+        return after in 0 until START_MS && before >= farEnough
     }
 
     /** Adds the stretch played up to [nowMs] to [playedMs], and starts the next one there. */
@@ -66,7 +83,7 @@ class HistoryRecorder {
         playingSince = playingSince?.let { nowMs }
     }
 
-    /** The current track if it was just listened to long enough. */
+    /** The current song if it was just listened to long enough. */
     private fun due(): MediaSnapshot? {
         val track = current ?: return null
         if (recorded) return null
@@ -78,22 +95,13 @@ class HistoryRecorder {
 
     companion object {
 
-        /** Playing time after which a track counts as listened to. */
+        /** Playing time after which a song counts as listened to. */
         const val LISTEN_MS = 30_000L
 
-        /** Players of video, whose titles are not songs. */
-        private val VIDEO_APPS = setOf(
-            "com.google.android.youtube",
-            "com.google.android.apps.youtube.kids",
-            "com.netflix.mediaclient",
-            "com.amazon.avod.thirdpartyclient",
-            "com.disney.disneyplus",
-            "com.wbd.stream",
-            "tv.twitch.android.app",
-            "com.crunchyroll.crunchyroid",
-        )
+        /** A position this close to the start is the start of the song. */
+        const val START_MS = 5_000L
 
-        /** Whether [source] plays music rather than video. */
-        fun isMusic(source: String): Boolean = source !in VIDEO_APPS
+        /** A song must have played this far before going back to its start counts as a new play. */
+        const val STARTED_OVER_AFTER_MS = 30_000L
     }
 }

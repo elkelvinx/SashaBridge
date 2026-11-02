@@ -164,6 +164,71 @@
         <item name="android:textColor">@color/on_surface_muted</item>
     </style>
 
+    <!-- A period of the statistics, such as "7 días". -->
+    <style name="Widget.SashaBridge.PeriodChip" parent="Widget.Material3.Chip.Filter">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:checkable">true</item>
+    </style>
+
+    <!-- The totals of the statistics: two tiles per row, each a big number over its name. -->
+    <style name="Widget.SashaBridge.StatTileRow" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">12dp</item>
+        <item name="android:orientation">horizontal</item>
+    </style>
+
+    <style name="Widget.SashaBridge.StatTile" parent="Widget.SashaBridge.Card">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+    </style>
+
+    <style name="Widget.SashaBridge.StatTileContent" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <style name="Widget.SashaBridge.StatValue" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textAppearance">?attr/textAppearanceHeadlineSmall</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+    </style>
+
+    <style name="Widget.SashaBridge.StatLabel" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyMedium</item>
+        <item name="android:textColor">@color/on_surface_muted</item>
+    </style>
+
+    <!-- Place of a song or an artist in a ranking. -->
+    <style name="Widget.SashaBridge.StatRank" parent="">
+        <item name="android:layout_width">28dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleMedium</item>
+        <item name="android:textColor">@color/on_surface_muted</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+    </style>
+
+    <!-- Small pill with a count, such as the "×3" of a song played three times in a row. -->
+    <style name="Widget.SashaBridge.CountBadge" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/count_badge</item>
+        <item name="android:paddingHorizontal">8dp</item>
+        <item name="android:paddingVertical">2dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceLabelMedium</item>
+        <item name="android:textColor">@color/on_surface</item>
+    </style>
+
     <!-- Round accent swatch of the settings; the chosen one carries a check mark. -->
     <style name="Widget.SashaBridge.AccentSwatch" parent="">
         <item name="android:layout_width">36dp</item>
