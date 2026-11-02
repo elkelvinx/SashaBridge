@@ -49,8 +49,10 @@ class HistoryRepository private constructor(context: Context) {
     private val database = HistoryDatabase.open(context)
     private val dao = database.dao()
     private val thumbnails = ThumbnailStore.get(context)
-    private val latestCoverFile = File(context.applicationContext.filesDir, LATEST_COVER_FILE)
-    private val latestCoverSongFile = File(context.applicationContext.filesDir, LATEST_COVER_SONG_FILE)
+    private val filesDir = context.applicationContext.filesDir
+
+    /** Folder of the newest song's cover: one file, named after its song ([saveLatestCover]). */
+    private val latestCoverDir = File(filesDir, LATEST_COVER_DIR)
 
     /** Time zone of the days and months of the statistics. */
     private val zone: ZoneId
@@ -174,8 +176,7 @@ class HistoryRepository private constructor(context: Context) {
      */
     suspend fun latestCover(entry: HistoryEntry): ByteArray? = withContext(Dispatchers.IO) {
         val full = try {
-            val songId = latestCoverSongFile.takeIf { it.exists() }?.readText()?.toLongOrNull()
-            if (songId == entry.songId && latestCoverFile.exists()) latestCoverFile.readBytes() else null
+            latestCoverOf(entry.songId).takeIf { it.exists() }?.readBytes()
         } catch (e: IOException) {
             Log.w(LOG_TAG, "Cannot read the cover of the newest song", e)
             null
@@ -215,12 +216,20 @@ class HistoryRepository private constructor(context: Context) {
      * Deletes the plays older than [KEEP_DAYS] days and the covers kept for songs with no plays
      * left. The songs and the statistics stay. Then gives the freed space back to the phone if
      * it is worth it.
+     *
+     * All or nothing: the plays and the songs' references to their covers change in one
+     * transaction, and only then are the files no song names any more deleted. Cut short, it
+     * leaves at most unused files for the next time, never a song naming a deleted file.
      */
     suspend fun prune(nowMs: Long = System.currentTimeMillis()) {
-        dao.deletePlaysBefore(cutoff(nowMs))
-        val inUse = dao.coverKeysInUse().toSet()
-        withContext(Dispatchers.IO) { thumbnails.pruneKept(inUse) }
-        dao.forgetUnusedCovers()
+        val inUse = database.useWriterConnection { connection ->
+            connection.immediateTransaction {
+                dao.deletePlaysBefore(cutoff(nowMs))
+                dao.forgetUnusedCovers()
+                dao.coverKeysInUse()
+            }
+        }
+        withContext(Dispatchers.IO) { thumbnails.pruneKept(inUse.toSet()) }
         compact()
     }
 
@@ -236,8 +245,7 @@ class HistoryRepository private constructor(context: Context) {
         }
         withContext(Dispatchers.IO) {
             thumbnails.pruneKept(emptySet())
-            latestCoverFile.delete()
-            latestCoverSongFile.delete()
+            latestCoverDir.deleteRecursively()
         }
         compact()
     }
@@ -258,20 +266,34 @@ class HistoryRepository private constructor(context: Context) {
     }
 
     /**
-     * Keeps [art], the cover of the newest song [songId], in one file that each new one
-     * replaces: its image for the screen, which a hidden video shows full size on the card.
+     * Keeps [art], the cover of the newest song [songId]: its image for the screen, which a
+     * hidden video shows full size on the card.
+     *
+     * All or nothing: the file is named after its song, written aside and renamed in one step,
+     * so a cover is never read as another song's. The older ones are deleted afterwards; one
+     * left behind by a cut is still its own song's, and goes with the next.
      */
     private suspend fun saveLatestCover(art: AlbumArt, songId: Long) = withContext(Dispatchers.IO) {
         val jpeg = art.screen?.let { AlbumArtEncoder.compress(it, AlbumArtEncoder.SCREEN_MAX_PX, LATEST_COVER_QUALITY) } ?: art.jpeg
-        val partial = File(latestCoverFile.path + ".part")
+        val target = latestCoverOf(songId)
+        val partial = File(latestCoverDir, target.name + ".part")
         try {
+            latestCoverDir.mkdirs()
             partial.writeBytes(jpeg)
-            if (!partial.renameTo(latestCoverFile)) partial.delete()
-            latestCoverSongFile.writeText(songId.toString())
+            if (!partial.renameTo(target)) {
+                partial.delete()
+                return@withContext
+            }
+            latestCoverDir.listFiles()?.filter { it != target }?.forEach { it.delete() }
+            // The two files of earlier versions, which could disagree after a cut.
+            LEGACY_LATEST_COVER_FILES.forEach { File(filesDir, it).delete() }
         } catch (e: IOException) {
             Log.w(LOG_TAG, "Cannot keep the cover of the newest song", e)
         }
     }
+
+    /** The file of the newest song's cover, if [songId] is the newest song. */
+    private fun latestCoverOf(songId: Long): File = File(latestCoverDir, "$songId.jpg")
 
     /** Start of the kept period. */
     private fun cutoff(nowMs: Long): Long = nowMs - TimeUnit.DAYS.toMillis(KEEP_DAYS)
@@ -303,9 +325,11 @@ class HistoryRepository private constructor(context: Context) {
         /** JPEG quality of the newest song's cover: it is shown large, and it is only one file. */
         private const val LATEST_COVER_QUALITY = 90
 
-        /** Files, inside the app's files, with the newest song's cover as the player gave it, and its song. */
-        private const val LATEST_COVER_FILE = "latest-cover.jpg"
-        private const val LATEST_COVER_SONG_FILE = "latest-cover.song"
+        /** Folder, inside the app's files, of the newest song's cover. */
+        private const val LATEST_COVER_DIR = "latest-cover"
+
+        /** The newest song's cover and its song id, as two files, before version 2.4. */
+        private val LEGACY_LATEST_COVER_FILES = listOf("latest-cover.jpg", "latest-cover.song")
 
         private const val SONGS = "songs"
         private const val PLAYS = "plays"
