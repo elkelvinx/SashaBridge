@@ -95,6 +95,7 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | M9 | Un vídeo de YouTube sonando; `Ctrl+Alt+O` en la PC | El vídeo se pausa; SashaBridge pasa al frente con la última canción de música en pausa, también en el panel de Windows; Spotify no arranca |
 | M10 | Después de M9, reproducir en SashaBridge; después volver a YouTube y reproducir | Suena la música; con el vídeo, la tarjeta y Windows vuelven a seguirlo |
 | M11 | Una canción de Spotify en "Tus me gusta"; el corazón de la tarjeta | A los 2 s, aviso inferior: "No se quitó de Me gusta. Spotify no deja hacerlo desde fuera. Hazlo en Spotify." El corazón sigue lleno |
+| M13 | En la tarjeta, "siguiente" tres veces y "anterior" tres veces, rápido (0,4 s); después "anterior" cinco veces y "siguiente" cinco veces | Cada cambio sale hacia el lado de la última pulsación: hacia atrás con "anterior", hacia adelante con "siguiente", aunque Spotify solo publique la canción final. La carátula no da tirones al llegar varias actualizaciones de la misma canción |
 | M12 | Igual que M11 con `Ctrl+Alt+L`; y con un vídeo de YouTube | El mismo aviso en la esquina de la PC, con el icono ⓘ. Con YouTube: "YouTube no ofrece este botón a otras apps" |
 
 ### Ocultar y ajustes (2.4)
@@ -305,4 +306,8 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 | 3 | `PlayerCard` (832 líneas) en `CoverArt`, `CoverMotion`, `PlayerControls`, `SeekRow` y `TitleFitter` (367) | La tarjeta se ve igual. **Pendiente:** la animación al cambiar de canción, con música |
 | 4 | `MediaSessionTracker` (620) en `Hiding`, `SnapshotReader` y `SharpArtCache` (442) | Lee el reproductor y su carátula; la PC se conecta |
 | 5 | Portada de la última canción y `prune`, todo o nada; `BlackoutOverlay` (`MainActivity`: 557 → 414) | La limpieza del arranque corre sin errores. **Pendiente:** la portada nueva tras 30 s de música y "Pantalla negra" (H4) |
+
+| ID | Resultado | Evidencia |
+|---|---|---|
+| M13 | **Correcto** | Reproducido antes del arreglo: con pulsaciones rápidas Spotify solo publicó la canción final, y las tres de "anterior" llegaron con un cambio hacia adelante en curso (`finish 1 to Gloria`). La lógica era la misma antes del refactor. Con el arreglo, el registro dice `the change under way turns to -1` y `change to Gloria, way -1`; cinco "anterior" dan `way -1` y cinco "siguiente" `way 1`; cada canción aparece una vez. En una ráfaga de capturas, la carátula sale por la derecha y la nueva entra por la izquierda |
 

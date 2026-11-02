@@ -75,7 +75,7 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `server/ClientSession` | Conversación con una PC: saludo, estado inicial, cambios y órdenes. |
 | `protocol/` | Tipos del protocolo v2 (`PhoneMessage`, `PcMessage`), su codificación (`ProtocolCodec`) y la traducción de estados a mensajes de una sesión (`MediaStateEncoder`). |
 | `ui/BridgePhase`, `MainActivity` | Pantalla: estado del puente, avisos de permisos y batería, Sasha, y quién muestra qué. |
-| `ui/PlayerCard` | La tarjeta del reproductor: decide cuándo cambia la canción y coordina sus partes: `CoverArt` (carátula y fondo desenfocado), `CoverMotion` (cómo se mueve la carátula al cambiar), `PlayerControls` (botones y modos), `SeekRow` (barra, tiempos y onda) y `TitleFitter` (tamaño del título horizontal). |
+| `ui/PlayerCard`, `SkipIntent` | La tarjeta del reproductor: decide cuándo cambia la canción, hacia el lado de la última pulsación del usuario de los últimos 3 s (`SkipIntent`, puro y con tests), y coordina sus partes: `CoverArt` (carátula y fondo desenfocado), `CoverMotion` (cómo se mueve la carátula al cambiar), `PlayerControls` (botones y modos), `SeekRow` (barra, tiempos y onda) y `TitleFitter` (tamaño del título horizontal). |
 | `ui/DisplayMode`, `BlackoutOverlay` | Todo lo de la pantalla como adorno junto a la PC (barras, pantalla encendida mientras carga, desplazamiento OLED, 60 Hz), y la cubierta negra de "Pantalla negra". |
 | `ui/DayNames` | "Hoy", "Ayer" o la fecha, igual en el historial y en las estadísticas. |
 | `server/PenSession` | Conversación con una PC en la ruta `/pen`: estado de las dos pantallas del S Pen, capturas, anotaciones, monitor de la tableta, latencia y las muestras del lápiz en frames binarios. |

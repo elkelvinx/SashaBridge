@@ -1,6 +1,7 @@
 package io.github.elkelvinx.sashabridge.ui
 
 import android.graphics.drawable.Drawable
+import android.util.Log
 import android.os.SystemClock
 import android.view.View
 import android.widget.ImageView
@@ -8,6 +9,7 @@ import android.widget.TextView
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import io.github.elkelvinx.sashabridge.R
+import io.github.elkelvinx.sashabridge.bridge.BridgeConfig.LOG_TAG
 import io.github.elkelvinx.sashabridge.media.MediaSnapshot
 import io.github.elkelvinx.sashabridge.media.PlayerCommand
 import io.github.elkelvinx.sashabridge.media.PlayerQueue
@@ -30,9 +32,9 @@ import io.github.elkelvinx.sashabridge.protocol.PcMessage
  * button, or the first state of a new track) and floats while it waits. The new track is only
  * shown once its art has arrived, so the card never flashes the placeholder; if the art takes
  * too long ([ART_WAIT_MS]) the track shows without it, and a skip that changes nothing in
- * [CANCEL_MS] brings the old art back. The art leaves towards the side of the new track: with
- * a button, as the button says; for a change made elsewhere, by where both tracks are in the
- * queue.
+ * [CANCEL_MS] brings the old art back. The art leaves towards the side of the new track: the
+ * way of the user's latest skip, which also turns a change already under way ([SkipIntent]);
+ * for a change made elsewhere, by where both tracks are in the queue.
  *
  * The card works the same in both orientations: it finds its views by id, and the views only
  * one layout has are optional.
@@ -118,6 +120,9 @@ class PlayerCard(
     /** Brings the old card back if a skip did not change the track. */
     private val cancelSwipe = Runnable { returnSwipe() }
 
+    /** The way of the user's latest skip, for the changes that follow it. */
+    private val skips = SkipIntent()
+
     init {
         icon.setOnClickListener { shownSource?.let(onOpenPlayer) }
         queueButton.setOnClickListener { onOpenQueue() }
@@ -147,11 +152,18 @@ class PlayerCard(
                     // A change made elsewhere (the PC, the player): the queue tells its way,
                     // best the one from before the change. The new queue may come a moment
                     // after the track, so a change it cannot place yet waits for it briefly.
-                    val direction = queueOfShownTrack?.directionBetween(current.title, snapshot.title)
+                    // A change that follows a press of the user is that press's doing, even
+                    // when it came after the press's own change had ended.
+                    val pressed = skips.recent(clock())
+                    val direction = pressed
+                        ?: queueOfShownTrack?.directionBetween(current.title, snapshot.title)
                         ?: queue?.directionBetween(current.title, snapshot.title)
                     if (direction == null && waitForQueue(snapshot.trackId)) return
+                    Log.d(LOG_TAG, "Card: change to ${snapshot.title} without a swipe; pressed $pressed, way ${direction ?: FORWARD}")
                     beginSwipe(direction ?: FORWARD, byUser = false)
                 }
+                // The art already leaves for this track: [latest] holds its newest state.
+                if (swipe?.target == snapshot.trackId) return
                 cover.removeCallbacks(cancelSwipe)
                 if (snapshot.art != null) {
                     finishSwipe(snapshot)
@@ -182,7 +194,9 @@ class PlayerCard(
      * @param direction 1 for a later track, -1 for an earlier one.
      */
     fun skipTo(direction: Int) {
-        beginSwipe(if (direction < 0) BACKWARD else FORWARD, byUser = true)
+        val way = if (direction < 0) BACKWARD else FORWARD
+        skips.press(way, clock())
+        beginSwipe(way, byUser = true)
     }
 
     /** Sets how the blurred art behind the card looks; see [CoverArt.setBackdrop]. */
@@ -203,15 +217,21 @@ class PlayerCard(
         seekRow.step()
     }
 
-    /** "Previous": past the first seconds, players start the track over instead of going back. */
+    /**
+     * "Previous": far into a track, players start it over instead of going back
+     * ([SkipIntent.restarts]); the art then only nudges.
+     */
     private fun previous() {
-        val position = displayed?.positionAt(clock()) ?: 0L
-        if (position > RESTART_MS) motion.rewind() else beginSwipe(BACKWARD, byUser = true)
+        val now = clock()
+        val restarts = skips.restarts(displayed?.positionAt(now) ?: 0L, now)
+        skips.press(BACKWARD, now)
+        if (restarts) motion.rewind() else beginSwipe(BACKWARD, byUser = true)
         send(CommandAction.PREVIOUS)
     }
 
     /** "Next". */
     private fun next() {
+        skips.press(FORWARD, clock())
         beginSwipe(FORWARD, byUser = true)
         send(CommandAction.NEXT)
     }
@@ -253,10 +273,22 @@ class PlayerCard(
         seekRow.show(snapshot)
     }
 
-    /** Starts a track change towards [direction]; see [CoverMotion.leave]. */
+    /**
+     * Starts a track change towards [direction]; see [CoverMotion.leave]. A press while a
+     * change is under way keeps it going, turned towards the press if it goes the other way:
+     * the player will end where the latest press sends it.
+     */
     private fun beginSwipe(direction: Int, byUser: Boolean) {
-        if (swipe != null) {
-            if (byUser) restartCancelTimer()
+        val current = swipe
+        if (current != null) {
+            if (byUser) {
+                if (direction != current.direction) {
+                    Log.d(LOG_TAG, "Card: the change under way turns to $direction")
+                    current.direction = direction
+                    motion.leave(direction)
+                }
+                restartCancelTimer()
+            }
             return
         }
         swipe = Swipe(direction, byUser)
@@ -273,6 +305,8 @@ class PlayerCard(
     /** Ends a track change: the old art leaves and [snapshot] comes in; see [CoverMotion.exit]. */
     private fun finishSwipe(snapshot: MediaSnapshot) {
         val direction = swipe?.direction ?: FORWARD
+        swipe?.target = snapshot.trackId
+        Log.d(LOG_TAG, "Card: change to ${snapshot.title}, way $direction")
         cover.removeCallbacks(showWithoutArt)
         cover.removeCallbacks(cancelSwipe)
         motion.exit(direction) {
@@ -331,14 +365,18 @@ class PlayerCard(
     /**
      * A track change in progress.
      *
-     * @property direction [FORWARD] when the art leaves to the left, [BACKWARD] to the right.
+     * @property direction [FORWARD] when the art leaves to the left, [BACKWARD] to the right;
+     *   the user's latest press may turn it.
      * @property byUser Whether a skip button started it, so it may have to be undone.
      * @property waitingForArt Whether the new track arrived and only its art is missing.
+     * @property target The track the art already leaves for, once the change ends; more
+     *   states of it must not start the ending again, which would make the art jump.
      */
     private class Swipe(
-        val direction: Int,
+        var direction: Int,
         val byUser: Boolean,
         var waitingForArt: Boolean = false,
+        var target: String? = null,
     )
 
     private companion object {
@@ -354,12 +392,6 @@ class PlayerCard(
 
         /** Time after which a skip that changed nothing is undone. */
         const val CANCEL_MS = 3_000L
-
-        /**
-         * Position after which "previous" starts the track over instead of going back, as
-         * Spotify and YouTube Music do.
-         */
-        const val RESTART_MS = 3_000L
 
         /** How long a change made elsewhere waits for the queue to tell its way. */
         const val QUEUE_WAIT_MS = 150L
