@@ -131,6 +131,15 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | E8 | Ajustes de Android → SashaBridge → Almacenamiento → Borrar caché; abrir Historial con conexión | Las carátulas vuelven: se descargan otra vez de su dirección |
 | E9 | Ajustes → "Borrar el historial" | La lista y las estadísticas quedan vacías |
 | E10 | Como H7, viendo también un vídeo | Tampoco suma tiempo en Estadísticas |
+| E11 | Tocar una barra de "Por día"; deslizar el dedo de lado; tocar otra vez la misma barra; deslizar en vertical desde el gráfico | Una burbuja con el día ("Hoy", "Ayer" o la fecha) y el tiempo exacto sobre la barra, que se resalta; al deslizar pasa de día en día con un toque de vibración; el segundo toque la cierra; en vertical se mueve la página |
+
+### Carátulas (2.4)
+
+| ID | Escenario | Resultado esperado |
+|---|---|---|
+| C1 | Carátula de la tarjeta con Spotify y con YouTube Music, en vertical y en horizontal | Nítida, sin bloques. El registro de la app dice el tamaño recibido (`Art 640x640 from content://...` en Spotify) |
+| C2 | Ocultar un vídeo cuando la app de música ya no tiene sesión | La carátula de la última canción se ve igual de nítida |
+| C3 | Panel de Windows durante C1 | La carátula sigue llegando a la PC como antes |
 
 ## 4. Regresión de la versión 2.0
 
@@ -252,5 +261,8 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 | E1 | **Correcto** | La migración se ejecutó primero en la PC, con Room, sobre la copia, y después en el teléfono. Las dos dieron lo mismo: 208 escuchas, 161 canciones (140 canciones y 21 vídeos de YouTube Music), 172 resúmenes mensuales que suman 208, y "Castle Vein" con sus 11 escuchas; integridad correcta y versión 2. Sin cierres en `logcat -b crash`. La lista se ve con sus carátulas |
 | E3 | **Correcto** | En el teléfono: con 7 días y con Todo, 208 escuchas, 161 canciones y 142 artistas; con Este mes (noviembre), 25, 21 y 17. Son los mismos números que da la base |
 | E6 | **Parcial** | "Más escuchadas" muestra las carátulas migradas y "11 veces" en Castle Vein. Falta tocar una, que la abriría y la pondría a sonar |
-| E4, E7 | **Pendiente** | La versión 1 no medía el tiempo: "Tiempo con música", "Por día" y "Por app" empiezan vacíos y se llenan desde la instalación |
-| E2, E5, E8-E10 | **Pendiente** | Hay que escuchar música en el teléfono |
+| E7 | **Correcto** | 30 barras hasta hoy; con 18 min de Spotify, "Últimos 30 días: 18 min en total". La versión 1 no medía el tiempo, así que todo empieza el 2 de noviembre |
+| E11 | **Correcto** | En el teléfono: "Hoy, 18 min" sobre la barra de hoy, junto al borde y con la flecha en la barra; "Vie 23 oct, Sin música" sobre un día vacío; el segundo toque la cierra; al deslizar de lado termina en el día bajo el dedo; en vertical se mueve la página |
+| C1 | **Parcial** | Spotify da la carátula a 640 x 640 (`Art 640x640 from content://...`). Ampliada, la de antes se veía borrosa y con bloques de JPEG, y la de ahora deja ver la malla del velo y las piedras de los aretes. Falta YouTube Music |
+| E4 | **Parcial** | "Por app" muestra Spotify con 18 min. Falta un vídeo de YouTube |
+| E2, E5, E8-E10, C2, C3 | **Pendiente** | Hay que escuchar música en el teléfono |

@@ -17,7 +17,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Turns the album art bitmap of a player into an [AlbumArt].
+ * Turns the album art bitmap of a player into an [AlbumArt]: a small JPEG for the PC and the
+ * player's own pixels for the phone's screen ([AlbumArt.screen]).
  *
  * Fixes three defects of the previous code:
  * - The art is scaled keeping its proportions (YouTube thumbnails are 16:9 and used to be
@@ -25,6 +26,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  * - Scaling and JPEG compression run on [Dispatchers.Default] instead of the main thread (A9).
  * - The art is read from the metadata of every update, so art that arrives after the title
  *   is no longer lost (R3).
+ *
+ * The screen keeps the bitmap as the player gave it: the PC's JPEG, shown on the card's cover,
+ * which is about 760 px wide in landscape, looked blurred and blocky.
  *
  * The last result is cached by `Bitmap.generationId`, so updates that only change the
  * playback state do not encode the same bitmap again.
@@ -72,8 +76,8 @@ class AlbumArtEncoder(private val resolver: ContentResolver? = null) {
         if (bitmap.width <= 0 || bitmap.height <= 0) return null
         if (bitmap.generationId == cachedGenerationId) return cachedArt
 
-        val jpeg = withContext(Dispatchers.Default) { compress(bitmap) }
-        val art = AlbumArt(artIdOf(jpeg), jpeg)
+        val art = withContext(Dispatchers.Default) { artOf(bitmap) }
+        Log.d(LOG_TAG, "Art ${bitmap.width}x${bitmap.height} from the metadata")
         cachedGenerationId = bitmap.generationId
         cachedArt = art
         return art
@@ -94,18 +98,14 @@ class AlbumArtEncoder(private val resolver: ContentResolver? = null) {
         return art
     }
 
-    /** Reads, scales and encodes the image at [uri]. IO thread. */
+    /** Reads the image at [uri] and makes its art. IO thread. */
     private fun readUri(resolver: ContentResolver, uri: String): AlbumArt? = try {
-        resolver.openInputStream(uri.toUri())?.use { it.readBytes() }?.let { bytes ->
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            var sample = 1
-            while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_SIDE_PX) sample *= 2
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
-        }?.let { bitmap ->
-            val jpeg = compress(bitmap)
-            AlbumArt(artIdOf(jpeg), jpeg)
-        }
+        resolver.openInputStream(uri.toUri())?.use { it.readBytes() }
+            ?.let(::decode)
+            ?.let { bitmap ->
+                Log.d(LOG_TAG, "Art ${bitmap.width}x${bitmap.height} from $uri")
+                artOf(bitmap)
+            }
     } catch (e: IOException) {
         Log.d(LOG_TAG, "Cannot read the art at $uri: $e")
         null
@@ -114,34 +114,16 @@ class AlbumArtEncoder(private val resolver: ContentResolver? = null) {
         null
     }
 
-    /**
-     * Scales [bitmap] to fit within [MAX_SIDE_PX] and compresses it as JPEG.
-     *
-     * Runs on [Dispatchers.Default].
-     *
-     * @param bitmap Source bitmap; it is not modified.
-     * @return The JPEG bytes.
-     */
-    private fun compress(bitmap: Bitmap): ByteArray {
-        val (width, height) = fitWithin(bitmap.width, bitmap.height, MAX_SIDE_PX)
-        val scaled = if (width == bitmap.width && height == bitmap.height) {
-            bitmap
-        } else {
-            bitmap.scale(width, height)
-        }
-        try {
-            val stream = ByteArrayOutputStream()
-            scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, stream)
-            return stream.toByteArray()
-        } finally {
-            if (scaled !== bitmap) scaled.recycle()
-        }
-    }
-
     companion object {
 
-        /** Largest side of the encoded image, in pixels. */
+        /** Largest side of the JPEG the PC receives, in pixels. */
         const val MAX_SIDE_PX: Int = 300
+
+        /**
+         * Largest side of the image for the phone's screen, in pixels: the short side of the
+         * screen, more than the cover ever takes. Players give 544 to 900 px.
+         */
+        const val SCREEN_MAX_PX: Int = 1080
 
         /** JPEG quality, from 0 to 100. */
         const val JPEG_QUALITY: Int = 80
@@ -159,6 +141,69 @@ class AlbumArtEncoder(private val resolver: ContentResolver? = null) {
         /** The `content://` address of the art in [metadata], or `null`. */
         private fun artUriOf(metadata: MediaMetadata): String? = ART_URI_KEYS.firstNotNullOfOrNull { key ->
             metadata.getString(key)?.takeIf { it.startsWith(ContentResolver.SCHEME_CONTENT + "://") }
+        }
+
+        /**
+         * The art of an image file (JPEG, PNG or WebP), such as the history's copy of the
+         * newest track's cover; `null` if [bytes] are no image. Works on [Dispatchers.Default].
+         */
+        suspend fun fromImage(bytes: ByteArray): AlbumArt? = withContext(Dispatchers.Default) {
+            decode(bytes)?.let(::artOf)
+        }
+
+        /**
+         * The art of [bitmap]: the image for the screen, and the PC's JPEG made from it. Any
+         * thread but the main one; [bitmap] is not modified.
+         */
+        fun artOf(bitmap: Bitmap): AlbumArt {
+            val screen = forScreen(bitmap)
+            val jpeg = compress(screen, MAX_SIDE_PX, JPEG_QUALITY)
+            return AlbumArt(artIdOf(jpeg), jpeg, screen)
+        }
+
+        /**
+         * [bitmap] as the screen keeps it: no larger than [SCREEN_MAX_PX], and in memory the
+         * app can read (a hardware bitmap cannot be blurred for the card's backdrop).
+         */
+        private fun forScreen(bitmap: Bitmap): Bitmap {
+            val readable = if (bitmap.config == Bitmap.Config.HARDWARE) bitmap.copy(Bitmap.Config.ARGB_8888, false) else bitmap
+            val (width, height) = fitWithin(readable.width, readable.height, SCREEN_MAX_PX)
+            return if (width == readable.width && height == readable.height) readable else readable.scale(width, height)
+        }
+
+        /**
+         * Decodes [bytes], skipping whole halvings that would still leave more than
+         * [SCREEN_MAX_PX]; `null` if they are no image.
+         */
+        private fun decode(bytes: ByteArray): Bitmap? {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+            var sample = 1
+            while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= SCREEN_MAX_PX) sample *= 2
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+        }
+
+        /**
+         * Scales [bitmap] to fit within [maxSide] and compresses it as JPEG at [quality].
+         *
+         * @param bitmap Source bitmap; it is not modified.
+         * @return The JPEG bytes.
+         */
+        fun compress(bitmap: Bitmap, maxSide: Int, quality: Int): ByteArray {
+            val (width, height) = fitWithin(bitmap.width, bitmap.height, maxSide)
+            val scaled = if (width == bitmap.width && height == bitmap.height) {
+                bitmap
+            } else {
+                bitmap.scale(width, height)
+            }
+            try {
+                val stream = ByteArrayOutputStream()
+                scaled.compress(Bitmap.CompressFormat.JPEG, quality, stream)
+                return stream.toByteArray()
+            } finally {
+                if (scaled !== bitmap) scaled.recycle()
+            }
         }
 
         /**

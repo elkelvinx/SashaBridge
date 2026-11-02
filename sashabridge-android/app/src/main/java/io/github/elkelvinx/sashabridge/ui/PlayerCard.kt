@@ -537,12 +537,15 @@ class PlayerCard(
     /**
      * Shows the album art and its blurred backdrop, or the placeholder and no backdrop
      * without art. Art that changes within the same track cross-fades.
+     *
+     * The cover uses the art's image for the screen, as sharp as the player gave it; only art
+     * without one falls back to the PC's small JPEG.
      */
     private fun showArt(art: AlbumArt?, crossFade: Boolean) {
         val artId = art?.artId ?: NO_ART
         if (artId == shownArtId) return
         shownArtId = artId
-        val bitmap = art?.let { BitmapFactory.decodeByteArray(it.jpeg, 0, it.jpeg.size) }
+        val bitmap = art?.let { it.screen ?: BitmapFactory.decodeByteArray(it.jpeg, 0, it.jpeg.size) }
         shownBitmap = bitmap
         val blurred = bitmap?.let { Backdrop.of(it, backdropBlur) }
         val backdropAlpha = if (blurred != null) BACKDROP_ALPHA else 0f

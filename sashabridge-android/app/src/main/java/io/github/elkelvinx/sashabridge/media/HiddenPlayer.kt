@@ -15,9 +15,9 @@ internal object HiddenPlayer {
      * track, so the card does not take it for a new one.
      *
      * @param entry The newest track of the history.
-     * @param cover Its cover as JPEG, or `null` if it has none.
+     * @param art Its cover, or `null` if it has none.
      */
-    fun snapshotOf(entry: HistoryEntry, cover: ByteArray?): MediaSnapshot = MediaSnapshot(
+    fun snapshotOf(entry: HistoryEntry, art: AlbumArt?): MediaSnapshot = MediaSnapshot(
         trackId = MediaSnapshot.trackIdOf(entry.source, entry.mediaId, entry.title, entry.artist, entry.album, null),
         source = entry.source,
         title = entry.title,
@@ -30,7 +30,7 @@ internal object HiddenPlayer {
         positionUpdateTimeMs = 0L,
         playbackSpeed = 0f,
         shuffle = null,
-        art = cover?.let { AlbumArt(AlbumArtEncoder.artIdOf(it), it) },
+        art = art,
         mediaId = entry.mediaId,
     )
 }

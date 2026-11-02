@@ -1,10 +1,12 @@
 package io.github.elkelvinx.sashabridge.media
 
+import android.graphics.Bitmap
 import io.github.elkelvinx.sashabridge.protocol.ShuffleMode
 import java.security.MessageDigest
 
 /**
- * Album art of a track, already encoded for the wire.
+ * Album art of a track, in two sizes: small for the wire, and as sharp as the player gave it
+ * for this phone's screen.
  *
  * Two instances are equal when their [artId] is equal. This keeps [MediaSnapshot] comparisons
  * cheap and makes snapshots with the same image compare equal.
@@ -12,9 +14,14 @@ import java.security.MessageDigest
  * Immutable by contract; can be shared between threads.
  *
  * @property artId Identifier derived from the bytes; see [AlbumArtEncoder.artIdOf].
- * @property jpeg JPEG bytes. The array is not copied, so it must not be modified.
+ * @property jpeg JPEG bytes of at most [AlbumArtEncoder.MAX_SIDE_PX], what the PC receives.
+ *   The array is not copied, so it must not be modified.
+ * @property screen The image for the app's own screen, never sent: the player's own pixels,
+ *   up to [AlbumArtEncoder.SCREEN_MAX_PX], not compressed again. The card's cover is several
+ *   times larger than [jpeg]. `null` when only the JPEG is known; never drawn on, and never a
+ *   hardware bitmap, so its pixels can be read.
  */
-class AlbumArt(val artId: String, val jpeg: ByteArray) {
+class AlbumArt(val artId: String, val jpeg: ByteArray, val screen: Bitmap? = null) {
 
     override fun equals(other: Any?): Boolean = other is AlbumArt && other.artId == artId
 

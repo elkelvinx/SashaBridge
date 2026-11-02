@@ -114,7 +114,7 @@ class MediaCommandExecutor(
     private fun hide() {
         scope.launch {
             val entry = history.latest()
-            val fallback = entry?.let { HiddenPlayer.snapshotOf(it, history.latestCover(it)) }
+            val fallback = entry?.let { HiddenPlayer.snapshotOf(it, history.latestCover(it)?.let { cover -> AlbumArtEncoder.fromImage(cover) }) }
             hiddenTrack = entry
             Log.i(LOG_TAG, "Hiding the video behind ${entry?.source ?: "no track"}")
             tracker.hide(entry?.source, fallback)

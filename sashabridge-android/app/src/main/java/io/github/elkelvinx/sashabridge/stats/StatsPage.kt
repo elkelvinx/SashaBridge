@@ -25,6 +25,7 @@ import io.github.elkelvinx.sashabridge.history.SongStat
 import io.github.elkelvinx.sashabridge.history.StatsPeriod
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
 import java.text.NumberFormat
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
@@ -68,6 +69,9 @@ internal class StatsPage(
     private val artistRows: LinearLayout = view.findViewById(R.id.statsArtists)
     private val dayFormat = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
 
+    /** A day in the bubble of the chart, with its weekday ("sáb 31 oct"). */
+    private val bubbleDayFormat = DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault())
+
     /** Counts and ranks with the digits and separators of the phone's language ("1,234"). */
     private val numbers = NumberFormat.getIntegerInstance()
 
@@ -78,6 +82,7 @@ internal class StatsPage(
     private var shown: HistoryStats? = null
 
     init {
+        dayBars.describe = { day -> dayName(day.date) to dayTime(day.playedMs) }
         val chips = mapOf(
             R.id.periodWeek to StatsPeriod.WEEK,
             R.id.periodDays30 to StatsPeriod.DAYS_30,
@@ -200,6 +205,23 @@ internal class StatsPage(
     private fun artistLine(entry: HistoryEntry): String {
         val artist = entry.artist.orEmpty()
         return if (entry.kind == SongKind.VIDEO) context.getString(R.string.stats_video_artist, artist) else artist
+    }
+
+    /** "Hoy", "Ayer", or the weekday and date, for the bubble of the chart. */
+    private fun dayName(date: LocalDate): String {
+        val today = LocalDate.now()
+        return when (date) {
+            today -> context.getString(R.string.history_today)
+            today.minusDays(1) -> context.getString(R.string.history_yesterday)
+            else -> bubbleDayFormat.format(date).replaceFirstChar { it.titlecase(Locale.getDefault()) }
+        }
+    }
+
+    /** The music of a day for the bubble of the chart: its time, or that it had none. */
+    private fun dayTime(ms: Long): String = when {
+        ms <= 0 -> context.getString(R.string.stats_day_none)
+        StatsFormat.hoursAndMinutes(ms) == (0L to 0L) -> context.getString(R.string.stats_day_under_minute)
+        else -> duration(ms)
     }
 
     private fun times(count: Int): String = context.resources.getQuantityString(R.plurals.stats_times, count, count)

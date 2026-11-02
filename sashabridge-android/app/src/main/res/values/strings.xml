@@ -125,6 +125,8 @@
     <string name="stats_minutes">%1$d min</string>
     <string name="stats_hours">%1$d h</string>
     <string name="stats_hours_minutes">%1$d h %2$d min</string>
+    <string name="stats_day_none">Sin música</string>
+    <string name="stats_day_under_minute">Menos de 1 min</string>
     <!-- Tag of a title that shrinks to fit two lines; not shown. -->
     <string name="tag_fit_title" translatable="false">fit-title</string>
     <string name="control_liked">Te gusta; tocar para quitarlo</string>

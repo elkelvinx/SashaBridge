@@ -52,13 +52,30 @@ object Backdrop {
      * @return A new [SHOWN_PX]-pixel square bitmap.
      */
     fun of(art: Bitmap, blur: Int = DEFAULT_LEVEL): Bitmap {
-        val small = art.scale(SMALL_PX, SMALL_PX)
+        val small = shrink(art)
         val pixels = IntArray(SMALL_PX * SMALL_PX)
         small.getPixels(pixels, 0, SMALL_PX, 0, 0, SMALL_PX, SMALL_PX)
         val blurred = createBitmap(SMALL_PX, SMALL_PX)
         val softened = blur(pixels, SMALL_PX, SMALL_PX, radius = blurRadius(blur))
         blurred.setPixels(saturate(softened), 0, SMALL_PX, 0, 0, SMALL_PX, SMALL_PX)
         return blurred.scale(SHOWN_PX, SHOWN_PX)
+    }
+
+    /**
+     * [art] squeezed to a [SMALL_PX] square. Large art is halved first, as often as it stays
+     * above twice that size: each halving averages every 2 x 2 pixels, while one big step would
+     * only sample a few pixels of a cover of hundreds, and the colors would depend on which.
+     */
+    private fun shrink(art: Bitmap): Bitmap {
+        var current = art
+        while (current.width / 2 >= SMALL_PX * 2 && current.height / 2 >= SMALL_PX * 2) {
+            val half = current.scale(current.width / 2, current.height / 2)
+            if (current !== art) current.recycle()
+            current = half
+        }
+        val small = current.scale(SMALL_PX, SMALL_PX)
+        if (current !== art && current !== small) current.recycle()
+        return small
     }
 
     /** Radius of the blur passes for the blur level [level], from 0 to [MAX_RADIUS]. */

@@ -48,7 +48,7 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `media/MediaSessionTracker` | Observa todas las sesiones activas (`OnActiveSessionsChangedListener` y un `MediaController.Callback` por reproductor) y publica un `StateFlow<MediaSnapshot?>` con el reproductor elegido. Agrupa las ráfagas de cambios. |
 | `media/ActiveControllerPolicy` | Elige el reproductor: primero el que suena, después el que cambió de estado más recientemente y por último el orden del sistema. Mientras se oculta un vídeo, solo puede elegir el reproductor de música fijado. Lógica pura. |
 | `media/MediaSnapshot`, `PlaybackPositionCalculator` | Estado inmutable del reproductor y extrapolación de la posición al momento del envío. |
-| `media/AlbumArtEncoder` | Escala la carátula a 300 px como máximo, la codifica en JPEG fuera del hilo principal y calcula su `artId` a partir de los bytes. |
+| `media/AlbumArtEncoder` | Prepara dos copias de la carátula fuera del hilo principal: un JPEG de 300 px como máximo para la PC, del que sale su `artId`, y la imagen tal como la da el reproductor (hasta 1080 px) para la pantalla del teléfono, que nunca viaja. |
 | `media/MetadataNormalizer`, `ShuffleControl` | Separan el contexto que Spotify añade al artista y leen o cambian el modo aleatorio mediante las acciones propias del reproductor. |
 | `media/RepeatControl`, `LikeControl`, `ActionNames` | Leen y pulsan "repetir" y "me gusta" con las acciones propias del reproductor. YouTube Music no cambia el identificador de sus acciones: indica el modo en el nombre, en el idioma del teléfono, y `ActionNames` lo interpreta en español y en inglés. |
 | `media/MediaCommandExecutor` | Ejecuta las órdenes de la PC y de la pantalla sobre el reproductor elegido. Sin reproductor, envía la tecla multimedia equivalente. `HIDE` oculta el vídeo y `UNHIDE` vuelve a él (ver la sección 4). |
@@ -63,7 +63,7 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `history/HistoryDatabase`, `HistoryTables`, `HistoryDao`, `HistoryMigrations` | La base `history.db` con Room, versión 2: tablas `songs`, `plays`, `song_months` y `app_days` (ver la sección 2.4), sus consultas y la migración desde la versión 1. El esquema que exporta Room está en `app/schemas/`. |
 | `history/HistoryRepository` | Guarda cada escucha y el tiempo de cada app. Da la lista de los últimos 30 días, las estadísticas de un periodo y la última canción (para ocultar un vídeo). Borra las escuchas viejas. |
 | `history/HistoryActivity`, `HistoryListPage`, `PlayerLinks` | La pantalla del historial, con dos pestañas: la lista por días, con búsqueda y las repeticiones seguidas en una fila ("×N"), y Estadísticas. Tocar una canción la abre en su app (`PlayerLinks`). |
-| `stats/StatsPage`, `DayBarsView` | La pestaña Estadísticas: periodo (7 días, 30 días, este mes o todo), totales, música de cada uno de los últimos 30 días, tiempo por app y las canciones y artistas más escuchados. |
+| `stats/StatsPage`, `DayBarsView`, `DayTooltip` | La pestaña Estadísticas: periodo (7 días, 30 días, este mes o todo), totales, música de cada uno de los últimos 30 días, tiempo por app y las canciones y artistas más escuchados. Tocar una barra del gráfico muestra su día y su tiempo exacto en una burbuja, dibujada en la capa superpuesta de la tarjeta para no ocupar sitio. |
 | `ui/FrameTicker` | Reloj común de la pantalla (`Choreographer`, un paso cada 66 ms): mueve a Sasha, la onda de la barra y el tiempo transcurrido. |
 | `bridge/BridgeRepository` | Única fuente de verdad del proceso: `enabled` (persistido), `status` del servidor, `media` y `listenerConnected`. La leen el servicio y la pantalla. |
 | `server/BridgeServer` | Servidor WebSocket (Ktor 3, motor CIO) en `127.0.0.1:8080`. Arranque y parada serializados, reintento si el puerto está ocupado. |
@@ -314,6 +314,7 @@ El recorte de Windows escribe el portapapeles más de una vez por captura. La PC
 | La carátula como dirección web, no como imagen | Guardar cada carátula ocupaba unos 8 KB por canción. Spotify y YouTube Music dan una dirección estable de la imagen; si la caché se vacía, se descarga otra vez. Solo se guarda una copia propia de las apps que no dan dirección. |
 | Lista de 30 días; estadísticas para siempre | Lo decidió el usuario. La lista sirve para encontrar algo escuchado hace poco, y los resúmenes por mes y por día crecen muy despacio. |
 | De las apps de vídeo, solo el tiempo | Los títulos de los vídeos no son canciones y llenarían el historial; el tiempo sí sirve para comparar cuánto suena cada app. Lo decidió el usuario. |
+| La pantalla usa la imagen del reproductor, no el JPEG de la PC | La carátula de la tarjeta mide unos 760 px en horizontal, y el JPEG de 300 px ampliado se veía borroso y con bloques. La PC sigue recibiendo 300 px, que bastan para el panel de Windows, así que el protocolo no cambia. |
 | `VACUUM` solo con 256 KB libres o más | `VACUUM` reescribe el archivo entero. Hacerlo en cada limpieza gastaría escrituras para devolver unos pocos KB. |
 
 ## 6. Defectos corregidos

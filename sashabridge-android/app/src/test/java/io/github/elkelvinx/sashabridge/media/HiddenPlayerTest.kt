@@ -54,11 +54,12 @@ class HiddenPlayerTest {
         assertEquals(live, snapshot.trackId)
     }
 
-    /** The cover's id comes from its bytes, as for a player's own cover. */
+    /** The cover is the art made from the kept file, with its id, not the history's cover key. */
     @Test
-    fun theCoverIdComesFromItsBytes() {
+    fun theCoverIsTheGivenArt() {
         val jpeg = byteArrayOf(1, 2, 3, 4)
-        val snapshot = HiddenPlayer.snapshotOf(entry("com.spotify.music", null, coverKey = "art:old"), jpeg)
+        val art = AlbumArt(AlbumArtEncoder.artIdOf(jpeg), jpeg)
+        val snapshot = HiddenPlayer.snapshotOf(entry("com.spotify.music", null, coverKey = "art:old"), art)
 
         assertEquals(AlbumArtEncoder.artIdOf(jpeg), snapshot.art?.artId)
     }

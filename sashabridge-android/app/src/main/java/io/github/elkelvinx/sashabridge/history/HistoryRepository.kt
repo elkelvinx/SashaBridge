@@ -167,8 +167,8 @@ class HistoryRepository private constructor(context: Context) {
     suspend fun latest(): HistoryEntry? = dao.latestPlay()?.toEntry()
 
     /**
-     * The cover of [entry], the newest play, as JPEG: as the player gave it, if it is still
-     * the one [record] kept for that song, or else the history's small one.
+     * The cover of [entry], the newest play, as JPEG: as sharp as the player gave it, if it
+     * is still the one [record] kept for that song, or else the history's small one.
      *
      * @return The cover, or `null` if the song has none.
      */
@@ -257,11 +257,15 @@ class HistoryRepository private constructor(context: Context) {
         }
     }
 
-    /** Keeps [art], the cover of the newest song [songId], in one file that each new one replaces. */
+    /**
+     * Keeps [art], the cover of the newest song [songId], in one file that each new one
+     * replaces: its image for the screen, which a hidden video shows full size on the card.
+     */
     private suspend fun saveLatestCover(art: AlbumArt, songId: Long) = withContext(Dispatchers.IO) {
+        val jpeg = art.screen?.let { AlbumArtEncoder.compress(it, AlbumArtEncoder.SCREEN_MAX_PX, LATEST_COVER_QUALITY) } ?: art.jpeg
         val partial = File(latestCoverFile.path + ".part")
         try {
-            partial.writeBytes(art.jpeg)
+            partial.writeBytes(jpeg)
             if (!partial.renameTo(latestCoverFile)) partial.delete()
             latestCoverSongFile.writeText(songId.toString())
         } catch (e: IOException) {
@@ -295,6 +299,9 @@ class HistoryRepository private constructor(context: Context) {
 
         /** Start of the thumbnail keys of the covers kept on the phone, followed by the art id. */
         private const val COVER_KEY_PREFIX = "art:"
+
+        /** JPEG quality of the newest song's cover: it is shown large, and it is only one file. */
+        private const val LATEST_COVER_QUALITY = 90
 
         /** Files, inside the app's files, with the newest song's cover as the player gave it, and its song. */
         private const val LATEST_COVER_FILE = "latest-cover.jpg"

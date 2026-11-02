@@ -86,7 +86,7 @@ internal class BackdropPreview(view: View, private val scope: CoroutineScope) {
     /** The art of the track playing, of the last one listened to, or the drawn sample. */
     private suspend fun find(context: Context): Sample {
         BridgeRepository.get(context).media.value?.let { playing ->
-            playing.art?.let { decode(it.jpeg) }?.let { return Sample(it, playing.title, playing.artist, R.string.settings_preview_art_playing) }
+            playing.art?.let { it.screen ?: decode(it.jpeg) }?.let { return Sample(it, playing.title, playing.artist, R.string.settings_preview_art_playing) }
         }
         val history = HistoryRepository.get(context)
         history.latest()?.let { last ->
