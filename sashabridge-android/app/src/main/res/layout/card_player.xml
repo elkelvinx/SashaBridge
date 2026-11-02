@@ -57,17 +57,20 @@
                     android:text="@string/label_now_playing"
                     android:textAppearance="@style/TextAppearance.SashaBridge.Label" />
 
-                <com.google.android.material.button.MaterialButton
+                <!-- An icon, like the history's, to keep the header light; landscape has room
+                     for the labelled pill. PlayerCard only treats it as a View. -->
+                <ImageButton
                     android:id="@+id/queueButton"
-                    style="@style/Widget.Material3.Button.TonalButton.Icon"
-                    android:layout_width="wrap_content"
-                    android:layout_height="32dp"
+                    style="@style/Widget.SashaBridge.ControlButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:layout_marginEnd="2dp"
-                    android:minHeight="0dp"
-                    android:paddingVertical="0dp"
-                    android:text="@string/button_queue"
+                    android:contentDescription="@string/button_queue"
+                    android:padding="6dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_queue_music"
+                    android:tooltipText="@string/button_queue"
                     android:visibility="gone"
-                    app:icon="@drawable/ic_queue_music"
                     tools:visibility="visible" />
 
                 <ImageButton
