@@ -32,6 +32,7 @@ import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.history.HistoryRepository
 import io.github.elkelvinx.sashabridge.ui.WavyProgressDrawable
@@ -88,6 +89,7 @@ class SettingsActivity : AppCompatActivity() {
         ViewCompat.requestApplyInsets(root)
         findViewById<MaterialToolbar>(R.id.settingsToolbar).setNavigationOnClickListener { finish() }
 
+        bindLanguage()
         bindTheme()
         bindAccents()
         bindToggle(R.id.progressGroup, if (settings.waves.value) R.id.progressWaves else R.id.progressLine) { id ->
@@ -101,6 +103,23 @@ class SettingsActivity : AppCompatActivity() {
         bindSwitch(R.id.recordHistorySwitch, settings.recordHistory.value, settings::setRecordHistory)
         findViewById<Button>(R.id.clearHistoryButton).setOnClickListener { confirmClearHistory() }
         findViewById<TextView>(R.id.settingsVersion).text = getString(R.string.settings_version, versionName())
+    }
+
+    /**
+     * The app's language, among [AppLanguage]'s; choosing another makes AppCompat remake the
+     * open screens in it, this one included.
+     */
+    private fun bindLanguage() {
+        val options = AppLanguage.entries
+        val labels = options.map { getString(it.label) }
+        findViewById<MaterialAutoCompleteTextView>(R.id.languageMenu).apply {
+            setSimpleItems(labels.toTypedArray())
+            setText(labels[options.indexOf(AppLanguage.current())], false)
+            setOnItemClickListener { _, _, position, _ ->
+                val chosen = options[position]
+                if (chosen != AppLanguage.current()) chosen.apply()
+            }
+        }
     }
 
     /** Light, dark or as the phone; AppCompat makes the open screens again with the new theme. */

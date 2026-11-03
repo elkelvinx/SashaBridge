@@ -36,7 +36,7 @@
             android:paddingHorizontal="16dp"
             android:paddingBottom="24dp">
 
-            <!-- Appearance: theme, primary color and the look of the seek bar. -->
+            <!-- Appearance: language, theme, primary color and the look of the seek bar. -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.SashaBridge.Card"
                 android:layout_width="match_parent"
@@ -53,6 +53,29 @@
 
                     <TextView
                         style="@style/Widget.SashaBridge.SettingsLabel"
+                        android:labelFor="@id/languageMenu"
+                        android:text="@string/settings_language" />
+
+                    <!-- The app's language; the code fills in the options and the current one.
+                         It saves no state: a new language remakes this screen, and the restored
+                         text would be the previous language's words. -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp">
+
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                            android:id="@+id/languageMenu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:saveEnabled="false" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <TextView
+                        style="@style/Widget.SashaBridge.SettingsLabel"
+                        android:layout_marginTop="16dp"
                         android:text="@string/settings_theme" />
 
                     <com.google.android.material.button.MaterialButtonToggleGroup

@@ -31,6 +31,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    androidResources {
+        // Lists the languages of values-*/ for Android's per-app language settings.
+        generateLocaleConfig = true
+    }
     testOptions {
         // android.util.Log and SystemClock return defaults instead of throwing in JVM tests,
         // so that the server can run there.

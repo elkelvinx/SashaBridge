@@ -1,12 +1,13 @@
 <resources>
-    <string name="app_name">SashaBridge</string>
+    <!-- Spanish, the app's own language. values-en and values-zh-rCN translate every string
+         below that is not translatable="false", in the same order and sections. -->
+
+    <!-- App. -->
+    <string name="app_name" translatable="false">SashaBridge</string>
     <string name="tagline">La música del teléfono, en tu PC</string>
 
+    <!-- Main screen: the state of the bridge. -->
     <string name="label_status">Estado</string>
-    <string name="label_now_playing">Sonando</string>
-    <string name="label_paused">En pausa</string>
-
-    <!-- Bridge phases: title and detail. -->
     <string name="phase_no_access">Falta el acceso a notificaciones</string>
     <string name="phase_no_access_detail">Android solo deja leer qué suena a las apps con este acceso.</string>
     <string name="phase_disabled">Puente apagado</string>
@@ -19,16 +20,32 @@
     <string name="phase_listening_detail">Conecta el teléfono por USB y abre SashaBridge en la PC.</string>
     <plurals name="phase_connected">
         <item quantity="one">PC conectada</item>
+        <item quantity="many">%d PC conectadas</item>
         <item quantity="other">%d PC conectadas</item>
     </plurals>
     <string name="phase_connected_detail">Las teclas multimedia de la PC controlan este teléfono.</string>
     <string name="phase_failed">El puente no puede arrancar</string>
+    <string name="button_turn_off">Apagar puente</string>
+    <string name="button_turn_on">Encender puente</string>
+    <string name="button_grant_access">Dar acceso</string>
+    <string name="battery_title">Batería optimizada</string>
+    <string name="battery_detail">Samsung puede congelar la app en segundo plano y cortar el puente. En Batería, elige «Sin restricciones».</string>
+    <string name="button_battery">Abrir ajustes</string>
+    <string name="footer">USB · 127.0.0.1:%1$d · protocolo v%2$d</string>
+    <!-- Landscape display: what the hidden status bar would show. -->
+    <string name="battery_level" translatable="false">%1$d %%</string>
+    <string name="clock_format_12" translatable="false">h:mm</string>
+    <string name="clock_format_24" translatable="false">H:mm</string>
+    <string name="blackout_description">Pantalla negra. Toca dos veces para ver SashaBridge.</string>
 
+    <!-- Player card. Controls are also read by screen readers. -->
+    <string name="label_now_playing">Sonando</string>
+    <string name="label_paused">En pausa</string>
     <string name="nothing_playing">Nada sonando</string>
     <string name="now_playing_source">en %1$s</string>
-    <string name="unknown_time">--:--</string>
-
-    <!-- Player controls, read by screen readers. -->
+    <string name="unknown_time" translatable="false">--:--</string>
+    <string name="open_player">Abrir %1$s</string>
+    <string name="open_player_default">Abrir la app que suena</string>
     <string name="control_previous">Canción anterior</string>
     <string name="control_next">Canción siguiente</string>
     <string name="control_play">Reproducir</string>
@@ -41,22 +58,75 @@
     <string name="control_repeat_off">Repetir desactivado</string>
     <string name="control_repeat_all">Repetir todas</string>
     <string name="control_repeat_one">Repetir una canción</string>
+    <string name="control_like">Me gusta</string>
+    <string name="control_liked">Te gusta; tocar para quitarlo</string>
     <string name="button_queue">Cola</string>
     <string name="queue_title_default">Cola de reproducción</string>
-    <string name="queue_position">%1$d</string>
+    <string name="queue_position" translatable="false">%1$d</string>
+    <string name="button_history">Historial</string>
+    <!-- Tag of a title that shrinks to fit two lines; not shown. -->
+    <string name="tag_fit_title" translatable="false">fit-title</string>
 
-    <string name="button_turn_off">Apagar puente</string>
-    <string name="button_turn_on">Encender puente</string>
-    <string name="button_grant_access">Dar acceso</string>
+    <!-- What a player could not do (PlayerNotice); the PC shows the same texts. -->
+    <string name="notice_like_add">No se añadió a Me gusta</string>
+    <string name="notice_like_remove">No se quitó de Me gusta</string>
+    <string name="notice_shuffle">El modo aleatorio no cambió</string>
+    <string name="notice_repeat">Repetir no cambió</string>
+    <string name="notice_ignored">%1$s no deja hacerlo desde fuera. Hazlo en %1$s.</string>
+    <string name="notice_missing">%1$s no ofrece este botón a otras apps.</string>
+    <string name="notice_snackbar">%1$s. %2$s</string>
 
-    <string name="battery_title">Batería optimizada</string>
-    <string name="battery_detail">Samsung puede congelar la app en segundo plano y cortar el puente. En Batería, elige «Sin restricciones».</string>
-    <string name="button_battery">Abrir ajustes</string>
+    <!-- History. -->
+    <string name="history_title">Historial</string>
+    <string name="history_back">Volver</string>
+    <string name="history_tab_list">Historial</string>
+    <string name="history_tab_stats">Estadísticas</string>
+    <string name="history_search_hint">Buscar por canción o artista</string>
+    <string name="history_today">Hoy</string>
+    <string name="history_yesterday">Ayer</string>
+    <string name="history_empty">Aún no hay canciones. Cada canción aparece aquí después de 30 segundos de escucharla.</string>
+    <string name="history_no_results">Ninguna canción coincide con la búsqueda.</string>
+    <string name="history_subtitle" translatable="false">%1$s · %2$s</string>
+    <string name="history_open_failed">No se pudo abrir %1$s.</string>
+    <string name="history_count" translatable="false">×%1$d</string>
+    <string name="history_day_open">Desplegado</string>
+    <string name="history_day_folded">Plegado</string>
+    <plurals name="history_day_plays">
+        <item quantity="one">%1$d escucha</item>
+        <item quantity="many">%1$d escuchas</item>
+        <item quantity="other">%1$d escuchas</item>
+    </plurals>
 
-    <!-- Landscape display: what the hidden status bar would show. -->
-    <string name="battery_level">%1$d %%</string>
-    <string name="clock_format_12" translatable="false">h:mm</string>
-    <string name="clock_format_24" translatable="false">H:mm</string>
+    <!-- Statistics. -->
+    <string name="stats_period_week">7 días</string>
+    <string name="stats_period_30">30 días</string>
+    <string name="stats_period_month">Este mes</string>
+    <string name="stats_period_all">Todo</string>
+    <string name="stats_empty">Aún no hay nada que contar en este periodo. Cada canción cuenta después de 30 segundos, y el tiempo de cada app, mientras suena.</string>
+    <string name="stats_listened">Tiempo con música</string>
+    <string name="stats_plays">Escuchas</string>
+    <string name="stats_songs">Canciones</string>
+    <string name="stats_artists">Artistas</string>
+    <string name="stats_days_title">Por día</string>
+    <string name="stats_days_total">Últimos 30 días: %1$s en total</string>
+    <string name="stats_days_description">Música de los últimos 30 días, %1$s en total; el día con más, %2$s.</string>
+    <string name="stats_day_none">Sin música</string>
+    <string name="stats_day_under_minute">Menos de 1 min</string>
+    <string name="stats_apps_title">Por app</string>
+    <string name="stats_app_video">%1$s · vídeo</string>
+    <string name="stats_app_other">%1$s · otra</string>
+    <string name="stats_songs_title">Más escuchadas</string>
+    <string name="stats_artists_title">Artistas</string>
+    <string name="stats_video_artist">%1$s · vídeo</string>
+    <string name="stats_none">Nada en este periodo.</string>
+    <string name="stats_minutes">%1$d min</string>
+    <string name="stats_hours">%1$d h</string>
+    <string name="stats_hours_minutes">%1$d h %2$d min</string>
+    <plurals name="stats_times">
+        <item quantity="one">%1$d vez</item>
+        <item quantity="many">%1$d veces</item>
+        <item quantity="other">%1$d veces</item>
+    </plurals>
 
     <!-- S Pen: annotate captures from the PC. -->
     <string name="button_annotate">Anotar</string>
@@ -80,65 +150,6 @@
     <string name="annotate_tool_move">Mover</string>
     <string name="annotate_tool_resize">Cambiar tamaño</string>
     <string name="annotate_tool_image">Insertar imagen</string>
-    <string name="annotate_image_error">No se pudo abrir la imagen.</string>
-    <string name="annotate_share_busy">Termina o descarta la captura abierta antes de abrir otra imagen.</string>
-    <string name="annotate_shared_offline">La PC no está conectada; al enviar, la imagen llegará en cuanto se conecte.</string>
-    <string name="annotate_shared_pending">Se enviará a la PC en cuanto se conecte.</string>
-    <string name="share_label">Enviar a la PC</string>
-    <string name="open_player">Abrir %1$s</string>
-    <string name="open_player_default">Abrir la app que suena</string>
-    <string name="control_like">Me gusta</string>
-    <string name="button_history">Historial</string>
-    <string name="history_title">Historial</string>
-    <string name="history_back">Volver</string>
-    <string name="history_search_hint">Buscar por canción o artista</string>
-    <string name="history_today">Hoy</string>
-    <string name="history_yesterday">Ayer</string>
-    <string name="history_empty">Aún no hay canciones. Cada canción aparece aquí después de 30 segundos de escucharla.</string>
-    <string name="history_no_results">Ninguna canción coincide con la búsqueda.</string>
-    <string name="history_subtitle">%1$s · %2$s</string>
-    <string name="history_open_failed">No se pudo abrir %1$s.</string>
-    <string name="history_count">×%1$d</string>
-    <string name="history_day_open">Desplegado</string>
-    <string name="notice_like_add">No se añadió a Me gusta</string>
-    <string name="notice_like_remove">No se quitó de Me gusta</string>
-    <string name="notice_shuffle">El modo aleatorio no cambió</string>
-    <string name="notice_repeat">Repetir no cambió</string>
-    <string name="notice_ignored">%1$s no deja hacerlo desde fuera. Hazlo en %1$s.</string>
-    <string name="notice_missing">%1$s no ofrece este botón a otras apps.</string>
-    <string name="notice_snackbar">%1$s. %2$s</string>
-    <string name="history_day_folded">Plegado</string>
-    <string name="history_tab_list">Historial</string>
-    <string name="history_tab_stats">Estadísticas</string>
-
-    <!-- Statistics. -->
-    <string name="stats_period_week">7 días</string>
-    <string name="stats_period_30">30 días</string>
-    <string name="stats_period_month">Este mes</string>
-    <string name="stats_period_all">Todo</string>
-    <string name="stats_empty">Aún no hay nada que contar en este periodo. Cada canción cuenta después de 30 segundos, y el tiempo de cada app, mientras suena.</string>
-    <string name="stats_listened">Tiempo con música</string>
-    <string name="stats_plays">Escuchas</string>
-    <string name="stats_songs">Canciones</string>
-    <string name="stats_artists">Artistas</string>
-    <string name="stats_days_title">Por día</string>
-    <string name="stats_days_total">Últimos 30 días: %1$s en total</string>
-    <string name="stats_days_description">Música de los últimos 30 días, %1$s en total; el día con más, %2$s.</string>
-    <string name="stats_apps_title">Por app</string>
-    <string name="stats_app_video">%1$s · vídeo</string>
-    <string name="stats_app_other">%1$s · otra</string>
-    <string name="stats_songs_title">Más escuchadas</string>
-    <string name="stats_artists_title">Artistas</string>
-    <string name="stats_video_artist">%1$s · vídeo</string>
-    <string name="stats_none">Nada en este periodo.</string>
-    <string name="stats_minutes">%1$d min</string>
-    <string name="stats_hours">%1$d h</string>
-    <string name="stats_hours_minutes">%1$d h %2$d min</string>
-    <string name="stats_day_none">Sin música</string>
-    <string name="stats_day_under_minute">Menos de 1 min</string>
-    <!-- Tag of a title that shrinks to fit two lines; not shown. -->
-    <string name="tag_fit_title" translatable="false">fit-title</string>
-    <string name="control_liked">Te gusta; tocar para quitarlo</string>
     <string name="annotate_move_tools_hint">Toca dos veces o mantén pulsado para elegir entre mover y cambiar tamaño</string>
     <string name="annotate_color">Color %1$d</string>
     <string name="annotate_thin">Fino</string>
@@ -160,24 +171,36 @@
     <string name="annotate_discard">Descartar</string>
     <string name="annotate_sent">Enviada a la PC</string>
     <string name="annotate_queued">Llegó otra captura; se abrirá al terminar esta.</string>
+    <string name="annotate_image_error">No se pudo abrir la imagen.</string>
+    <string name="annotate_share_busy">Termina o descarta la captura abierta antes de abrir otra imagen.</string>
+    <string name="annotate_shared_offline">La PC no está conectada; al enviar, la imagen llegará en cuanto se conecte.</string>
+    <string name="annotate_shared_pending">Se enviará a la PC en cuanto se conecte.</string>
+    <string name="share_label">Enviar a la PC</string>
+    <string name="annotate_notification_channel">Capturas para anotar</string>
+    <string name="annotate_notification_title">Captura lista para anotar</string>
+    <string name="annotate_notification_text">Toca para abrirla en SashaBridge.</string>
+
     <!-- S Pen: the phone as a drawing tablet for the PC. -->
     <string name="button_tablet">Tableta</string>
     <string name="tablet_close">Cerrar la tableta</string>
     <string name="tablet_hint">Dibuja aquí con el S Pen y mira el monitor.\nAcércalo sin tocar para mover el cursor; los dedos no hacen nada.</string>
-    <string name="tablet_monitor_short">%1$d/%2$d</string>
-    <string name="tablet_monitor_unknown">—</string>
+    <string name="tablet_monitor_short" translatable="false">%1$d/%2$d</string>
+    <string name="tablet_monitor_unknown" translatable="false">—</string>
     <string name="tablet_monitor_description">Monitor %1$d de %2$d (%3$s). Toca para pasar al siguiente.</string>
-    <string name="tablet_latency">%1$d ms</string>
-    <string name="tablet_latency_unknown">— ms</string>
-    <string name="annotate_notification_channel">Capturas para anotar</string>
-    <string name="annotate_notification_title">Captura lista para anotar</string>
-    <string name="annotate_notification_text">Toca para abrirla en SashaBridge.</string>
+    <string name="tablet_latency" translatable="false">%1$d ms</string>
+    <string name="tablet_latency_unknown" translatable="false">— ms</string>
 
     <!-- Settings screen (portrait only). -->
     <string name="settings_open">Ajustes</string>
     <string name="settings_title">Ajustes</string>
     <string name="settings_back">Volver</string>
     <string name="settings_appearance_title">Apariencia</string>
+    <string name="settings_language">Idioma</string>
+    <string name="language_system">Como el teléfono</string>
+    <!-- Each language in itself, so anyone finds theirs. -->
+    <string name="language_spanish" translatable="false">Español</string>
+    <string name="language_english" translatable="false">English</string>
+    <string name="language_chinese" translatable="false">中文（简体）</string>
     <string name="settings_theme">Tema</string>
     <string name="settings_theme_system">Sistema</string>
     <string name="settings_theme_light">Claro</string>
@@ -232,18 +255,4 @@
     <string name="settings_clear_cancel">Cancelar</string>
     <string name="settings_cleared">Historial borrado</string>
     <string name="settings_version">SashaBridge %1$s</string>
-    <string name="blackout_description">Pantalla negra. Toca dos veces para ver SashaBridge.</string>
-
-    <plurals name="history_day_plays">
-        <item quantity="one">%1$d escucha</item>
-        <item quantity="many">%1$d escuchas</item>
-        <item quantity="other">%1$d escuchas</item>
-    </plurals>
-    <plurals name="stats_times">
-        <item quantity="one">%1$d vez</item>
-        <item quantity="many">%1$d veces</item>
-        <item quantity="other">%1$d veces</item>
-    </plurals>
-
-    <string name="footer">USB · 127.0.0.1:%1$d · protocolo v%2$d</string>
 </resources>
