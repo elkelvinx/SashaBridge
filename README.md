@@ -93,6 +93,7 @@ cargo run
 
 En vertical, el engranaje de la pantalla principal abre los ajustes:
 - **Apariencia:**
+  - **Idioma:** como el teléfono, español, inglés o chino simplificado. Es el mismo ajuste que Android ofrece para cada app (Ajustes > Aplicaciones > SashaBridge > Idioma, Android 13 y posteriores). "Como el teléfono" usa el idioma del teléfono si SashaBridge lo tiene, y si no, español. Los avisos que el teléfono manda a la PC llegan en el idioma elegido; el resto de los textos de la PC sigue en español.
   - **Tema:** como el teléfono, claro u oscuro.
   - **Color primario:** vino, azul, verde, morado, ámbar o rosa. Es el color del botón de reproducir, de la barra de progreso, de los modos activos, del corazón y de los interruptores. Cambia al instante.
   - **Barra de progreso:** con ondas o lisa.

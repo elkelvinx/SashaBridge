@@ -9,7 +9,7 @@ Cómo comprobar que SashaBridge funciona: primero las pruebas automáticas, desp
 | PC | `cargo clippy --all-targets -- -D warnings` | Análisis estático sin avisos |
 | PC | `cargo test` | Fixtures del protocolo y de las muestras del lápiz, regla de la carátula (R6), caché de carátulas, espera exponencial, botones de Windows, conversión de imágenes (DIB y PNG), mapeo de la Tableta a un monitor, eventos del lápiz sintético, y el texto de las notificaciones |
 | PC | `cargo doc --no-deps` | Documentación del código |
-| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; aviso de vídeo oculto a la PC; desenfoque y colores del fondo de la tarjeta; elección del reproductor, también con un vídeo oculto; posición; modos aleatorio y repetir, incluidos los nombres de YouTube Music en español e inglés; me gusta; carátulas de la cola; historial con la base de datos Room real en la JVM (lista y búsqueda, clasificaciones y totales, resúmenes mensuales que sobreviven a las escuchas, tiempo por app y día, carátulas que siguen a las escuchas, migración de la versión 1 y tablas iguales al esquema de Room); identidad de las canciones y tipo de cada app; periodos y gráfico de las estadísticas; dirección de un cambio de canción según la cola; canción mostrada al ocultar un vídeo; mensajes de una sesión; estado de la pantalla; formato de los tiempos; geometría de las marcas de Anotar (flechas, borrar, mover, recuadro); y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos, y la ruta `/pen` con capturas, monitor, latencia y muestras binarias) |
+| Android | `.\gradlew.bat :app:testDebugUnitTest` | Fixtures del protocolo; aviso de vídeo oculto a la PC; desenfoque y colores del fondo de la tarjeta; elección del reproductor, también con un vídeo oculto; posición; modos aleatorio y repetir, incluidos los nombres de YouTube Music en español e inglés; me gusta; carátulas de la cola; historial con la base de datos Room real en la JVM (lista y búsqueda, clasificaciones y totales, resúmenes mensuales que sobreviven a las escuchas, tiempo por app y día, carátulas que siguen a las escuchas, migración de la versión 1 y tablas iguales al esquema de Room); identidad de las canciones y tipo de cada app; periodos y gráfico de las estadísticas; dirección de un cambio de canción según la cola y según la última pulsación; idioma elegido; canción mostrada al ocultar un vídeo; mensajes de una sesión; estado de la pantalla; formato de los tiempos; geometría de las marcas de Anotar (flechas, borrar, mover, recuadro); y el servidor real con un cliente WebSocket que hace de PC (saludo, estado inicial, órdenes, puerto ocupado sin cierre de la app, arranque y parada rápidos, y la ruta `/pen` con capturas, monitor, latencia y muestras binarias) |
 | Android | `.\gradlew.bat :app:lintDebug` | Análisis estático de la app |
 
 Gradle necesita `JAVA_HOME` apuntando al JDK de Android Studio, por ejemplo `C:\Program Files\Android\Android Studio\jbr`.
@@ -149,6 +149,20 @@ Se usa el `adb` de `sashabridge-pc\vendor\scrcpy\`, para que su versión coincid
 | C4 | Con Wi-Fi, una canción nueva de Spotify y otra de YouTube Music | Al segundo, la carátula de la tarjeta pasa a la versión grande sin animación (`Sharper art 1000x1000` en Spotify). Con datos móviles no se descarga |
 | C5 | La carátula grande en horizontal | La tarjeta cabe entera en la pantalla: controles, barra de progreso y botones de Anotar y Tableta a la vista |
 | C6 | Tarjeta en vertical con Spotify | "Sonando", la pastilla Cola, el reloj del Historial y el icono de la app en la misma línea; reproducir, aleatorio, repetir y el corazón debajo, sin nada cortado |
+
+### Idiomas (2.4)
+
+Para recorrer todas las pantallas sin tocar los ajustes, el idioma también se cambia con adb: `adb shell cmd locale set-app-locales io.github.elkelvinx.sashabridge --locales en` (`zh-CN`, o `""` para volver al del teléfono).
+
+| ID | Escenario | Resultado esperado |
+|---|---|---|
+| L1 | Ajustes → Idioma → English; recorrer la pantalla principal en vertical y en horizontal, la cola, Historial, Estadísticas, Anotar, Tableta y los ajustes | Todo en inglés, sin textos cortados ni encimados; el selector dice "English" |
+| L2 | Lo mismo con 中文（简体） | Todo en chino simplificado; el selector dice "中文（简体）" |
+| L3 | Ajustes → Idioma → "Como el teléfono", con el teléfono en español | Todo en español; el selector dice "Como el teléfono" |
+| L4 | En cada idioma: encabezados de días anteriores a ayer en Historial (plegar "Hoy" y "Ayer" para verlos), la hora de cada escucha, y la burbuja y las fechas del gráfico "Por día" | Fechas en el orden y las palabras del idioma: "sábado, 31 de octubre", "SATURDAY, OCTOBER 31", "10月31日，星期六"; burbuja "mié, 21 oct", "Wed, Oct 21", "10月21日周三" |
+| L5 | En inglés o en chino, tocar el corazón de una canción de Spotify que ya está en "Tus me gusta" | El aviso inferior sale en ese idioma. Con `Ctrl+Alt+L`, el aviso de la PC también |
+| L6 | Cambiar de idioma con la PC conectada y una canción en pausa | La PC sigue conectada y la canción no cambia |
+| L7 | Ajustes de Android → Aplicaciones → SashaBridge → Idioma | Android ofrece el ajuste para SashaBridge, y lo que se elija ahí es lo que muestra el selector de la app |
 
 ## 4. Regresión de la versión 2.0
 
@@ -311,3 +325,24 @@ Medido con `adb shell dumpsys gfxinfo io.github.elkelvinx.sashabridge` (contador
 |---|---|---|
 | M13 | **Correcto** | Reproducido antes del arreglo: con pulsaciones rápidas Spotify solo publicó la canción final, y las tres de "anterior" llegaron con un cambio hacia adelante en curso (`finish 1 to Gloria`). La lógica era la misma antes del refactor. Con el arreglo, el registro dice `the change under way turns to -1` y `change to Gloria, way -1`; cinco "anterior" dan `way -1` y cinco "siguiente" `way 1`; cada canción aparece una vez. En una ráfaga de capturas, la carátula sale por la derecha y la nueva entra por la izquierda |
 
+
+## 12. Idiomas (2.4)
+
+- **Fecha:** 2026-11-02.
+- **Pruebas automáticas:** 181 tests de Android (4 nuevos, de `AppLanguage`); lint sin avisos. Un script comprobó que los tres archivos de textos tienen las mismas 205 claves traducibles y los mismos marcadores (`%1$s`, `%d`...).
+
+| ID | Resultado | Evidencia |
+|---|---|---|
+| L1 | **Correcto** | Capturas de las once pantallas en inglés, sin nada cortado: "PC connected", "Annotate", "Tablet", "Queue", "7 days · 30 days · This month · All", "Waiting for a capture" |
+| L2 | **Correcto** | Las mismas en chino: "已连接 1 台电脑", "标注", "数位板", "队列", "7 天 · 30 天 · 本月 · 全部", "正在等待截图" |
+| L3 | **Correcto** | Al probarlo apareció un fallo: al volver de chino a "Como el teléfono", la pantalla salía en español pero el selector decía "跟随系统", el texto del idioma anterior, porque Android restauraba el texto guardado de la vista al rehacer la pantalla. Corregido (`android:saveEnabled="false"`); después, English → "English" y "Como el teléfono" → "Como el teléfono" |
+| L4 | **Parcial** | En el teléfono: "SATURDAY, OCTOBER 31" y "10月31日，星期六"; burbujas "Wed, Oct 21 · No music", "Today · 3 h", "10月21日周三 · 没有音乐" y "今天 · 3 小时"; bajo el gráfico "Oct 4" y "10月4日"; horas "3:24 PM", "15:24" y "3:24 p.m.". **Pendiente:** los días viejos y la burbuja en español en el teléfono, que se desconectó; con los datos CLDR del JDK la burbuja sale "mié, 21 oct" |
+| L5 | **Parcial** | En chino, el corazón de "Feel It", ya en "Tus me gusta": `Pressing CHECK_FILL`, a los 2 s `ignored CHECK_FILL` y el aviso "未能从“喜欢”中移除。Spotify 不允许从外部这样做。请在 Spotify 中操作。". **Pendiente:** el aviso de la PC con `Ctrl+Alt+L` |
+| L6 | **Correcto** | Seis cambios de idioma con la PC conectada: la tarjeta de estado siguió en "PC conectada" y la canción en pausa no cambió. Ningún cierre (`logcat -b crash` vacío) |
+| L7 | **Correcto** | Ajustes de Android → "Idiomas de la aplicación" muestra SashaBridge. Un idioma puesto desde fuera de la app (`cmd locale`, el mismo ajuste de Android) aparece en el selector ("中文（简体）") |
+
+- **Lo que no traduce SashaBridge:**
+  - El título de la cola ("Cola de reproducción" en Spotify) y los demás textos que publica el reproductor salen en el idioma del teléfono, porque los escribe la app de música.
+  - `ActionNames` lee los nombres de las acciones de YouTube Music en el idioma del teléfono (español o inglés), sea cual sea el de la app.
+  - Los textos propios de la PC siguen en español.
+- **Sin explicar:** en el primer intento, el idioma puesto con `cmd locale` no se aplicó y después Android lo dejó vacío. No volvió a pasar en los seis cambios siguientes, con `cmd locale` y con el selector.

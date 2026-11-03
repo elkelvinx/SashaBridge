@@ -60,6 +60,7 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `media/PlayerScreen` | Abre una app de música o de vídeo en la pantalla que publica su sesión, con el permiso que Android 14+ exige para hacerlo mientras SashaBridge está delante. La usan el icono de la tarjeta y la vuelta al vídeo. |
 | `settings/SettingsRepository`, `SettingsActivity` | Ajustes del usuario (apariencia, forma de ocultar y si la pantalla negra cubre también el vertical, volver al vídeo, pantalla encendida en horizontal, guardar el historial) como `StateFlow` persistidos, y su pantalla, solo en vertical. |
 | `settings/PreviewSection`, `BackdropPreview` | Las vistas previas desplegables de los ajustes: una fila que despliega o pliega el ejemplo, que solo se dibuja abierto y recuerda su estado, y la tarjeta de ejemplo del fondo, con la carátula de la canción que suena, de la última escuchada o una dibujada. |
+| `settings/AppLanguage` | Los idiomas de la app (como el teléfono, español, inglés y chino simplificado) y cuál está elegido. La elección la guarda Android, no la app (ver la sección 2.5). |
 | `settings/Appearance`, `SashaBridgeApp` | Tema claro u oscuro para toda la app (`AppCompatDelegate.setDefaultNightMode`, aplicado al arrancar el proceso) y color de acento: una superposición de tema (`ThemeOverlay.SashaBridge.Accent.*`) que cada pantalla aplica antes de inflar su diseño. |
 | `media/HiddenPlayer` | La última canción del historial como reproductor en pausa, para mostrarla mientras se oculta un vídeo si su app ya no tiene sesión. Lógica pura. |
 | `media/ThumbnailStore`, `ThumbnailSources` | Carátulas pequeñas (192 px) de la cola y del historial, en memoria y como WebP en la caché. Del historial, solo las de las apps que no dan la dirección web de su carátula van a los archivos de la app, y se borran cuando ninguna canción las nombra. |
@@ -77,7 +78,7 @@ Paquete `io.github.elkelvinx.sashabridge`, en `sashabridge-android/app/src/main/
 | `ui/BridgePhase`, `MainActivity` | Pantalla: estado del puente, avisos de permisos y batería, Sasha, y quién muestra qué. |
 | `ui/PlayerCard`, `SkipIntent` | La tarjeta del reproductor: decide cuándo cambia la canción, hacia el lado de la última pulsación del usuario de los últimos 3 s (`SkipIntent`, puro y con tests), y coordina sus partes: `CoverArt` (carátula y fondo desenfocado), `CoverMotion` (cómo se mueve la carátula al cambiar), `PlayerControls` (botones y modos), `SeekRow` (barra, tiempos y onda) y `TitleFitter` (tamaño del título horizontal). |
 | `ui/DisplayMode`, `BlackoutOverlay` | Todo lo de la pantalla como adorno junto a la PC (barras, pantalla encendida mientras carga, desplazamiento OLED, 60 Hz), y la cubierta negra de "Pantalla negra". |
-| `ui/DayNames` | "Hoy", "Ayer" o la fecha, igual en el historial y en las estadísticas. |
+| `ui/DayNames`, `LocaleFormats` | "Hoy", "Ayer" o la fecha, igual en el historial y en las estadísticas; el idioma de la app y las fechas escritas a su manera. |
 | `server/PenSession` | Conversación con una PC en la ruta `/pen`: estado de las dos pantallas del S Pen, capturas, anotaciones, monitor de la tableta, latencia y las muestras del lápiz en frames binarios. |
 | `pen/AnnotationRepository`, `pen/TabletRepository` | Estado compartido entre `PenSession` y cada pantalla del S Pen. |
 | `pen/AnnotateActivity`, `pen/InkCanvasView` | Modo Anotar: la captura (de la PC o compartida desde otra app), las herramientas (lápiz con presión, resaltador, línea, rectángulo, flecha, texto con tamaño, insertar imagen, Mover y Cambiar tamaño), deshacer y rehacer, y el menú "+" para enviar o descartar. |
@@ -200,6 +201,25 @@ El historial vive en `history.db`, una base SQLite que la app abre con **Room**.
   - Las escuchas sin título (un navegador) se descartan. Las demás conservan su momento, y cada canción, sus textos más recientes y su carátula.
   - Room la ejecuta dentro de una transacción: si falla, el archivo queda como estaba.
   - Un test comprueba que las tablas que crea la migración son idénticas al esquema que exporta Room.
+
+### 2.5 Idiomas
+
+La app habla español, inglés y chino simplificado. Cada texto está en los recursos y nunca en el código:
+- `values/strings.xml` es el español, el idioma base: el que se usa si el del teléfono no está. `res/resources.properties` lo declara (`unqualifiedResLocale=es`).
+- `values-en/` y `values-zh-rCN/` tienen la misma lista de textos traducida, con los mismos marcadores (`%1$s`, `%d`). Los nombres que no se traducen (SashaBridge, los formatos del reloj, el nombre de cada idioma en el selector) llevan `translatable="false"` y solo están en `values/`.
+- Los plurales (`<plurals>`) siguen las reglas de cada idioma: el chino solo usa `other`.
+
+**Quién guarda el idioma elegido.** La app no guarda ninguna copia:
+- Desde Android 13, cada app tiene su idioma en el sistema (Ajustes → Aplicaciones → SashaBridge → Idioma). `AppLanguage.apply()` lo cambia con `AppCompatDelegate.setApplicationLocales`, y `current()` lo lee del mismo sitio, así que el selector de la app y el de Android nunca se contradicen.
+- En Android 12 y anteriores, AppCompat lo guarda en un archivo propio y lo aplica al arrancar (`AppLocalesMetadataHolderService` con `autoStoreLocales` en el manifiesto).
+- La lista de idiomas que Android ofrece la genera Gradle a partir de las carpetas `values-*` (`generateLocaleConfig`), así que un idioma nuevo es solo una carpeta más y su opción en `AppLanguage`.
+- Al cambiar de idioma, Android rehace las pantallas abiertas. El servicio y el puente siguen: la PC no se desconecta.
+
+**Fechas y números.** Las fechas se piden por sus campos, un *esqueleto* como `EEEEMMMMd` (día de la semana, mes y día), y no con un patrón escrito. `DateFormat.getBestDateTimePattern` devuelve el orden y las palabras de cada idioma: "sábado, 31 de octubre", "Saturday, October 31", "10月31日，星期六". Las horas usan el formato corto del idioma y los números `NumberFormat` del idioma, todo desde `LocaleFormats.localeOf`.
+
+**Lo que no depende del idioma de la app:**
+- Los avisos que el teléfono envía a la PC (`notice`) ya van traducidos: la PC los muestra tal cual. Los demás textos de la PC siguen en español.
+- Lo que escribe el reproductor (el título de la cola, los nombres de sus acciones) sale en el idioma del teléfono. `ActionNames` reconoce los de YouTube Music en español y en inglés, el idioma de la app no cambia nada ahí.
 
 ## 3. Cliente de PC
 
@@ -342,6 +362,10 @@ El recorte de Windows escribe el portapapeles más de una vez por captura. La PC
 | Operaciones de varios pasos, todo o nada | Una escucha, el tiempo por app, borrar el historial y la limpieza (`prune`) son transacciones de Room; en la limpieza, los archivos se borran después de la transacción, así que un corte deja como mucho archivos de más, nunca una canción que nombre uno borrado. Los archivos se escriben aparte y se renombran de un paso; la portada de la última canción es un solo archivo con el id de su canción en el nombre. |
 | Orientación por recursos (`values-land`), no por código | Android ya elige los diseños por orientación; con un `bool` elige también el comportamiento, y la regla vive en un solo sitio (`DisplayMode`). |
 | `VACUUM` solo con 256 KB libres o más | `VACUUM` reescribe el archivo entero. Hacerlo en cada limpieza gastaría escrituras para devolver unos pocos KB. |
+| El idioma lo guarda Android, no los ajustes de la app | Es el mismo ajuste que muestra Android para cada app. Una copia propia podría contradecirlo si el usuario lo cambia desde Android. |
+| Fechas por esqueleto, no por patrón | Un patrón escrito ("EEEE, d 'de' MMMM") solo vale para un idioma. Con el esqueleto, Android pone el orden, las palabras y la puntuación de cada uno, también para un idioma que se añada después. |
+| La PC recibe los avisos ya traducidos | El teléfono sabe qué idioma eligió el usuario; así la PC no necesita su propia lista de textos ni saber el idioma. |
+| El selector de idioma no guarda su texto (`saveEnabled="false"`) | Al cambiar de idioma, Android rehace la pantalla y restauraba el texto guardado de la vista, que era el del idioma anterior. El código pone el texto correcto al crearla. |
 
 ## 6. Defectos corregidos
 
@@ -375,5 +399,5 @@ Los identificadores vienen del plan de refactorización y de `docs/diagnostico-f
 - **Tableta mapeada a una ventana.** Hoy el área de dibujo corresponde a un monitor entero. Mapearla a una sola ventana daría más precisión en apps pequeñas.
 - **Ver la pantalla de la PC en el teléfono** mientras se dibuja en modo Tableta. Exige enviar vídeo de la PC al teléfono.
 - **Refactor** (2.4): sin cambiar el comportamiento, un paso por commit y con los tests en verde: unificar el código repetido (decodificar imágenes, descargas, nombres de días y de apps), reunir lo de la pantalla horizontal en una sola clase, dividir `PlayerCard`, `MediaSessionTracker` y `MainActivity` por responsabilidades, y revisar que las operaciones de varios pasos sean atómicas (todo o nada).
-- **Idiomas** (2.4): español, inglés y chino simplificado, con un selector en los ajustes.
+- **Textos de la PC traducidos.** Los avisos del teléfono ya llegan en el idioma elegido; los textos propios del cliente de PC siguen en español.
 - **Letras sincronizadas** (2.4), con traducción; antes, una prueba de que la fuente las tiene.
