@@ -1,0 +1,234 @@
+<resources>
+    <!-- Simplified Chinese (Mandarin, mainland China). Same order and sections as
+         values/strings.xml; the strings marked translatable="false" there are not repeated
+         here. Chinese has one plural form, "other". -->
+
+    <!-- App. -->
+    <string name="tagline">手机里的音乐，在电脑上播放</string>
+
+    <!-- Main screen: the state of the bridge. -->
+    <string name="label_status">状态</string>
+    <string name="phase_no_access">缺少通知使用权</string>
+    <string name="phase_no_access_detail">Android 只允许拥有此权限的应用读取正在播放的内容。</string>
+    <string name="phase_disabled">桥接已关闭</string>
+    <string name="phase_disabled_detail">关闭期间电脑无法连接。</string>
+    <string name="phase_waiting_listener">正在等待 Android</string>
+    <string name="phase_waiting_listener_detail">应用的服务正在启动。</string>
+    <string name="phase_starting">正在启动…</string>
+    <string name="phase_starting_detail">正在为电脑准备连接。</string>
+    <string name="phase_listening">正在等待电脑</string>
+    <string name="phase_listening_detail">用 USB 连接手机，并在电脑上打开 SashaBridge。</string>
+    <plurals name="phase_connected">
+        <item quantity="other">已连接 %d 台电脑</item>
+    </plurals>
+    <string name="phase_connected_detail">电脑的媒体键可以控制这部手机。</string>
+    <string name="phase_failed">桥接无法启动</string>
+    <string name="button_turn_off">关闭桥接</string>
+    <string name="button_turn_on">开启桥接</string>
+    <string name="button_grant_access">授予权限</string>
+    <string name="battery_title">电池已优化</string>
+    <string name="battery_detail">三星可能会在后台冻结应用并中断桥接。请在“电池”中选择“不受限制”。</string>
+    <string name="button_battery">打开设置</string>
+    <string name="footer">USB · 127.0.0.1:%1$d · 协议 v%2$d</string>
+    <string name="blackout_description">黑屏。点按两次即可看到 SashaBridge。</string>
+
+    <!-- Player card. Controls are also read by screen readers. -->
+    <string name="label_now_playing">正在播放</string>
+    <string name="label_paused">已暂停</string>
+    <string name="nothing_playing">没有正在播放的内容</string>
+    <string name="now_playing_source">来自 %1$s</string>
+    <string name="open_player">打开 %1$s</string>
+    <string name="open_player_default">打开正在播放的应用</string>
+    <string name="control_previous">上一首</string>
+    <string name="control_next">下一首</string>
+    <string name="control_play">播放</string>
+    <string name="control_pause">暂停</string>
+    <string name="control_shuffle_off">随机播放已关闭</string>
+    <string name="control_shuffle_on">随机播放已开启</string>
+    <string name="control_shuffle_smart">智能随机播放</string>
+    <string name="control_seek">播放进度</string>
+    <string name="control_repeat">重复</string>
+    <string name="control_repeat_off">重复已关闭</string>
+    <string name="control_repeat_all">全部重复</string>
+    <string name="control_repeat_one">单曲重复</string>
+    <string name="control_like">喜欢</string>
+    <string name="control_liked">已喜欢；点按即可取消</string>
+    <string name="button_queue">队列</string>
+    <string name="queue_title_default">播放队列</string>
+    <string name="button_history">历史记录</string>
+
+    <!-- What a player could not do (PlayerNotice); the PC shows the same texts. -->
+    <string name="notice_like_add">未能添加到“喜欢”</string>
+    <string name="notice_like_remove">未能从“喜欢”中移除</string>
+    <string name="notice_shuffle">随机播放没有改变</string>
+    <string name="notice_repeat">重复模式没有改变</string>
+    <string name="notice_ignored">%1$s 不允许从外部这样做。请在 %1$s 中操作。</string>
+    <string name="notice_missing">%1$s 没有向其他应用提供这个按钮。</string>
+    <string name="notice_snackbar">%1$s。%2$s</string>
+
+    <!-- History. -->
+    <string name="history_title">历史记录</string>
+    <string name="history_back">返回</string>
+    <string name="history_tab_list">历史记录</string>
+    <string name="history_tab_stats">统计</string>
+    <string name="history_search_hint">按歌曲或艺人搜索</string>
+    <string name="history_today">今天</string>
+    <string name="history_yesterday">昨天</string>
+    <string name="history_empty">还没有歌曲。每首歌听满 30 秒后就会出现在这里。</string>
+    <string name="history_no_results">没有符合搜索条件的歌曲。</string>
+    <string name="history_open_failed">无法打开 %1$s。</string>
+    <string name="history_day_open">已展开</string>
+    <string name="history_day_folded">已收起</string>
+    <plurals name="history_day_plays">
+        <item quantity="other">%1$d 次播放</item>
+    </plurals>
+
+    <!-- Statistics. -->
+    <string name="stats_period_week">7 天</string>
+    <string name="stats_period_30">30 天</string>
+    <string name="stats_period_month">本月</string>
+    <string name="stats_period_all">全部</string>
+    <string name="stats_empty">这段时间还没有可统计的内容。每首歌听满 30 秒才会计入，每个应用的时长在播放时累计。</string>
+    <string name="stats_listened">听音乐时长</string>
+    <string name="stats_plays">播放次数</string>
+    <string name="stats_songs">歌曲</string>
+    <string name="stats_artists">艺人</string>
+    <string name="stats_days_title">按天</string>
+    <string name="stats_days_total">最近 30 天：共 %1$s</string>
+    <string name="stats_days_description">最近 30 天的音乐，共 %1$s；最多的一天是 %2$s。</string>
+    <string name="stats_day_none">没有音乐</string>
+    <string name="stats_day_under_minute">不到 1 分钟</string>
+    <string name="stats_apps_title">按应用</string>
+    <string name="stats_app_video">%1$s · 视频</string>
+    <string name="stats_app_other">%1$s · 其他</string>
+    <string name="stats_songs_title">最常播放</string>
+    <string name="stats_artists_title">艺人</string>
+    <string name="stats_video_artist">%1$s · 视频</string>
+    <string name="stats_none">这段时间没有内容。</string>
+    <string name="stats_minutes">%1$d 分钟</string>
+    <string name="stats_hours">%1$d 小时</string>
+    <string name="stats_hours_minutes">%1$d 小时 %2$d 分钟</string>
+    <plurals name="stats_times">
+        <item quantity="other">%1$d 次</item>
+    </plurals>
+
+    <!-- S Pen: annotate captures from the PC. -->
+    <string name="button_annotate">标注</string>
+    <string name="annotate_waiting">正在等待截图</string>
+    <string name="annotate_waiting_detail">在电脑上用 Win+Shift+S 截图，或按 Ctrl+Alt+A。截图会显示在这里。</string>
+    <string name="annotate_no_pc">电脑未连接。请用 USB 连接手机，并在电脑上打开 SashaBridge。</string>
+    <string name="annotate_close">关闭</string>
+    <string name="annotate_undo">撤销</string>
+    <string name="annotate_redo">重做</string>
+    <string name="annotate_actions">发送或放弃</string>
+    <string name="annotate_actions_title">截图</string>
+    <string name="annotate_send">发送到电脑</string>
+    <string name="annotate_discard_capture">放弃截图</string>
+    <string name="annotate_send_offline">电脑未连接；截图会留在这里，直到电脑重新连接。</string>
+    <string name="annotate_tool_pen">笔</string>
+    <string name="annotate_tool_highlighter">荧光笔</string>
+    <string name="annotate_tool_line">直线</string>
+    <string name="annotate_tool_rectangle">矩形</string>
+    <string name="annotate_tool_arrow">箭头</string>
+    <string name="annotate_tool_text">文字</string>
+    <string name="annotate_tool_move">移动</string>
+    <string name="annotate_tool_resize">调整大小</string>
+    <string name="annotate_tool_image">插入图片</string>
+    <string name="annotate_move_tools_hint">点按两次或长按，在移动和调整大小之间切换</string>
+    <string name="annotate_color">颜色 %1$d</string>
+    <string name="annotate_thin">细</string>
+    <string name="annotate_medium">中</string>
+    <string name="annotate_thick">粗</string>
+    <string name="annotate_text_title">便签文字</string>
+    <string name="annotate_text_hint">输入文字，或使用键盘的手写功能</string>
+    <string name="annotate_text_place">放置</string>
+    <string name="annotate_text_edit_title">编辑便签</string>
+    <string name="annotate_text_save">保存</string>
+    <string name="annotate_text_delete">删除</string>
+    <string name="annotate_text_size">大小</string>
+    <string name="annotate_text_small">小</string>
+    <string name="annotate_text_medium">中</string>
+    <string name="annotate_text_large">大</string>
+    <string name="annotate_text_huge">特大</string>
+    <string name="annotate_cancel">取消</string>
+    <string name="annotate_discard_title">放弃这次标注？</string>
+    <string name="annotate_discard">放弃</string>
+    <string name="annotate_sent">已发送到电脑</string>
+    <string name="annotate_queued">又收到一张截图；完成这张后会打开它。</string>
+    <string name="annotate_image_error">无法打开图片。</string>
+    <string name="annotate_share_busy">请先完成或放弃当前的截图，再打开另一张图片。</string>
+    <string name="annotate_shared_offline">电脑未连接；发送后，图片会在电脑连接时送达。</string>
+    <string name="annotate_shared_pending">电脑连接后就会发送。</string>
+    <string name="share_label">发送到电脑</string>
+    <string name="annotate_notification_channel">待标注的截图</string>
+    <string name="annotate_notification_title">截图可以标注了</string>
+    <string name="annotate_notification_text">点按即可在 SashaBridge 中打开。</string>
+
+    <!-- S Pen: the phone as a drawing tablet for the PC. -->
+    <string name="button_tablet">数位板</string>
+    <string name="tablet_close">关闭数位板</string>
+    <string name="tablet_hint">用 S Pen 在这里画，同时看着显示器。\n笔尖悬停不接触即可移动光标；手指不起作用。</string>
+    <string name="tablet_monitor_description">显示器 %1$d / %2$d（%3$s）。点按切换到下一个。</string>
+
+    <!-- Settings screen (portrait only). -->
+    <string name="settings_open">设置</string>
+    <string name="settings_title">设置</string>
+    <string name="settings_back">返回</string>
+    <string name="settings_appearance_title">外观</string>
+    <string name="settings_language">语言</string>
+    <string name="language_system">跟随系统</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_accent">主色</string>
+    <string name="settings_accent_description">%1$s色</string>
+    <string name="accent_wine">酒红</string>
+    <string name="accent_blue">蓝</string>
+    <string name="accent_green">绿</string>
+    <string name="accent_purple">紫</string>
+    <string name="accent_amber">琥珀</string>
+    <string name="accent_pink">粉</string>
+    <string name="settings_progress">进度条</string>
+    <string name="settings_progress_waves">波浪</string>
+    <string name="settings_progress_line">平直</string>
+    <string name="settings_preview">预览</string>
+    <string name="settings_preview_open">已展开</string>
+    <string name="settings_preview_closed">已收起</string>
+    <string name="settings_preview_switch">开关</string>
+    <string name="settings_backdrop_title">卡片背景</string>
+    <string name="settings_backdrop_detail">正在播放的歌曲后面那层模糊的封面。</string>
+    <string name="settings_backdrop_blur">模糊</string>
+    <string name="settings_backdrop_blur_low">少</string>
+    <string name="settings_backdrop_blur_high">多</string>
+    <string name="settings_backdrop_strength">强度</string>
+    <string name="settings_backdrop_strength_low">柔和</string>
+    <string name="settings_backdrop_strength_high">浓烈</string>
+    <string name="settings_preview_art_playing">使用正在播放的歌曲的封面。</string>
+    <string name="settings_preview_art_last">使用你最后听的那首歌的封面。</string>
+    <string name="settings_preview_art_sample">使用示例封面。播放一首歌即可看到它自己的封面。</string>
+    <string name="settings_preview_sample_title">示例歌曲</string>
+    <string name="settings_hide_title">隐藏视频</string>
+    <string name="settings_hide_detail">在电脑上按 Ctrl+Alt+O，手机上正在播放的视频会暂停。</string>
+    <string name="settings_hide_music">显示暂停的音乐</string>
+    <string name="settings_hide_music_detail">SashaBridge 会切换到前台，显示你最后听的那首歌。</string>
+    <string name="settings_hide_black">黑屏</string>
+    <string name="settings_hide_black_detail">手机看起来像关机了。点按两次即可看到 SashaBridge。</string>
+    <string name="settings_blackout_portrait">竖屏时也启用</string>
+    <string name="settings_blackout_portrait_detail">关闭后，黑屏只在横屏时出现，竖屏时显示暂停的音乐。</string>
+    <string name="settings_return">再按一次返回视频</string>
+    <string name="settings_return_detail">再按一次 Ctrl+Alt+O，会回到视频原来的位置并继续播放。需要屏幕亮着且已解锁。</string>
+    <string name="settings_display_title">横屏</string>
+    <string name="settings_keep_on">充电时保持亮屏</string>
+    <string name="settings_keep_on_detail">把手机当作电脑旁的显示屏。不充电时照常熄屏。</string>
+    <string name="settings_history_title">历史记录</string>
+    <string name="settings_record">保存你听过的歌曲</string>
+    <string name="settings_record_detail">每首歌听满 30 秒后记录，列表保留 30 天，统计永久保留。视频应用只统计总时长。</string>
+    <string name="settings_clear">清除历史记录</string>
+    <string name="settings_clear_title">清除历史记录？</string>
+    <string name="settings_clear_message">所有歌曲、封面和统计都会被删除，且无法撤销。</string>
+    <string name="settings_clear_confirm">清除</string>
+    <string name="settings_clear_cancel">取消</string>
+    <string name="settings_cleared">历史记录已清除</string>
+    <string name="settings_version">SashaBridge %1$s</string>
+</resources>

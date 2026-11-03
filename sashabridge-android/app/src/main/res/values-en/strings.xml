@@ -1,0 +1,236 @@
+<resources>
+    <!-- English. Same order and sections as values/strings.xml; the strings marked
+         translatable="false" there are not repeated here. -->
+
+    <!-- App. -->
+    <string name="tagline">Your phone\'s music, on your PC</string>
+
+    <!-- Main screen: the state of the bridge. -->
+    <string name="label_status">Status</string>
+    <string name="phase_no_access">Notification access missing</string>
+    <string name="phase_no_access_detail">Android only lets apps with this access read what is playing.</string>
+    <string name="phase_disabled">Bridge off</string>
+    <string name="phase_disabled_detail">The PC can\'t connect while it is off.</string>
+    <string name="phase_waiting_listener">Waiting for Android</string>
+    <string name="phase_waiting_listener_detail">The app\'s service is starting.</string>
+    <string name="phase_starting">Starting…</string>
+    <string name="phase_starting_detail">Getting the connection ready for the PC.</string>
+    <string name="phase_listening">Waiting for the PC</string>
+    <string name="phase_listening_detail">Connect the phone over USB and open SashaBridge on the PC.</string>
+    <plurals name="phase_connected">
+        <item quantity="one">PC connected</item>
+        <item quantity="other">%d PCs connected</item>
+    </plurals>
+    <string name="phase_connected_detail">The PC\'s media keys control this phone.</string>
+    <string name="phase_failed">The bridge can\'t start</string>
+    <string name="button_turn_off">Turn bridge off</string>
+    <string name="button_turn_on">Turn bridge on</string>
+    <string name="button_grant_access">Grant access</string>
+    <string name="battery_title">Battery optimized</string>
+    <string name="battery_detail">Samsung may freeze the app in the background and cut the bridge. In Battery, choose “Unrestricted”.</string>
+    <string name="button_battery">Open settings</string>
+    <string name="footer">USB · 127.0.0.1:%1$d · protocol v%2$d</string>
+    <string name="blackout_description">Black screen. Double-tap to see SashaBridge.</string>
+
+    <!-- Player card. Controls are also read by screen readers. -->
+    <string name="label_now_playing">Now playing</string>
+    <string name="label_paused">Paused</string>
+    <string name="nothing_playing">Nothing playing</string>
+    <string name="now_playing_source">on %1$s</string>
+    <string name="open_player">Open %1$s</string>
+    <string name="open_player_default">Open the app that is playing</string>
+    <string name="control_previous">Previous track</string>
+    <string name="control_next">Next track</string>
+    <string name="control_play">Play</string>
+    <string name="control_pause">Pause</string>
+    <string name="control_shuffle_off">Shuffle off</string>
+    <string name="control_shuffle_on">Shuffle on</string>
+    <string name="control_shuffle_smart">Smart shuffle</string>
+    <string name="control_seek">Track position</string>
+    <string name="control_repeat">Repeat</string>
+    <string name="control_repeat_off">Repeat off</string>
+    <string name="control_repeat_all">Repeat all</string>
+    <string name="control_repeat_one">Repeat one track</string>
+    <string name="control_like">Like</string>
+    <string name="control_liked">Liked; tap to remove</string>
+    <string name="button_queue">Queue</string>
+    <string name="queue_title_default">Play queue</string>
+    <string name="button_history">History</string>
+
+    <!-- What a player could not do (PlayerNotice); the PC shows the same texts. -->
+    <string name="notice_like_add">Not added to your likes</string>
+    <string name="notice_like_remove">Not removed from your likes</string>
+    <string name="notice_shuffle">Shuffle didn\'t change</string>
+    <string name="notice_repeat">Repeat didn\'t change</string>
+    <string name="notice_ignored">%1$s doesn\'t allow it from outside. Do it in %1$s.</string>
+    <string name="notice_missing">%1$s doesn\'t offer this button to other apps.</string>
+    <string name="notice_snackbar">%1$s. %2$s</string>
+
+    <!-- History. -->
+    <string name="history_title">History</string>
+    <string name="history_back">Back</string>
+    <string name="history_tab_list">History</string>
+    <string name="history_tab_stats">Statistics</string>
+    <string name="history_search_hint">Search by song or artist</string>
+    <string name="history_today">Today</string>
+    <string name="history_yesterday">Yesterday</string>
+    <string name="history_empty">No songs yet. Each song shows up here after 30 seconds of listening.</string>
+    <string name="history_no_results">No song matches the search.</string>
+    <string name="history_open_failed">Couldn\'t open %1$s.</string>
+    <string name="history_day_open">Expanded</string>
+    <string name="history_day_folded">Collapsed</string>
+    <plurals name="history_day_plays">
+        <item quantity="one">%1$d play</item>
+        <item quantity="other">%1$d plays</item>
+    </plurals>
+
+    <!-- Statistics. -->
+    <string name="stats_period_week">7 days</string>
+    <string name="stats_period_30">30 days</string>
+    <string name="stats_period_month">This month</string>
+    <string name="stats_period_all">All</string>
+    <string name="stats_empty">Nothing to count in this period yet. Each song counts after 30 seconds, and each app\'s time while it plays.</string>
+    <string name="stats_listened">Time with music</string>
+    <string name="stats_plays">Plays</string>
+    <string name="stats_songs">Songs</string>
+    <string name="stats_artists">Artists</string>
+    <string name="stats_days_title">By day</string>
+    <string name="stats_days_total">Last 30 days: %1$s in total</string>
+    <string name="stats_days_description">Music over the last 30 days, %1$s in total; the busiest day, %2$s.</string>
+    <string name="stats_day_none">No music</string>
+    <string name="stats_day_under_minute">Under 1 min</string>
+    <string name="stats_apps_title">By app</string>
+    <string name="stats_app_video">%1$s · video</string>
+    <string name="stats_app_other">%1$s · other</string>
+    <string name="stats_songs_title">Most played</string>
+    <string name="stats_artists_title">Artists</string>
+    <string name="stats_video_artist">%1$s · video</string>
+    <string name="stats_none">Nothing in this period.</string>
+    <string name="stats_minutes">%1$d min</string>
+    <string name="stats_hours">%1$d h</string>
+    <string name="stats_hours_minutes">%1$d h %2$d min</string>
+    <plurals name="stats_times">
+        <item quantity="one">%1$d time</item>
+        <item quantity="other">%1$d times</item>
+    </plurals>
+
+    <!-- S Pen: annotate captures from the PC. -->
+    <string name="button_annotate">Annotate</string>
+    <string name="annotate_waiting">Waiting for a capture</string>
+    <string name="annotate_waiting_detail">On the PC, snip with Win+Shift+S or press Ctrl+Alt+A. The capture will show up here.</string>
+    <string name="annotate_no_pc">The PC isn\'t connected. Open SashaBridge on the PC with the phone connected over USB.</string>
+    <string name="annotate_close">Close</string>
+    <string name="annotate_undo">Undo</string>
+    <string name="annotate_redo">Redo</string>
+    <string name="annotate_actions">Send or discard</string>
+    <string name="annotate_actions_title">Capture</string>
+    <string name="annotate_send">Send to the PC</string>
+    <string name="annotate_discard_capture">Discard capture</string>
+    <string name="annotate_send_offline">The PC isn\'t connected; the capture stays here until it is back.</string>
+    <string name="annotate_tool_pen">Pen</string>
+    <string name="annotate_tool_highlighter">Highlighter</string>
+    <string name="annotate_tool_line">Straight line</string>
+    <string name="annotate_tool_rectangle">Rectangle</string>
+    <string name="annotate_tool_arrow">Arrow</string>
+    <string name="annotate_tool_text">Text</string>
+    <string name="annotate_tool_move">Move</string>
+    <string name="annotate_tool_resize">Resize</string>
+    <string name="annotate_tool_image">Insert image</string>
+    <string name="annotate_move_tools_hint">Double-tap or long-press to choose between moving and resizing</string>
+    <string name="annotate_color">Color %1$d</string>
+    <string name="annotate_thin">Thin</string>
+    <string name="annotate_medium">Medium</string>
+    <string name="annotate_thick">Thick</string>
+    <string name="annotate_text_title">Note text</string>
+    <string name="annotate_text_hint">Type, or use the keyboard\'s handwriting</string>
+    <string name="annotate_text_place">Place</string>
+    <string name="annotate_text_edit_title">Edit the note</string>
+    <string name="annotate_text_save">Save</string>
+    <string name="annotate_text_delete">Delete</string>
+    <string name="annotate_text_size">Size</string>
+    <string name="annotate_text_small">Small</string>
+    <string name="annotate_text_medium">Medium</string>
+    <string name="annotate_text_large">Large</string>
+    <string name="annotate_text_huge">Huge</string>
+    <string name="annotate_cancel">Cancel</string>
+    <string name="annotate_discard_title">Discard the annotation?</string>
+    <string name="annotate_discard">Discard</string>
+    <string name="annotate_sent">Sent to the PC</string>
+    <string name="annotate_queued">Another capture arrived; it will open when you finish this one.</string>
+    <string name="annotate_image_error">Couldn\'t open the image.</string>
+    <string name="annotate_share_busy">Finish or discard the open capture before opening another image.</string>
+    <string name="annotate_shared_offline">The PC isn\'t connected; once sent, the image will arrive as soon as it connects.</string>
+    <string name="annotate_shared_pending">It will be sent to the PC as soon as it connects.</string>
+    <string name="share_label">Send to the PC</string>
+    <string name="annotate_notification_channel">Captures to annotate</string>
+    <string name="annotate_notification_title">Capture ready to annotate</string>
+    <string name="annotate_notification_text">Tap to open it in SashaBridge.</string>
+
+    <!-- S Pen: the phone as a drawing tablet for the PC. -->
+    <string name="button_tablet">Tablet</string>
+    <string name="tablet_close">Close the tablet</string>
+    <string name="tablet_hint">Draw here with the S Pen and watch the monitor.\nHover without touching to move the cursor; fingers do nothing.</string>
+    <string name="tablet_monitor_description">Monitor %1$d of %2$d (%3$s). Tap to switch to the next one.</string>
+
+    <!-- Settings screen (portrait only). -->
+    <string name="settings_open">Settings</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_appearance_title">Appearance</string>
+    <string name="settings_language">Language</string>
+    <string name="language_system">Phone\'s language</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_accent">Primary color</string>
+    <string name="settings_accent_description">%1$s color</string>
+    <string name="accent_wine">Wine</string>
+    <string name="accent_blue">Blue</string>
+    <string name="accent_green">Green</string>
+    <string name="accent_purple">Purple</string>
+    <string name="accent_amber">Amber</string>
+    <string name="accent_pink">Pink</string>
+    <string name="settings_progress">Progress bar</string>
+    <string name="settings_progress_waves">Wavy</string>
+    <string name="settings_progress_line">Flat</string>
+    <string name="settings_preview">Preview</string>
+    <string name="settings_preview_open">Open</string>
+    <string name="settings_preview_closed">Closed</string>
+    <string name="settings_preview_switch">Switch</string>
+    <string name="settings_backdrop_title">Card background</string>
+    <string name="settings_backdrop_detail">The blurred cover behind the song that is playing.</string>
+    <string name="settings_backdrop_blur">Blur</string>
+    <string name="settings_backdrop_blur_low">Little</string>
+    <string name="settings_backdrop_blur_high">A lot</string>
+    <string name="settings_backdrop_strength">Intensity</string>
+    <string name="settings_backdrop_strength_low">Subtle</string>
+    <string name="settings_backdrop_strength_high">Strong</string>
+    <string name="settings_preview_art_playing">With the cover of the song that is playing.</string>
+    <string name="settings_preview_art_last">With the cover of the last song you listened to.</string>
+    <string name="settings_preview_art_sample">With a sample cover. Play a song to see it with its own.</string>
+    <string name="settings_preview_sample_title">Sample song</string>
+    <string name="settings_hide_title">Hide a video</string>
+    <string name="settings_hide_detail">With Ctrl+Alt+O on the PC, the video playing on the phone pauses.</string>
+    <string name="settings_hide_music">Show the music, paused</string>
+    <string name="settings_hide_music_detail">SashaBridge comes to the front with the last song you listened to.</string>
+    <string name="settings_hide_black">Black screen</string>
+    <string name="settings_hide_black_detail">The phone looks off. Double-tap to see SashaBridge.</string>
+    <string name="settings_blackout_portrait">In portrait too</string>
+    <string name="settings_blackout_portrait_detail">If you turn it off, the black screen only shows in landscape, and portrait shows the paused music.</string>
+    <string name="settings_return">Back to the video with another press</string>
+    <string name="settings_return_detail">Ctrl+Alt+O again opens the video where it was and resumes it. Needs the screen on and unlocked.</string>
+    <string name="settings_display_title">Landscape screen</string>
+    <string name="settings_keep_on">Keep on while charging</string>
+    <string name="settings_keep_on_detail">To leave the phone as a display next to the PC. When not charging, it turns off as usual.</string>
+    <string name="settings_history_title">History</string>
+    <string name="settings_record">Save the songs you listen to</string>
+    <string name="settings_record_detail">Each song is added after 30 seconds and the list keeps 30 days; the statistics, forever. For video apps only the total time counts.</string>
+    <string name="settings_clear">Clear the history</string>
+    <string name="settings_clear_title">Clear the history?</string>
+    <string name="settings_clear_message">All songs, their covers and the statistics are deleted. This can\'t be undone.</string>
+    <string name="settings_clear_confirm">Clear</string>
+    <string name="settings_clear_cancel">Cancel</string>
+    <string name="settings_cleared">History cleared</string>
+    <string name="settings_version">SashaBridge %1$s</string>
+</resources>
