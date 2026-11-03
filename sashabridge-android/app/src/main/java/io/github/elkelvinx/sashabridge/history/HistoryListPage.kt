@@ -11,12 +11,12 @@ import io.github.elkelvinx.sashabridge.R
 import io.github.elkelvinx.sashabridge.media.AppNames
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
 import io.github.elkelvinx.sashabridge.ui.DayNames
+import io.github.elkelvinx.sashabridge.ui.LocaleFormats
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -44,8 +44,8 @@ internal class HistoryListPage(
     private val context = view.context
     private val empty: TextView = view.findViewById(R.id.historyEmpty)
     private val zone: ZoneId = ZoneId.systemDefault()
-    private val timeFormat = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-    private val dayFormat = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale.getDefault())
+    private val timeFormat = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(LocaleFormats.localeOf(context))
+    private val dayFormat = LocaleFormats.dates(LocaleFormats.DAY_HEADING, LocaleFormats.localeOf(context))
     private val dayNames = DayNames(context, zone)
 
     private val adapter = HistoryAdapter(

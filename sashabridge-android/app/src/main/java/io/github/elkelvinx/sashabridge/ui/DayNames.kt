@@ -5,7 +5,6 @@ import io.github.elkelvinx.sashabridge.R
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * How the app names a day: "Hoy", "Ayer", or the date, starting with a capital, as the
@@ -18,11 +17,14 @@ import java.util.Locale
  */
 internal class DayNames(private val context: Context, private val zone: ZoneId = ZoneId.systemDefault()) {
 
+    /** The app's language, which capitalizes the dates. */
+    private val locale = LocaleFormats.localeOf(context)
+
     /** The name of [date], with any other date written in [format]. */
     fun of(date: LocalDate, format: DateTimeFormatter): String = when (relative(date, LocalDate.now(zone))) {
         Relative.TODAY -> context.getString(R.string.history_today)
         Relative.YESTERDAY -> context.getString(R.string.history_yesterday)
-        Relative.OTHER -> format.format(date).replaceFirstChar { it.titlecase(Locale.getDefault()) }
+        Relative.OTHER -> format.format(date).replaceFirstChar { it.titlecase(locale) }
     }
 
     /** Where [date] falls next to [today]. */

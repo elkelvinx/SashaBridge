@@ -25,10 +25,9 @@ import io.github.elkelvinx.sashabridge.history.SongStat
 import io.github.elkelvinx.sashabridge.history.StatsPeriod
 import io.github.elkelvinx.sashabridge.media.ThumbnailStore
 import io.github.elkelvinx.sashabridge.ui.DayNames
+import io.github.elkelvinx.sashabridge.ui.LocaleFormats
 import java.text.NumberFormat
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -68,14 +67,15 @@ internal class StatsPage(
     private val appRows: LinearLayout = view.findViewById(R.id.statsApps)
     private val songRows: LinearLayout = view.findViewById(R.id.statsSongs)
     private val artistRows: LinearLayout = view.findViewById(R.id.statsArtists)
-    private val dayFormat = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+    private val locale = LocaleFormats.localeOf(context)
+    private val dayFormat = LocaleFormats.dates(LocaleFormats.DAY_MONTH, locale)
 
-    /** A day in the bubble of the chart, with its weekday ("sáb 31 oct"). */
-    private val bubbleDayFormat = DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault())
+    /** A day in the bubble of the chart, with its weekday ("sáb, 31 oct"). */
+    private val bubbleDayFormat = LocaleFormats.dates(LocaleFormats.SHORT_DAY, locale)
     private val dayNames = DayNames(context)
 
     /** Counts and ranks with the digits and separators of the phone's language ("1,234"). */
-    private val numbers = NumberFormat.getIntegerInstance()
+    private val numbers = NumberFormat.getIntegerInstance(locale)
 
     private var period = StatsPeriod.WEEK
     private var loading: Job? = null
